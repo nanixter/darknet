@@ -17,6 +17,7 @@ submission/
 cfg/
 darknet
 .fuse*
+bad.list
 
 # OS Generated #
 .DS_Store*
