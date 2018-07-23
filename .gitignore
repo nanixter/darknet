@@ -18,6 +18,7 @@ cfg/
 darknet
 .fuse*
 bad.list
+grpc
 
 # OS Generated #
 .DS_Store*
