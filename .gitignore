@@ -19,6 +19,8 @@ darknet
 .fuse*
 bad.list
 grpc
+libdarknet*
+weights
 
 # OS Generated #
 .DS_Store*

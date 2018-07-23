@@ -175,11 +175,11 @@ class KeyFrame : public ::google::protobuf::Message /* @@protoc_insertion_point(
   ::google::protobuf::int32 height() const;
   void set_height(::google::protobuf::int32 value);
 
-  // int32 c = 3;
-  void clear_c();
-  static const int kCFieldNumber = 3;
-  ::google::protobuf::int32 c() const;
-  void set_c(::google::protobuf::int32 value);
+  // int32 numChannels = 3;
+  void clear_numchannels();
+  static const int kNumChannelsFieldNumber = 3;
+  ::google::protobuf::int32 numchannels() const;
+  void set_numchannels(::google::protobuf::int32 value);
 
   // @@protoc_insertion_point(class_scope:darknetServer.KeyFrame)
  private:
@@ -189,7 +189,7 @@ class KeyFrame : public ::google::protobuf::Message /* @@protoc_insertion_point(
   mutable int _data_cached_byte_size_;
   ::google::protobuf::int32 width_;
   ::google::protobuf::int32 height_;
-  ::google::protobuf::int32 c_;
+  ::google::protobuf::int32 numchannels_;
   mutable int _cached_size_;
   friend struct ::protobuf_darknetserver_2eproto::TableStruct;
   friend void ::protobuf_darknetserver_2eproto::InitDefaultsKeyFrameImpl();
@@ -506,18 +506,18 @@ inline void KeyFrame::set_height(::google::protobuf::int32 value) {
   // @@protoc_insertion_point(field_set:darknetServer.KeyFrame.height)
 }
 
-// int32 c = 3;
-inline void KeyFrame::clear_c() {
-  c_ = 0;
+// int32 numChannels = 3;
+inline void KeyFrame::clear_numchannels() {
+  numchannels_ = 0;
 }
-inline ::google::protobuf::int32 KeyFrame::c() const {
-  // @@protoc_insertion_point(field_get:darknetServer.KeyFrame.c)
-  return c_;
+inline ::google::protobuf::int32 KeyFrame::numchannels() const {
+  // @@protoc_insertion_point(field_get:darknetServer.KeyFrame.numChannels)
+  return numchannels_;
 }
-inline void KeyFrame::set_c(::google::protobuf::int32 value) {
+inline void KeyFrame::set_numchannels(::google::protobuf::int32 value) {
   
-  c_ = value;
-  // @@protoc_insertion_point(field_set:darknetServer.KeyFrame.c)
+  numchannels_ = value;
+  // @@protoc_insertion_point(field_set:darknetServer.KeyFrame.numChannels)
 }
 
 // repeated float data = 4;

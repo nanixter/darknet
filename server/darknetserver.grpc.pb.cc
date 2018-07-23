@@ -16,7 +16,7 @@
 namespace darknetServer {
 
 static const char* ImageDetection_method_names[] = {
-  "/darknetServer.ImageDetection/requestDetection",
+  "/darknetServer.ImageDetection/RequestDetection",
 };
 
 std::unique_ptr< ImageDetection::Stub> ImageDetection::NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options) {
@@ -26,19 +26,19 @@ std::unique_ptr< ImageDetection::Stub> ImageDetection::NewStub(const std::shared
 }
 
 ImageDetection::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& channel)
-  : channel_(channel), rpcmethod_requestDetection_(ImageDetection_method_names[0], ::grpc::internal::RpcMethod::BIDI_STREAMING, channel)
+  : channel_(channel), rpcmethod_RequestDetection_(ImageDetection_method_names[0], ::grpc::internal::RpcMethod::BIDI_STREAMING, channel)
   {}
 
-::grpc::ClientReaderWriter< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>* ImageDetection::Stub::requestDetectionRaw(::grpc::ClientContext* context) {
-  return ::grpc::internal::ClientReaderWriterFactory< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>::Create(channel_.get(), rpcmethod_requestDetection_, context);
+::grpc::ClientReaderWriter< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>* ImageDetection::Stub::RequestDetectionRaw(::grpc::ClientContext* context) {
+  return ::grpc::internal::ClientReaderWriterFactory< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>::Create(channel_.get(), rpcmethod_RequestDetection_, context);
 }
 
-::grpc::ClientAsyncReaderWriter< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>* ImageDetection::Stub::AsyncrequestDetectionRaw(::grpc::ClientContext* context, ::grpc::CompletionQueue* cq, void* tag) {
-  return ::grpc::internal::ClientAsyncReaderWriterFactory< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>::Create(channel_.get(), cq, rpcmethod_requestDetection_, context, true, tag);
+::grpc::ClientAsyncReaderWriter< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>* ImageDetection::Stub::AsyncRequestDetectionRaw(::grpc::ClientContext* context, ::grpc::CompletionQueue* cq, void* tag) {
+  return ::grpc::internal::ClientAsyncReaderWriterFactory< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>::Create(channel_.get(), cq, rpcmethod_RequestDetection_, context, true, tag);
 }
 
-::grpc::ClientAsyncReaderWriter< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>* ImageDetection::Stub::PrepareAsyncrequestDetectionRaw(::grpc::ClientContext* context, ::grpc::CompletionQueue* cq) {
-  return ::grpc::internal::ClientAsyncReaderWriterFactory< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>::Create(channel_.get(), cq, rpcmethod_requestDetection_, context, false, nullptr);
+::grpc::ClientAsyncReaderWriter< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>* ImageDetection::Stub::PrepareAsyncRequestDetectionRaw(::grpc::ClientContext* context, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncReaderWriterFactory< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>::Create(channel_.get(), cq, rpcmethod_RequestDetection_, context, false, nullptr);
 }
 
 ImageDetection::Service::Service() {
@@ -46,13 +46,13 @@ ImageDetection::Service::Service() {
       ImageDetection_method_names[0],
       ::grpc::internal::RpcMethod::BIDI_STREAMING,
       new ::grpc::internal::BidiStreamingHandler< ImageDetection::Service, ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>(
-          std::mem_fn(&ImageDetection::Service::requestDetection), this)));
+          std::mem_fn(&ImageDetection::Service::RequestDetection), this)));
 }
 
 ImageDetection::Service::~Service() {
 }
 
-::grpc::Status ImageDetection::Service::requestDetection(::grpc::ServerContext* context, ::grpc::ServerReaderWriter< ::darknetServer::DetectedObjects, ::darknetServer::KeyFrame>* stream) {
+::grpc::Status ImageDetection::Service::RequestDetection(::grpc::ServerContext* context, ::grpc::ServerReaderWriter< ::darknetServer::DetectedObjects, ::darknetServer::KeyFrame>* stream) {
   (void) context;
   (void) stream;
   return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");

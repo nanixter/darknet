@@ -111,7 +111,7 @@ const ::google::protobuf::uint32 TableStruct::offsets[] GOOGLE_PROTOBUF_ATTRIBUT
   ~0u,  // no _weak_field_map_
   GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::KeyFrame, width_),
   GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::KeyFrame, height_),
-  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::KeyFrame, c_),
+  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::KeyFrame, numchannels_),
   GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::KeyFrame, data_),
   ~0u,  // no _has_bits_
   GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::DetectedObjects_box, _internal_metadata_),
@@ -168,20 +168,20 @@ void protobuf_RegisterTypes(const ::std::string&) {
 void AddDescriptorsImpl() {
   InitDefaults();
   static const char descriptor[] GOOGLE_PROTOBUF_ATTRIBUTE_SECTION_VARIABLE(protodesc_cold) = {
-      "\n\023darknetserver.proto\022\rdarknetServer\"B\n\010"
+      "\n\023darknetserver.proto\022\rdarknetServer\"L\n\010"
       "KeyFrame\022\r\n\005width\030\001 \001(\005\022\016\n\006height\030\002 \001(\005\022"
-      "\t\n\001c\030\003 \001(\005\022\014\n\004data\030\004 \003(\002\"\313\001\n\017DetectedObj"
-      "ects\0220\n\004bbox\030\001 \001(\0132\".darknetServer.Detec"
-      "tedObjects.box\022\017\n\007classes\030\002 \001(\005\022\014\n\004prob\030"
-      "\003 \003(\002\022\014\n\004mask\030\004 \003(\002\022\022\n\nobjectness\030\005 \001(\002\022"
-      "\022\n\nsort_class\030\006 \001(\005\0321\n\003box\022\t\n\001x\030\001 \001(\002\022\t\n"
-      "\001y\030\002 \001(\002\022\t\n\001w\030\003 \001(\002\022\t\n\001h\030\004 \001(\0022c\n\016ImageD"
-      "etection\022Q\n\020requestDetection\022\027.darknetSe"
-      "rver.KeyFrame\032\036.darknetServer.DetectedOb"
-      "jects\"\000(\0010\001b\006proto3"
+      "\023\n\013numChannels\030\003 \001(\005\022\014\n\004data\030\004 \003(\002\"\313\001\n\017D"
+      "etectedObjects\0220\n\004bbox\030\001 \001(\0132\".darknetSe"
+      "rver.DetectedObjects.box\022\017\n\007classes\030\002 \001("
+      "\005\022\014\n\004prob\030\003 \003(\002\022\014\n\004mask\030\004 \003(\002\022\022\n\nobjectn"
+      "ess\030\005 \001(\002\022\022\n\nsort_class\030\006 \001(\005\0321\n\003box\022\t\n\001"
+      "x\030\001 \001(\002\022\t\n\001y\030\002 \001(\002\022\t\n\001w\030\003 \001(\002\022\t\n\001h\030\004 \001(\002"
+      "2c\n\016ImageDetection\022Q\n\020RequestDetection\022\027"
+      ".darknetServer.KeyFrame\032\036.darknetServer."
+      "DetectedObjects\"\000(\0010\001b\006proto3"
   };
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
-      descriptor, 419);
+      descriptor, 429);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "darknetserver.proto", &protobuf_RegisterTypes);
 }
@@ -206,7 +206,7 @@ void KeyFrame::InitAsDefaultInstance() {
 #if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int KeyFrame::kWidthFieldNumber;
 const int KeyFrame::kHeightFieldNumber;
-const int KeyFrame::kCFieldNumber;
+const int KeyFrame::kNumChannelsFieldNumber;
 const int KeyFrame::kDataFieldNumber;
 #endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
@@ -225,15 +225,15 @@ KeyFrame::KeyFrame(const KeyFrame& from)
       _cached_size_(0) {
   _internal_metadata_.MergeFrom(from._internal_metadata_);
   ::memcpy(&width_, &from.width_,
-    static_cast<size_t>(reinterpret_cast<char*>(&c_) -
-    reinterpret_cast<char*>(&width_)) + sizeof(c_));
+    static_cast<size_t>(reinterpret_cast<char*>(&numchannels_) -
+    reinterpret_cast<char*>(&width_)) + sizeof(numchannels_));
   // @@protoc_insertion_point(copy_constructor:darknetServer.KeyFrame)
 }
 
 void KeyFrame::SharedCtor() {
   ::memset(&width_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&c_) -
-      reinterpret_cast<char*>(&width_)) + sizeof(c_));
+      reinterpret_cast<char*>(&numchannels_) -
+      reinterpret_cast<char*>(&width_)) + sizeof(numchannels_));
   _cached_size_ = 0;
 }
 
@@ -276,8 +276,8 @@ void KeyFrame::Clear() {
 
   data_.Clear();
   ::memset(&width_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&c_) -
-      reinterpret_cast<char*>(&width_)) + sizeof(c_));
+      reinterpret_cast<char*>(&numchannels_) -
+      reinterpret_cast<char*>(&width_)) + sizeof(numchannels_));
   _internal_metadata_.Clear();
 }
 
@@ -319,14 +319,14 @@ bool KeyFrame::MergePartialFromCodedStream(
         break;
       }
 
-      // int32 c = 3;
+      // int32 numChannels = 3;
       case 3: {
         if (static_cast< ::google::protobuf::uint8>(tag) ==
             static_cast< ::google::protobuf::uint8>(24u /* 24 & 0xFF */)) {
 
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_INT32>(
-                 input, &c_)));
+                 input, &numchannels_)));
         } else {
           goto handle_unusual;
         }
@@ -388,9 +388,9 @@ void KeyFrame::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteInt32(2, this->height(), output);
   }
 
-  // int32 c = 3;
-  if (this->c() != 0) {
-    ::google::protobuf::internal::WireFormatLite::WriteInt32(3, this->c(), output);
+  // int32 numChannels = 3;
+  if (this->numchannels() != 0) {
+    ::google::protobuf::internal::WireFormatLite::WriteInt32(3, this->numchannels(), output);
   }
 
   // repeated float data = 4;
@@ -426,9 +426,9 @@ void KeyFrame::SerializeWithCachedSizes(
     target = ::google::protobuf::internal::WireFormatLite::WriteInt32ToArray(2, this->height(), target);
   }
 
-  // int32 c = 3;
-  if (this->c() != 0) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteInt32ToArray(3, this->c(), target);
+  // int32 numChannels = 3;
+  if (this->numchannels() != 0) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteInt32ToArray(3, this->numchannels(), target);
   }
 
   // repeated float data = 4;
@@ -491,11 +491,11 @@ size_t KeyFrame::ByteSizeLong() const {
         this->height());
   }
 
-  // int32 c = 3;
-  if (this->c() != 0) {
+  // int32 numChannels = 3;
+  if (this->numchannels() != 0) {
     total_size += 1 +
       ::google::protobuf::internal::WireFormatLite::Int32Size(
-        this->c());
+        this->numchannels());
   }
 
   int cached_size = ::google::protobuf::internal::ToCachedSize(total_size);
@@ -534,8 +534,8 @@ void KeyFrame::MergeFrom(const KeyFrame& from) {
   if (from.height() != 0) {
     set_height(from.height());
   }
-  if (from.c() != 0) {
-    set_c(from.c());
+  if (from.numchannels() != 0) {
+    set_numchannels(from.numchannels());
   }
 }
 
@@ -566,7 +566,7 @@ void KeyFrame::InternalSwap(KeyFrame* other) {
   data_.InternalSwap(&other->data_);
   swap(width_, other->width_);
   swap(height_, other->height_);
-  swap(c_, other->c_);
+  swap(numchannels_, other->numchannels_);
   _internal_metadata_.Swap(&other->_internal_metadata_);
   swap(_cached_size_, other->_cached_size_);
 }
