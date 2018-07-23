@@ -1,6 +1,6 @@
-GPU=0
-CUDNN=0
-OPENCV=0
+GPU=1
+CUDNN=1
+OPENCV=1
 OPENMP=0
 DEBUG=0
 
@@ -37,6 +37,7 @@ OPTS=-O0 -g
 endif
 
 CFLAGS+=$(OPTS)
+CFLAGS+= -g
 
 ifeq ($(OPENCV), 1) 
 COMMON+= -DOPENCV

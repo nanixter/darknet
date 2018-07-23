@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package darknetServer;
+
+service ImageDetection {
+	rpc requestDetection (stream KeyFrame) returns (stream DetectedObjects) {};
+}
+
+message KeyFrame {
+	int32 width=1;
+	int32 height=2;
+	int32 c=3;
+	repeated float data=4;
+}
+
+
+message DetectedObjects {
+	message box {
+		float x=1;
+		float y=2;
+		float w=3;
+		float h=4;
+	}
+
+	box bbox=1;
+	int32 classes=2;
+	repeated float prob=3;
+	repeated float mask=4;
+	float objectness=5;
+	int32 sort_class=6;
+}

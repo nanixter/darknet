@@ -148,7 +148,7 @@ void *fetch_in_thread(void *ptr)
 
 void *display_in_thread(void *ptr)
 {
-    show_image_cv(buff[(buff_index + 1)%3], "Demo", ipl);
+    //show_image_cv(buff[(buff_index + 1)%3], "Demo", ipl);
     int c = cvWaitKey(1);
     if (c != -1) c = c%256;
     if (c == 27) {
@@ -209,7 +209,7 @@ void demo(char *cfgfile, char *weightfile, float thresh, int cam_index, const ch
 
     if(filename){
         printf("video file: %s\n", filename);
-        cap = cvCaptureFromFile(filename);
+        cap = cvCreateFileCapture(filename);
     }else{
         cap = cvCaptureFromCAM(cam_index);
 
