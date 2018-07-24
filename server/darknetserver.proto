@@ -3,7 +3,7 @@ syntax = "proto3";
 package darknetServer;
 
 service ImageDetection {
-	rpc RequestDetection (stream KeyFrame) returns (stream DetectedObjects) {};
+	rpc RequestDetection (KeyFrame) returns (DetectedObjects) {};
 }
 
 message KeyFrame {

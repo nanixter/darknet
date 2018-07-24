@@ -34,38 +34,32 @@ class ImageDetection final {
   class StubInterface {
    public:
     virtual ~StubInterface() {}
-    std::unique_ptr< ::grpc::ClientReaderWriterInterface< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>> RequestDetection(::grpc::ClientContext* context) {
-      return std::unique_ptr< ::grpc::ClientReaderWriterInterface< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>>(RequestDetectionRaw(context));
+    virtual ::grpc::Status RequestDetection(::grpc::ClientContext* context, const ::darknetServer::KeyFrame& request, ::darknetServer::DetectedObjects* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::darknetServer::DetectedObjects>> AsyncRequestDetection(::grpc::ClientContext* context, const ::darknetServer::KeyFrame& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::darknetServer::DetectedObjects>>(AsyncRequestDetectionRaw(context, request, cq));
     }
-    std::unique_ptr< ::grpc::ClientAsyncReaderWriterInterface< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>> AsyncRequestDetection(::grpc::ClientContext* context, ::grpc::CompletionQueue* cq, void* tag) {
-      return std::unique_ptr< ::grpc::ClientAsyncReaderWriterInterface< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>>(AsyncRequestDetectionRaw(context, cq, tag));
-    }
-    std::unique_ptr< ::grpc::ClientAsyncReaderWriterInterface< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>> PrepareAsyncRequestDetection(::grpc::ClientContext* context, ::grpc::CompletionQueue* cq) {
-      return std::unique_ptr< ::grpc::ClientAsyncReaderWriterInterface< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>>(PrepareAsyncRequestDetectionRaw(context, cq));
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::darknetServer::DetectedObjects>> PrepareAsyncRequestDetection(::grpc::ClientContext* context, const ::darknetServer::KeyFrame& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::darknetServer::DetectedObjects>>(PrepareAsyncRequestDetectionRaw(context, request, cq));
     }
   private:
-    virtual ::grpc::ClientReaderWriterInterface< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>* RequestDetectionRaw(::grpc::ClientContext* context) = 0;
-    virtual ::grpc::ClientAsyncReaderWriterInterface< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>* AsyncRequestDetectionRaw(::grpc::ClientContext* context, ::grpc::CompletionQueue* cq, void* tag) = 0;
-    virtual ::grpc::ClientAsyncReaderWriterInterface< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>* PrepareAsyncRequestDetectionRaw(::grpc::ClientContext* context, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::darknetServer::DetectedObjects>* AsyncRequestDetectionRaw(::grpc::ClientContext* context, const ::darknetServer::KeyFrame& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::darknetServer::DetectedObjects>* PrepareAsyncRequestDetectionRaw(::grpc::ClientContext* context, const ::darknetServer::KeyFrame& request, ::grpc::CompletionQueue* cq) = 0;
   };
   class Stub final : public StubInterface {
    public:
     Stub(const std::shared_ptr< ::grpc::ChannelInterface>& channel);
-    std::unique_ptr< ::grpc::ClientReaderWriter< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>> RequestDetection(::grpc::ClientContext* context) {
-      return std::unique_ptr< ::grpc::ClientReaderWriter< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>>(RequestDetectionRaw(context));
+    ::grpc::Status RequestDetection(::grpc::ClientContext* context, const ::darknetServer::KeyFrame& request, ::darknetServer::DetectedObjects* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::darknetServer::DetectedObjects>> AsyncRequestDetection(::grpc::ClientContext* context, const ::darknetServer::KeyFrame& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::darknetServer::DetectedObjects>>(AsyncRequestDetectionRaw(context, request, cq));
     }
-    std::unique_ptr<  ::grpc::ClientAsyncReaderWriter< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>> AsyncRequestDetection(::grpc::ClientContext* context, ::grpc::CompletionQueue* cq, void* tag) {
-      return std::unique_ptr< ::grpc::ClientAsyncReaderWriter< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>>(AsyncRequestDetectionRaw(context, cq, tag));
-    }
-    std::unique_ptr<  ::grpc::ClientAsyncReaderWriter< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>> PrepareAsyncRequestDetection(::grpc::ClientContext* context, ::grpc::CompletionQueue* cq) {
-      return std::unique_ptr< ::grpc::ClientAsyncReaderWriter< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>>(PrepareAsyncRequestDetectionRaw(context, cq));
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::darknetServer::DetectedObjects>> PrepareAsyncRequestDetection(::grpc::ClientContext* context, const ::darknetServer::KeyFrame& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::darknetServer::DetectedObjects>>(PrepareAsyncRequestDetectionRaw(context, request, cq));
     }
 
    private:
     std::shared_ptr< ::grpc::ChannelInterface> channel_;
-    ::grpc::ClientReaderWriter< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>* RequestDetectionRaw(::grpc::ClientContext* context) override;
-    ::grpc::ClientAsyncReaderWriter< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>* AsyncRequestDetectionRaw(::grpc::ClientContext* context, ::grpc::CompletionQueue* cq, void* tag) override;
-    ::grpc::ClientAsyncReaderWriter< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>* PrepareAsyncRequestDetectionRaw(::grpc::ClientContext* context, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::darknetServer::DetectedObjects>* AsyncRequestDetectionRaw(::grpc::ClientContext* context, const ::darknetServer::KeyFrame& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::darknetServer::DetectedObjects>* PrepareAsyncRequestDetectionRaw(::grpc::ClientContext* context, const ::darknetServer::KeyFrame& request, ::grpc::CompletionQueue* cq) override;
     const ::grpc::internal::RpcMethod rpcmethod_RequestDetection_;
   };
   static std::unique_ptr<Stub> NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options = ::grpc::StubOptions());
@@ -74,7 +68,7 @@ class ImageDetection final {
    public:
     Service();
     virtual ~Service();
-    virtual ::grpc::Status RequestDetection(::grpc::ServerContext* context, ::grpc::ServerReaderWriter< ::darknetServer::DetectedObjects, ::darknetServer::KeyFrame>* stream);
+    virtual ::grpc::Status RequestDetection(::grpc::ServerContext* context, const ::darknetServer::KeyFrame* request, ::darknetServer::DetectedObjects* response);
   };
   template <class BaseClass>
   class WithAsyncMethod_RequestDetection : public BaseClass {
@@ -88,12 +82,12 @@ class ImageDetection final {
       BaseClassMustBeDerivedFromService(this);
     }
     // disable synchronous version of this method
-    ::grpc::Status RequestDetection(::grpc::ServerContext* context, ::grpc::ServerReaderWriter< ::darknetServer::DetectedObjects, ::darknetServer::KeyFrame>* stream)  override {
+    ::grpc::Status RequestDetection(::grpc::ServerContext* context, const ::darknetServer::KeyFrame* request, ::darknetServer::DetectedObjects* response) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
-    void RequestRequestDetection(::grpc::ServerContext* context, ::grpc::ServerAsyncReaderWriter< ::darknetServer::DetectedObjects, ::darknetServer::KeyFrame>* stream, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
-      ::grpc::Service::RequestAsyncBidiStreaming(0, context, stream, new_call_cq, notification_cq, tag);
+    void RequestRequestDetection(::grpc::ServerContext* context, ::darknetServer::KeyFrame* request, ::grpc::ServerAsyncResponseWriter< ::darknetServer::DetectedObjects>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(0, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
   typedef WithAsyncMethod_RequestDetection<Service > AsyncService;
@@ -109,7 +103,7 @@ class ImageDetection final {
       BaseClassMustBeDerivedFromService(this);
     }
     // disable synchronous version of this method
-    ::grpc::Status RequestDetection(::grpc::ServerContext* context, ::grpc::ServerReaderWriter< ::darknetServer::DetectedObjects, ::darknetServer::KeyFrame>* stream)  override {
+    ::grpc::Status RequestDetection(::grpc::ServerContext* context, const ::darknetServer::KeyFrame* request, ::darknetServer::DetectedObjects* response) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
@@ -126,17 +120,37 @@ class ImageDetection final {
       BaseClassMustBeDerivedFromService(this);
     }
     // disable synchronous version of this method
-    ::grpc::Status RequestDetection(::grpc::ServerContext* context, ::grpc::ServerReaderWriter< ::darknetServer::DetectedObjects, ::darknetServer::KeyFrame>* stream)  override {
+    ::grpc::Status RequestDetection(::grpc::ServerContext* context, const ::darknetServer::KeyFrame* request, ::darknetServer::DetectedObjects* response) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
-    void RequestRequestDetection(::grpc::ServerContext* context, ::grpc::ServerAsyncReaderWriter< ::grpc::ByteBuffer, ::grpc::ByteBuffer>* stream, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
-      ::grpc::Service::RequestAsyncBidiStreaming(0, context, stream, new_call_cq, notification_cq, tag);
+    void RequestRequestDetection(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(0, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
-  typedef Service StreamedUnaryService;
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_RequestDetection : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service *service) {}
+   public:
+    WithStreamedUnaryMethod_RequestDetection() {
+      ::grpc::Service::MarkMethodStreamed(0,
+        new ::grpc::internal::StreamedUnaryHandler< ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>(std::bind(&WithStreamedUnaryMethod_RequestDetection<BaseClass>::StreamedRequestDetection, this, std::placeholders::_1, std::placeholders::_2)));
+    }
+    ~WithStreamedUnaryMethod_RequestDetection() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status RequestDetection(::grpc::ServerContext* context, const ::darknetServer::KeyFrame* request, ::darknetServer::DetectedObjects* response) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedRequestDetection(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::darknetServer::KeyFrame,::darknetServer::DetectedObjects>* server_unary_streamer) = 0;
+  };
+  typedef WithStreamedUnaryMethod_RequestDetection<Service > StreamedUnaryService;
   typedef Service SplitStreamedService;
-  typedef Service StreamedService;
+  typedef WithStreamedUnaryMethod_RequestDetection<Service > StreamedService;
 };
 
 }  // namespace darknetServer

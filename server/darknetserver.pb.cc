@@ -176,12 +176,12 @@ void AddDescriptorsImpl() {
       "\005\022\014\n\004prob\030\003 \003(\002\022\014\n\004mask\030\004 \003(\002\022\022\n\nobjectn"
       "ess\030\005 \001(\002\022\022\n\nsort_class\030\006 \001(\005\0321\n\003box\022\t\n\001"
       "x\030\001 \001(\002\022\t\n\001y\030\002 \001(\002\022\t\n\001w\030\003 \001(\002\022\t\n\001h\030\004 \001(\002"
-      "2c\n\016ImageDetection\022Q\n\020RequestDetection\022\027"
+      "2_\n\016ImageDetection\022M\n\020RequestDetection\022\027"
       ".darknetServer.KeyFrame\032\036.darknetServer."
-      "DetectedObjects\"\000(\0010\001b\006proto3"
+      "DetectedObjects\"\000b\006proto3"
   };
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
-      descriptor, 429);
+      descriptor, 425);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "darknetserver.proto", &protobuf_RegisterTypes);
 }
