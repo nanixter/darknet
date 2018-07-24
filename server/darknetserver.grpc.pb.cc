@@ -26,36 +26,36 @@ std::unique_ptr< ImageDetection::Stub> ImageDetection::NewStub(const std::shared
 }
 
 ImageDetection::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& channel)
-  : channel_(channel), rpcmethod_RequestDetection_(ImageDetection_method_names[0], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  : channel_(channel), rpcmethod_RequestDetection_(ImageDetection_method_names[0], ::grpc::internal::RpcMethod::SERVER_STREAMING, channel)
   {}
 
-::grpc::Status ImageDetection::Stub::RequestDetection(::grpc::ClientContext* context, const ::darknetServer::KeyFrame& request, ::darknetServer::DetectedObjects* response) {
-  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_RequestDetection_, context, request, response);
+::grpc::ClientReader< ::darknetServer::DetectedObjects>* ImageDetection::Stub::RequestDetectionRaw(::grpc::ClientContext* context, const ::darknetServer::KeyFrame& request) {
+  return ::grpc::internal::ClientReaderFactory< ::darknetServer::DetectedObjects>::Create(channel_.get(), rpcmethod_RequestDetection_, context, request);
 }
 
-::grpc::ClientAsyncResponseReader< ::darknetServer::DetectedObjects>* ImageDetection::Stub::AsyncRequestDetectionRaw(::grpc::ClientContext* context, const ::darknetServer::KeyFrame& request, ::grpc::CompletionQueue* cq) {
-  return ::grpc::internal::ClientAsyncResponseReaderFactory< ::darknetServer::DetectedObjects>::Create(channel_.get(), cq, rpcmethod_RequestDetection_, context, request, true);
+::grpc::ClientAsyncReader< ::darknetServer::DetectedObjects>* ImageDetection::Stub::AsyncRequestDetectionRaw(::grpc::ClientContext* context, const ::darknetServer::KeyFrame& request, ::grpc::CompletionQueue* cq, void* tag) {
+  return ::grpc::internal::ClientAsyncReaderFactory< ::darknetServer::DetectedObjects>::Create(channel_.get(), cq, rpcmethod_RequestDetection_, context, request, true, tag);
 }
 
-::grpc::ClientAsyncResponseReader< ::darknetServer::DetectedObjects>* ImageDetection::Stub::PrepareAsyncRequestDetectionRaw(::grpc::ClientContext* context, const ::darknetServer::KeyFrame& request, ::grpc::CompletionQueue* cq) {
-  return ::grpc::internal::ClientAsyncResponseReaderFactory< ::darknetServer::DetectedObjects>::Create(channel_.get(), cq, rpcmethod_RequestDetection_, context, request, false);
+::grpc::ClientAsyncReader< ::darknetServer::DetectedObjects>* ImageDetection::Stub::PrepareAsyncRequestDetectionRaw(::grpc::ClientContext* context, const ::darknetServer::KeyFrame& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncReaderFactory< ::darknetServer::DetectedObjects>::Create(channel_.get(), cq, rpcmethod_RequestDetection_, context, request, false, nullptr);
 }
 
 ImageDetection::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       ImageDetection_method_names[0],
-      ::grpc::internal::RpcMethod::NORMAL_RPC,
-      new ::grpc::internal::RpcMethodHandler< ImageDetection::Service, ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>(
+      ::grpc::internal::RpcMethod::SERVER_STREAMING,
+      new ::grpc::internal::ServerStreamingHandler< ImageDetection::Service, ::darknetServer::KeyFrame, ::darknetServer::DetectedObjects>(
           std::mem_fn(&ImageDetection::Service::RequestDetection), this)));
 }
 
 ImageDetection::Service::~Service() {
 }
 
-::grpc::Status ImageDetection::Service::RequestDetection(::grpc::ServerContext* context, const ::darknetServer::KeyFrame* request, ::darknetServer::DetectedObjects* response) {
+::grpc::Status ImageDetection::Service::RequestDetection(::grpc::ServerContext* context, const ::darknetServer::KeyFrame* request, ::grpc::ServerWriter< ::darknetServer::DetectedObjects>* writer) {
   (void) context;
   (void) request;
-  (void) response;
+  (void) writer;
   return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
 }
 
