@@ -1,14 +1,16 @@
+#include "opencv2/highgui/highgui.hpp"
 #include <iostream>
 #include <memory>
 #include <string>
+#include <cstring>
 #include <vector>
+#include <cstdio>
 
 #include <grpcpp/grpcpp.h>
 #include <grpc/support/log.h>
 #include <thread>
 
 #include "darknetserver.grpc.pb.h"
-#include "darknet.h"
 
 using grpc::Channel;
 using grpc::ClientAsyncReaderWriter;
@@ -18,6 +20,57 @@ using grpc::Status;
 using darknetServer::DetectedObjects;
 using darknetServer::KeyFrame;
 using darknetServer::ImageDetection;
+using namespace cv;
+
+typedef struct {
+    int width;
+    int height;
+    int numChannels;
+    int widthStep;
+    float *data;
+} Image;
+
+char *find_char_arg(int argc, char **argv, char *arg, char *def)
+{
+    int i;
+    for(i = 0; i < argc-1; ++i){
+        if(!argv[i]) continue;
+        if(0==strcmp(argv[i], arg)){
+            def = argv[i+1];
+            del_arg(argc, argv, i);
+            del_arg(argc, argv, i);
+            break;
+        }
+    }
+    return def;
+}
+
+void printImage(Image *image){
+    cout << "width: " << image.width <<endl;
+    cout << "height: " << image.height <<endl;
+    cout << "numChannels: " << image.numChannels <<endl;
+    cout << "widthStep: " << image.widthStep <<endl;
+    cout << "Data: " << endl;
+    for (int i = 0; i < (image.width * image.height * image.numChannels); i++ )
+        cout << image.data[i];
+}
+
+Image getImageFromMat(Mat &m) {
+    Image image;
+    image.height = m.rows;
+    image.width = m.cols;
+    image.numChannels = m.channels();
+    image.widthStep = (int)m.step1();
+    image.data = new float[h*w*c]();
+
+    for(int i = 0; i < h; ++i){
+        for(int k= 0; k < c; ++k){
+            for(int j = 0; j < w; ++j){
+                image.data[k*w*h + i*w + j] = m.data[i*step + j*c + k]/255.;
+            }
+        }
+    }
+}
 
 class ImageDetectionClient {
   public:
@@ -25,14 +78,14 @@ class ImageDetectionClient {
             : stub_(ImageDetection::NewStub(channel)) {}
 
     // Assembles the client's payload and sends it to the server.
-    void SendImage(image *Image) {
+    void AsyncSendImage(Image *image) {
         // Data we are sending to the server.
         KeyFrame frame;
-        frame.set_width(Image->w);
-        frame.set_height(Image->h);
-        frame.set_numChannels(Image->c);
-        for (int i = 0; i < (Image->h * Image->w * Image->c); i++)
-            frame.add_data(Image->data[i]);
+        frame.set_width(image->width);
+        frame.set_height(image->height);
+        frame.set_numChannels(image->numChannels);
+        for (int i = 0; i < (image->height * image->width * image->numChannels); i++)
+            frame.add_data(image->data[i]);
 
         // Call object to store rpc data
         AsyncClientCall* call = new AsyncClientCall;
@@ -141,20 +194,29 @@ int main(int argc, char** argv) {
             "localhost:50051", grpc::InsecureChannelCredentials()));
 
     // Spawn reader thread that loops indefinitely
-    std::thread thread_ = std::thread(&ImageDetectionClient::AsyncCompleteRpc, 
+    std::thread completionThread = std::thread(&ImageDetectionClient::AsyncCompleteRpc, 
         &detectionClient);
 
     // Do any associated setup (metadata etc.)
 
     // Open the input video file
+    char *filename = find_char_arg(argc, argv, "-f", 0);
+    printf("video file: %s\n", filename);
+    VideoCapture capture(filename);
 
     // Decode and obtain KeyFrames
-
-    // The actual RPC call!
-    ImageDetection.SendImage(&image);
+    if (capture.isOpened()) {
+        Mat capturedFrame = NULL;
+        while(capture.read(capturedFrame)) {
+            // The actual RPC call!
+            Image image = getImageFromMat(capturedFrame);
+            printImage(&image);
+            // ImageDetection.AsyncSendImage(&image);
+        }
+    }
 
     std::cout << "Press control-c to quit" << std::endl << std::endl;
-    thread_.join();  //blocks forever
+    completionThread.join();  //blocks forever
 
     return 0;
 }

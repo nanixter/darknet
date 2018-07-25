@@ -10,7 +10,8 @@ message KeyFrame {
 	int32 width=1;
 	int32 height=2;
 	int32 numChannels=3;
-	repeated float data=4;
+	int32 widthStep = 4;
+	repeated float data=5;
 }
 
 
