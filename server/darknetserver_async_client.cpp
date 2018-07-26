@@ -20,7 +20,6 @@ using grpc::Status;
 using darknetServer::DetectedObjects;
 using darknetServer::KeyFrame;
 using darknetServer::ImageDetection;
-using namespace cv;
 
 typedef struct {
     int width;
@@ -30,43 +29,28 @@ typedef struct {
     float *data;
 } Image;
 
-char *find_char_arg(int argc, char **argv, char *arg, char *def)
-{
-    int i;
-    for(i = 0; i < argc-1; ++i){
-        if(!argv[i]) continue;
-        if(0==strcmp(argv[i], arg)){
-            def = argv[i+1];
-            del_arg(argc, argv, i);
-            del_arg(argc, argv, i);
-            break;
-        }
-    }
-    return def;
-}
-
-void printImage(Image *image){
-    cout << "width: " << image.width <<endl;
-    cout << "height: " << image.height <<endl;
-    cout << "numChannels: " << image.numChannels <<endl;
-    cout << "widthStep: " << image.widthStep <<endl;
-    cout << "Data: " << endl;
+void printImage(Image &image){
+    std::cout << "width: " << image.width <<std::endl;
+    std::cout << "height: " << image.height <<std::endl;
+    std::cout << "numChannels: " << image.numChannels <<std::endl;
+    std::cout << "widthStep: " << image.widthStep <<std::endl;
+    std::cout << "Data: " << std::endl;
     for (int i = 0; i < (image.width * image.height * image.numChannels); i++ )
-        cout << image.data[i];
+        std::cout << image.data[i];
 }
 
-Image getImageFromMat(Mat &m) {
+Image getImageFromMat(cv::Mat &m) {
     Image image;
     image.height = m.rows;
     image.width = m.cols;
     image.numChannels = m.channels();
     image.widthStep = (int)m.step1();
-    image.data = new float[h*w*c]();
+    image.data = new float[image.height*image.width*image.numChannels]();
 
-    for(int i = 0; i < h; ++i){
-        for(int k= 0; k < c; ++k){
-            for(int j = 0; j < w; ++j){
-                image.data[k*w*h + i*w + j] = m.data[i*step + j*c + k]/255.;
+    for(int i = 0; i < image.height; ++i){
+        for(int k= 0; k < image.numChannels; ++k){
+            for(int j = 0; j < image.width; ++j){
+                image.data[k*image.width*image.height + i*image.width + j] = m.data[i*image.widthStep + j*image.numChannels + k]/255.;
             }
         }
     }
@@ -83,7 +67,7 @@ class ImageDetectionClient {
         KeyFrame frame;
         frame.set_width(image->width);
         frame.set_height(image->height);
-        frame.set_numChannels(image->numChannels);
+        frame.set_numchannels(image->numChannels);
         for (int i = 0; i < (image->height * image->width * image->numChannels); i++)
             frame.add_data(image->data[i]);
 
@@ -129,7 +113,7 @@ class ImageDetectionClient {
 
             std::vector<DetectedObjects> detectedObjects;
             DetectedObjects object;
-            while(async_reader.Read(&object, got_tag)) {
+            while(call->async_reader->Read(&object, got_tag)) {
                 detectedObjects.push_back(object);
             }
 
@@ -137,13 +121,13 @@ class ImageDetectionClient {
                 // print out what we received...
                 std::cout   << "Objects detected: " << std::endl;
                 for (auto i = detectedObjects.begin(); i < detectedObjects.end(); i++) {
-                    std::cout   << i.bbox().x() << ", "
-                                << i.bbox().y() << ", "
-                                << i.bbox().w() << ", "
-                                << i.bbox().h() << ", "
-                                << i.classes() << ", ";
-                    for (auto j = 0; j < i.prob_size(); j++) {
-                        std::cout << i.prob(j);
+                    std::cout   << i->bbox().x() << ", "
+                                << i->bbox().y() << ", "
+                                << i->bbox().w() << ", "
+                                << i->bbox().h() << ", "
+                                << i->classes() << ", ";
+                    for (auto j = 0; j < i->prob_size(); j++) {
+                        std::cout << i->prob(j);
                     }
                     std::cout << std::endl;
                 }
@@ -170,7 +154,7 @@ class ImageDetectionClient {
         // Storage for the status of the RPC upon completion.
         Status status;
 
-        std::unique_ptr<ClientAsyncReader<DetectedObjects>> async_reader;
+        std::unique_ptr<grpc::ClientAsyncReader<DetectedObjects>> async_reader;
     };
 
     // Out of the passed in Channel comes the stub, stored here, our view of the
@@ -200,22 +184,31 @@ int main(int argc, char** argv) {
     // Do any associated setup (metadata etc.)
 
     // Open the input video file
-    char *filename = find_char_arg(argc, argv, "-f", 0);
+    char *filename;
+    for(int i = 0; i < argc-1; ++i){
+        if(0==strcmp(argv[i], "-f")){
+            filename = argv[i+1];
+        }
+    }
+    if (NULL == filename) {
+        printf("Couldn't open file");
+        return -1;
+    }   
     printf("video file: %s\n", filename);
-    VideoCapture capture(filename);
+    cv::VideoCapture capture(filename);
 
     // Decode and obtain KeyFrames
     if (capture.isOpened()) {
-        Mat capturedFrame = NULL;
+        cv::Mat capturedFrame;
         while(capture.read(capturedFrame)) {
             // The actual RPC call!
             Image image = getImageFromMat(capturedFrame);
-            printImage(&image);
+            printImage(image);
             // ImageDetection.AsyncSendImage(&image);
         }
     }
 
-    std::cout << "Press control-c to quit" << std::endl << std::endl;
+    std::cout << "Press control-c to quit" << std::endl;
     completionThread.join();  //blocks forever
 
     return 0;

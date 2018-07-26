@@ -151,10 +151,10 @@ class KeyFrame : public ::google::protobuf::Message /* @@protoc_insertion_point(
 
   // accessors -------------------------------------------------------
 
-  // repeated float data = 4;
+  // repeated float data = 5;
   int data_size() const;
   void clear_data();
-  static const int kDataFieldNumber = 4;
+  static const int kDataFieldNumber = 5;
   float data(int index) const;
   void set_data(int index, float value);
   void add_data(float value);
@@ -181,6 +181,12 @@ class KeyFrame : public ::google::protobuf::Message /* @@protoc_insertion_point(
   ::google::protobuf::int32 numchannels() const;
   void set_numchannels(::google::protobuf::int32 value);
 
+  // int32 widthStep = 4;
+  void clear_widthstep();
+  static const int kWidthStepFieldNumber = 4;
+  ::google::protobuf::int32 widthstep() const;
+  void set_widthstep(::google::protobuf::int32 value);
+
   // @@protoc_insertion_point(class_scope:darknetServer.KeyFrame)
  private:
 
@@ -190,6 +196,7 @@ class KeyFrame : public ::google::protobuf::Message /* @@protoc_insertion_point(
   ::google::protobuf::int32 width_;
   ::google::protobuf::int32 height_;
   ::google::protobuf::int32 numchannels_;
+  ::google::protobuf::int32 widthstep_;
   mutable int _cached_size_;
   friend struct ::protobuf_darknetserver_2eproto::TableStruct;
   friend void ::protobuf_darknetserver_2eproto::InitDefaultsKeyFrameImpl();
@@ -520,7 +527,21 @@ inline void KeyFrame::set_numchannels(::google::protobuf::int32 value) {
   // @@protoc_insertion_point(field_set:darknetServer.KeyFrame.numChannels)
 }
 
-// repeated float data = 4;
+// int32 widthStep = 4;
+inline void KeyFrame::clear_widthstep() {
+  widthstep_ = 0;
+}
+inline ::google::protobuf::int32 KeyFrame::widthstep() const {
+  // @@protoc_insertion_point(field_get:darknetServer.KeyFrame.widthStep)
+  return widthstep_;
+}
+inline void KeyFrame::set_widthstep(::google::protobuf::int32 value) {
+  
+  widthstep_ = value;
+  // @@protoc_insertion_point(field_set:darknetServer.KeyFrame.widthStep)
+}
+
+// repeated float data = 5;
 inline int KeyFrame::data_size() const {
   return data_.size();
 }

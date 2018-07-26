@@ -3,7 +3,7 @@
 CXX = g++
 CPPFLAGS += `pkg-config --cflags protobuf grpc`
 CXXFLAGS += -std=c++11
-LDFLAGS += -L/usr/local/lib `pkg-config --libs protobuf grpc++ grpc`\
+LDFLAGS += -L/usr/local/lib `pkg-config --libs protobuf grpc++ grpc opencv`\
            -Wl,--no-as-needed -lgrpc++_reflection -Wl,--as-needed\
            -ldl
 PROTOC = protoc
@@ -14,22 +14,16 @@ PROTOS_PATH = .
 
 vpath %.proto $(PROTOS_PATH)
 
-all: system-check darknetserver_client darknetserver_server darknetserver_async_client darknetserver_async_client2 darknetserver_async_server
-
-darknetserver_client: darknetserver.pb.o darknetserver.grpc.pb.o darknetserver_client.o
-	$(CXX) $^ $(LDFLAGS) -o $@
-
-darknetserver_server: darknetserver.pb.o darknetserver.grpc.pb.o darknetserver_server.o
-	$(CXX) $^ $(LDFLAGS) -o $@
+all: system-check darknetserver_async_client darknetserver_async_server
 
 darknetserver_async_client: darknetserver.pb.o darknetserver.grpc.pb.o darknetserver_async_client.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
-darknetserver_async_client2: darknetserver.pb.o darknetserver.grpc.pb.o darknetserver_async_client2.o
-	$(CXX) $^ $(LDFLAGS) -o $@
-
 darknetserver_async_server: darknetserver.pb.o darknetserver.grpc.pb.o darknetserver_async_server.o
 	$(CXX) $^ $(LDFLAGS) -o $@
+
+darknetserver_async_client.o: darknetserver_async_client.cpp
+	$(CXX) $(CXXFLAGS) $^ $(LDFLAGS) -o $@
 
 .PRECIOUS: %.grpc.pb.cc
 %.grpc.pb.cc: %.proto
