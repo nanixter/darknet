@@ -13,7 +13,7 @@
 #include "darknetserver.grpc.pb.h"
 
 using grpc::Channel;
-using grpc::ClientAsyncReaderWriter;
+using grpc::ClientAsyncResponseReader;
 using grpc::ClientContext;
 using grpc::CompletionQueue;
 using grpc::Status;
@@ -86,12 +86,12 @@ class ImageDetectionClient {
 
         // StartCall initiates the RPC call
         // Tag: the memory address of the call object.
-        call->async_reader->StartCall((void *)&call);
+        call->async_reader->StartCall();
 
         // Request that, upon completion of the RPC, "reply" be updated with the
         // server's response; "status" with the indication of whether the operation
         // was successful. Tag the request with the memory address of the call object.
-        call->async_reader->Finish(&call->status, (void*)call);
+        call->async_reader->Finish(&call->detectedObjects, &call->status, (void*)call);
 
     }
 
@@ -154,7 +154,7 @@ class ImageDetectionClient {
         // Storage for the status of the RPC upon completion.
         Status status;
 
-        std::unique_ptr<grpc::ClientAsyncReader<DetectedObjects>> async_reader;
+        std::unique_ptr<grpc::ClientAsyncResponseReader<DetectedObjects>> async_reader;
     };
 
     // Out of the passed in Channel comes the stub, stored here, our view of the
