@@ -36,7 +36,7 @@ namespace protobuf_darknetserver_2eproto {
 struct TableStruct {
   static const ::google::protobuf::internal::ParseTableField entries[];
   static const ::google::protobuf::internal::AuxillaryParseTableField aux[];
-  static const ::google::protobuf::internal::ParseTable schema[3];
+  static const ::google::protobuf::internal::ParseTable schema[4];
   static const ::google::protobuf::internal::FieldMetadata field_metadata[];
   static const ::google::protobuf::internal::SerializationTable serialization_table[];
   static const ::google::protobuf::uint32 offsets[];
@@ -44,13 +44,16 @@ struct TableStruct {
 void AddDescriptors();
 void InitDefaultsKeyFrameImpl();
 void InitDefaultsKeyFrame();
-void InitDefaultsDetectedObjects_boxImpl();
-void InitDefaultsDetectedObjects_box();
+void InitDefaultsDetectedObjects_DetectedObject_boxImpl();
+void InitDefaultsDetectedObjects_DetectedObject_box();
+void InitDefaultsDetectedObjects_DetectedObjectImpl();
+void InitDefaultsDetectedObjects_DetectedObject();
 void InitDefaultsDetectedObjectsImpl();
 void InitDefaultsDetectedObjects();
 inline void InitDefaults() {
   InitDefaultsKeyFrame();
-  InitDefaultsDetectedObjects_box();
+  InitDefaultsDetectedObjects_DetectedObject_box();
+  InitDefaultsDetectedObjects_DetectedObject();
   InitDefaultsDetectedObjects();
 }
 }  // namespace protobuf_darknetserver_2eproto
@@ -58,9 +61,12 @@ namespace darknetServer {
 class DetectedObjects;
 class DetectedObjectsDefaultTypeInternal;
 extern DetectedObjectsDefaultTypeInternal _DetectedObjects_default_instance_;
-class DetectedObjects_box;
-class DetectedObjects_boxDefaultTypeInternal;
-extern DetectedObjects_boxDefaultTypeInternal _DetectedObjects_box_default_instance_;
+class DetectedObjects_DetectedObject;
+class DetectedObjects_DetectedObjectDefaultTypeInternal;
+extern DetectedObjects_DetectedObjectDefaultTypeInternal _DetectedObjects_DetectedObject_default_instance_;
+class DetectedObjects_DetectedObject_box;
+class DetectedObjects_DetectedObject_boxDefaultTypeInternal;
+extern DetectedObjects_DetectedObject_boxDefaultTypeInternal _DetectedObjects_DetectedObject_box_default_instance_;
 class KeyFrame;
 class KeyFrameDefaultTypeInternal;
 extern KeyFrameDefaultTypeInternal _KeyFrame_default_instance_;
@@ -203,24 +209,24 @@ class KeyFrame : public ::google::protobuf::Message /* @@protoc_insertion_point(
 };
 // -------------------------------------------------------------------
 
-class DetectedObjects_box : public ::google::protobuf::Message /* @@protoc_insertion_point(class_definition:darknetServer.DetectedObjects.box) */ {
+class DetectedObjects_DetectedObject_box : public ::google::protobuf::Message /* @@protoc_insertion_point(class_definition:darknetServer.DetectedObjects.DetectedObject.box) */ {
  public:
-  DetectedObjects_box();
-  virtual ~DetectedObjects_box();
+  DetectedObjects_DetectedObject_box();
+  virtual ~DetectedObjects_DetectedObject_box();
 
-  DetectedObjects_box(const DetectedObjects_box& from);
+  DetectedObjects_DetectedObject_box(const DetectedObjects_DetectedObject_box& from);
 
-  inline DetectedObjects_box& operator=(const DetectedObjects_box& from) {
+  inline DetectedObjects_DetectedObject_box& operator=(const DetectedObjects_DetectedObject_box& from) {
     CopyFrom(from);
     return *this;
   }
   #if LANG_CXX11
-  DetectedObjects_box(DetectedObjects_box&& from) noexcept
-    : DetectedObjects_box() {
+  DetectedObjects_DetectedObject_box(DetectedObjects_DetectedObject_box&& from) noexcept
+    : DetectedObjects_DetectedObject_box() {
     *this = ::std::move(from);
   }
 
-  inline DetectedObjects_box& operator=(DetectedObjects_box&& from) noexcept {
+  inline DetectedObjects_DetectedObject_box& operator=(DetectedObjects_DetectedObject_box&& from) noexcept {
     if (GetArenaNoVirtual() == from.GetArenaNoVirtual()) {
       if (this != &from) InternalSwap(&from);
     } else {
@@ -230,30 +236,30 @@ class DetectedObjects_box : public ::google::protobuf::Message /* @@protoc_inser
   }
   #endif
   static const ::google::protobuf::Descriptor* descriptor();
-  static const DetectedObjects_box& default_instance();
+  static const DetectedObjects_DetectedObject_box& default_instance();
 
   static void InitAsDefaultInstance();  // FOR INTERNAL USE ONLY
-  static inline const DetectedObjects_box* internal_default_instance() {
-    return reinterpret_cast<const DetectedObjects_box*>(
-               &_DetectedObjects_box_default_instance_);
+  static inline const DetectedObjects_DetectedObject_box* internal_default_instance() {
+    return reinterpret_cast<const DetectedObjects_DetectedObject_box*>(
+               &_DetectedObjects_DetectedObject_box_default_instance_);
   }
   static PROTOBUF_CONSTEXPR int const kIndexInFileMessages =
     1;
 
-  void Swap(DetectedObjects_box* other);
-  friend void swap(DetectedObjects_box& a, DetectedObjects_box& b) {
+  void Swap(DetectedObjects_DetectedObject_box* other);
+  friend void swap(DetectedObjects_DetectedObject_box& a, DetectedObjects_DetectedObject_box& b) {
     a.Swap(&b);
   }
 
   // implements Message ----------------------------------------------
 
-  inline DetectedObjects_box* New() const PROTOBUF_FINAL { return New(NULL); }
+  inline DetectedObjects_DetectedObject_box* New() const PROTOBUF_FINAL { return New(NULL); }
 
-  DetectedObjects_box* New(::google::protobuf::Arena* arena) const PROTOBUF_FINAL;
+  DetectedObjects_DetectedObject_box* New(::google::protobuf::Arena* arena) const PROTOBUF_FINAL;
   void CopyFrom(const ::google::protobuf::Message& from) PROTOBUF_FINAL;
   void MergeFrom(const ::google::protobuf::Message& from) PROTOBUF_FINAL;
-  void CopyFrom(const DetectedObjects_box& from);
-  void MergeFrom(const DetectedObjects_box& from);
+  void CopyFrom(const DetectedObjects_DetectedObject_box& from);
+  void MergeFrom(const DetectedObjects_DetectedObject_box& from);
   void Clear() PROTOBUF_FINAL;
   bool IsInitialized() const PROTOBUF_FINAL;
 
@@ -269,7 +275,7 @@ class DetectedObjects_box : public ::google::protobuf::Message /* @@protoc_inser
   void SharedCtor();
   void SharedDtor();
   void SetCachedSize(int size) const PROTOBUF_FINAL;
-  void InternalSwap(DetectedObjects_box* other);
+  void InternalSwap(DetectedObjects_DetectedObject_box* other);
   private:
   inline ::google::protobuf::Arena* GetArenaNoVirtual() const {
     return NULL;
@@ -309,7 +315,7 @@ class DetectedObjects_box : public ::google::protobuf::Message /* @@protoc_inser
   float h() const;
   void set_h(float value);
 
-  // @@protoc_insertion_point(class_scope:darknetServer.DetectedObjects.box)
+  // @@protoc_insertion_point(class_scope:darknetServer.DetectedObjects.DetectedObject.box)
  private:
 
   ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
@@ -319,7 +325,160 @@ class DetectedObjects_box : public ::google::protobuf::Message /* @@protoc_inser
   float h_;
   mutable int _cached_size_;
   friend struct ::protobuf_darknetserver_2eproto::TableStruct;
-  friend void ::protobuf_darknetserver_2eproto::InitDefaultsDetectedObjects_boxImpl();
+  friend void ::protobuf_darknetserver_2eproto::InitDefaultsDetectedObjects_DetectedObject_boxImpl();
+};
+// -------------------------------------------------------------------
+
+class DetectedObjects_DetectedObject : public ::google::protobuf::Message /* @@protoc_insertion_point(class_definition:darknetServer.DetectedObjects.DetectedObject) */ {
+ public:
+  DetectedObjects_DetectedObject();
+  virtual ~DetectedObjects_DetectedObject();
+
+  DetectedObjects_DetectedObject(const DetectedObjects_DetectedObject& from);
+
+  inline DetectedObjects_DetectedObject& operator=(const DetectedObjects_DetectedObject& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  #if LANG_CXX11
+  DetectedObjects_DetectedObject(DetectedObjects_DetectedObject&& from) noexcept
+    : DetectedObjects_DetectedObject() {
+    *this = ::std::move(from);
+  }
+
+  inline DetectedObjects_DetectedObject& operator=(DetectedObjects_DetectedObject&& from) noexcept {
+    if (GetArenaNoVirtual() == from.GetArenaNoVirtual()) {
+      if (this != &from) InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+  #endif
+  static const ::google::protobuf::Descriptor* descriptor();
+  static const DetectedObjects_DetectedObject& default_instance();
+
+  static void InitAsDefaultInstance();  // FOR INTERNAL USE ONLY
+  static inline const DetectedObjects_DetectedObject* internal_default_instance() {
+    return reinterpret_cast<const DetectedObjects_DetectedObject*>(
+               &_DetectedObjects_DetectedObject_default_instance_);
+  }
+  static PROTOBUF_CONSTEXPR int const kIndexInFileMessages =
+    2;
+
+  void Swap(DetectedObjects_DetectedObject* other);
+  friend void swap(DetectedObjects_DetectedObject& a, DetectedObjects_DetectedObject& b) {
+    a.Swap(&b);
+  }
+
+  // implements Message ----------------------------------------------
+
+  inline DetectedObjects_DetectedObject* New() const PROTOBUF_FINAL { return New(NULL); }
+
+  DetectedObjects_DetectedObject* New(::google::protobuf::Arena* arena) const PROTOBUF_FINAL;
+  void CopyFrom(const ::google::protobuf::Message& from) PROTOBUF_FINAL;
+  void MergeFrom(const ::google::protobuf::Message& from) PROTOBUF_FINAL;
+  void CopyFrom(const DetectedObjects_DetectedObject& from);
+  void MergeFrom(const DetectedObjects_DetectedObject& from);
+  void Clear() PROTOBUF_FINAL;
+  bool IsInitialized() const PROTOBUF_FINAL;
+
+  size_t ByteSizeLong() const PROTOBUF_FINAL;
+  bool MergePartialFromCodedStream(
+      ::google::protobuf::io::CodedInputStream* input) PROTOBUF_FINAL;
+  void SerializeWithCachedSizes(
+      ::google::protobuf::io::CodedOutputStream* output) const PROTOBUF_FINAL;
+  ::google::protobuf::uint8* InternalSerializeWithCachedSizesToArray(
+      bool deterministic, ::google::protobuf::uint8* target) const PROTOBUF_FINAL;
+  int GetCachedSize() const PROTOBUF_FINAL { return _cached_size_; }
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const PROTOBUF_FINAL;
+  void InternalSwap(DetectedObjects_DetectedObject* other);
+  private:
+  inline ::google::protobuf::Arena* GetArenaNoVirtual() const {
+    return NULL;
+  }
+  inline void* MaybeArenaPtr() const {
+    return NULL;
+  }
+  public:
+
+  ::google::protobuf::Metadata GetMetadata() const PROTOBUF_FINAL;
+
+  // nested types ----------------------------------------------------
+
+  typedef DetectedObjects_DetectedObject_box box;
+
+  // accessors -------------------------------------------------------
+
+  // repeated float prob = 3;
+  int prob_size() const;
+  void clear_prob();
+  static const int kProbFieldNumber = 3;
+  float prob(int index) const;
+  void set_prob(int index, float value);
+  void add_prob(float value);
+  const ::google::protobuf::RepeatedField< float >&
+      prob() const;
+  ::google::protobuf::RepeatedField< float >*
+      mutable_prob();
+
+  // repeated float mask = 4;
+  int mask_size() const;
+  void clear_mask();
+  static const int kMaskFieldNumber = 4;
+  float mask(int index) const;
+  void set_mask(int index, float value);
+  void add_mask(float value);
+  const ::google::protobuf::RepeatedField< float >&
+      mask() const;
+  ::google::protobuf::RepeatedField< float >*
+      mutable_mask();
+
+  // .darknetServer.DetectedObjects.DetectedObject.box bbox = 1;
+  bool has_bbox() const;
+  void clear_bbox();
+  static const int kBboxFieldNumber = 1;
+  const ::darknetServer::DetectedObjects_DetectedObject_box& bbox() const;
+  ::darknetServer::DetectedObjects_DetectedObject_box* release_bbox();
+  ::darknetServer::DetectedObjects_DetectedObject_box* mutable_bbox();
+  void set_allocated_bbox(::darknetServer::DetectedObjects_DetectedObject_box* bbox);
+
+  // int32 classes = 2;
+  void clear_classes();
+  static const int kClassesFieldNumber = 2;
+  ::google::protobuf::int32 classes() const;
+  void set_classes(::google::protobuf::int32 value);
+
+  // float objectness = 5;
+  void clear_objectness();
+  static const int kObjectnessFieldNumber = 5;
+  float objectness() const;
+  void set_objectness(float value);
+
+  // int32 sort_class = 6;
+  void clear_sort_class();
+  static const int kSortClassFieldNumber = 6;
+  ::google::protobuf::int32 sort_class() const;
+  void set_sort_class(::google::protobuf::int32 value);
+
+  // @@protoc_insertion_point(class_scope:darknetServer.DetectedObjects.DetectedObject)
+ private:
+
+  ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
+  ::google::protobuf::RepeatedField< float > prob_;
+  mutable int _prob_cached_byte_size_;
+  ::google::protobuf::RepeatedField< float > mask_;
+  mutable int _mask_cached_byte_size_;
+  ::darknetServer::DetectedObjects_DetectedObject_box* bbox_;
+  ::google::protobuf::int32 classes_;
+  float objectness_;
+  ::google::protobuf::int32 sort_class_;
+  mutable int _cached_size_;
+  friend struct ::protobuf_darknetserver_2eproto::TableStruct;
+  friend void ::protobuf_darknetserver_2eproto::InitDefaultsDetectedObjects_DetectedObjectImpl();
 };
 // -------------------------------------------------------------------
 
@@ -358,7 +517,7 @@ class DetectedObjects : public ::google::protobuf::Message /* @@protoc_insertion
                &_DetectedObjects_default_instance_);
   }
   static PROTOBUF_CONSTEXPR int const kIndexInFileMessages =
-    2;
+    3;
 
   void Swap(DetectedObjects* other);
   friend void swap(DetectedObjects& a, DetectedObjects& b) {
@@ -403,73 +562,34 @@ class DetectedObjects : public ::google::protobuf::Message /* @@protoc_insertion
 
   // nested types ----------------------------------------------------
 
-  typedef DetectedObjects_box box;
+  typedef DetectedObjects_DetectedObject DetectedObject;
 
   // accessors -------------------------------------------------------
 
-  // repeated float prob = 3;
-  int prob_size() const;
-  void clear_prob();
-  static const int kProbFieldNumber = 3;
-  float prob(int index) const;
-  void set_prob(int index, float value);
-  void add_prob(float value);
-  const ::google::protobuf::RepeatedField< float >&
-      prob() const;
-  ::google::protobuf::RepeatedField< float >*
-      mutable_prob();
+  // repeated .darknetServer.DetectedObjects.DetectedObject objects = 2;
+  int objects_size() const;
+  void clear_objects();
+  static const int kObjectsFieldNumber = 2;
+  const ::darknetServer::DetectedObjects_DetectedObject& objects(int index) const;
+  ::darknetServer::DetectedObjects_DetectedObject* mutable_objects(int index);
+  ::darknetServer::DetectedObjects_DetectedObject* add_objects();
+  ::google::protobuf::RepeatedPtrField< ::darknetServer::DetectedObjects_DetectedObject >*
+      mutable_objects();
+  const ::google::protobuf::RepeatedPtrField< ::darknetServer::DetectedObjects_DetectedObject >&
+      objects() const;
 
-  // repeated float mask = 4;
-  int mask_size() const;
-  void clear_mask();
-  static const int kMaskFieldNumber = 4;
-  float mask(int index) const;
-  void set_mask(int index, float value);
-  void add_mask(float value);
-  const ::google::protobuf::RepeatedField< float >&
-      mask() const;
-  ::google::protobuf::RepeatedField< float >*
-      mutable_mask();
-
-  // .darknetServer.DetectedObjects.box bbox = 1;
-  bool has_bbox() const;
-  void clear_bbox();
-  static const int kBboxFieldNumber = 1;
-  const ::darknetServer::DetectedObjects_box& bbox() const;
-  ::darknetServer::DetectedObjects_box* release_bbox();
-  ::darknetServer::DetectedObjects_box* mutable_bbox();
-  void set_allocated_bbox(::darknetServer::DetectedObjects_box* bbox);
-
-  // int32 classes = 2;
-  void clear_classes();
-  static const int kClassesFieldNumber = 2;
-  ::google::protobuf::int32 classes() const;
-  void set_classes(::google::protobuf::int32 value);
-
-  // float objectness = 5;
-  void clear_objectness();
-  static const int kObjectnessFieldNumber = 5;
-  float objectness() const;
-  void set_objectness(float value);
-
-  // int32 sort_class = 6;
-  void clear_sort_class();
-  static const int kSortClassFieldNumber = 6;
-  ::google::protobuf::int32 sort_class() const;
-  void set_sort_class(::google::protobuf::int32 value);
+  // int32 numObjects = 1;
+  void clear_numobjects();
+  static const int kNumObjectsFieldNumber = 1;
+  ::google::protobuf::int32 numobjects() const;
+  void set_numobjects(::google::protobuf::int32 value);
 
   // @@protoc_insertion_point(class_scope:darknetServer.DetectedObjects)
  private:
 
   ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
-  ::google::protobuf::RepeatedField< float > prob_;
-  mutable int _prob_cached_byte_size_;
-  ::google::protobuf::RepeatedField< float > mask_;
-  mutable int _mask_cached_byte_size_;
-  ::darknetServer::DetectedObjects_box* bbox_;
-  ::google::protobuf::int32 classes_;
-  float objectness_;
-  ::google::protobuf::int32 sort_class_;
+  ::google::protobuf::RepeatedPtrField< ::darknetServer::DetectedObjects_DetectedObject > objects_;
+  ::google::protobuf::int32 numobjects_;
   mutable int _cached_size_;
   friend struct ::protobuf_darknetserver_2eproto::TableStruct;
   friend void ::protobuf_darknetserver_2eproto::InitDefaultsDetectedObjectsImpl();
@@ -573,100 +693,100 @@ KeyFrame::mutable_data() {
 
 // -------------------------------------------------------------------
 
-// DetectedObjects_box
+// DetectedObjects_DetectedObject_box
 
 // float x = 1;
-inline void DetectedObjects_box::clear_x() {
+inline void DetectedObjects_DetectedObject_box::clear_x() {
   x_ = 0;
 }
-inline float DetectedObjects_box::x() const {
-  // @@protoc_insertion_point(field_get:darknetServer.DetectedObjects.box.x)
+inline float DetectedObjects_DetectedObject_box::x() const {
+  // @@protoc_insertion_point(field_get:darknetServer.DetectedObjects.DetectedObject.box.x)
   return x_;
 }
-inline void DetectedObjects_box::set_x(float value) {
+inline void DetectedObjects_DetectedObject_box::set_x(float value) {
   
   x_ = value;
-  // @@protoc_insertion_point(field_set:darknetServer.DetectedObjects.box.x)
+  // @@protoc_insertion_point(field_set:darknetServer.DetectedObjects.DetectedObject.box.x)
 }
 
 // float y = 2;
-inline void DetectedObjects_box::clear_y() {
+inline void DetectedObjects_DetectedObject_box::clear_y() {
   y_ = 0;
 }
-inline float DetectedObjects_box::y() const {
-  // @@protoc_insertion_point(field_get:darknetServer.DetectedObjects.box.y)
+inline float DetectedObjects_DetectedObject_box::y() const {
+  // @@protoc_insertion_point(field_get:darknetServer.DetectedObjects.DetectedObject.box.y)
   return y_;
 }
-inline void DetectedObjects_box::set_y(float value) {
+inline void DetectedObjects_DetectedObject_box::set_y(float value) {
   
   y_ = value;
-  // @@protoc_insertion_point(field_set:darknetServer.DetectedObjects.box.y)
+  // @@protoc_insertion_point(field_set:darknetServer.DetectedObjects.DetectedObject.box.y)
 }
 
 // float w = 3;
-inline void DetectedObjects_box::clear_w() {
+inline void DetectedObjects_DetectedObject_box::clear_w() {
   w_ = 0;
 }
-inline float DetectedObjects_box::w() const {
-  // @@protoc_insertion_point(field_get:darknetServer.DetectedObjects.box.w)
+inline float DetectedObjects_DetectedObject_box::w() const {
+  // @@protoc_insertion_point(field_get:darknetServer.DetectedObjects.DetectedObject.box.w)
   return w_;
 }
-inline void DetectedObjects_box::set_w(float value) {
+inline void DetectedObjects_DetectedObject_box::set_w(float value) {
   
   w_ = value;
-  // @@protoc_insertion_point(field_set:darknetServer.DetectedObjects.box.w)
+  // @@protoc_insertion_point(field_set:darknetServer.DetectedObjects.DetectedObject.box.w)
 }
 
 // float h = 4;
-inline void DetectedObjects_box::clear_h() {
+inline void DetectedObjects_DetectedObject_box::clear_h() {
   h_ = 0;
 }
-inline float DetectedObjects_box::h() const {
-  // @@protoc_insertion_point(field_get:darknetServer.DetectedObjects.box.h)
+inline float DetectedObjects_DetectedObject_box::h() const {
+  // @@protoc_insertion_point(field_get:darknetServer.DetectedObjects.DetectedObject.box.h)
   return h_;
 }
-inline void DetectedObjects_box::set_h(float value) {
+inline void DetectedObjects_DetectedObject_box::set_h(float value) {
   
   h_ = value;
-  // @@protoc_insertion_point(field_set:darknetServer.DetectedObjects.box.h)
+  // @@protoc_insertion_point(field_set:darknetServer.DetectedObjects.DetectedObject.box.h)
 }
 
 // -------------------------------------------------------------------
 
-// DetectedObjects
+// DetectedObjects_DetectedObject
 
-// .darknetServer.DetectedObjects.box bbox = 1;
-inline bool DetectedObjects::has_bbox() const {
+// .darknetServer.DetectedObjects.DetectedObject.box bbox = 1;
+inline bool DetectedObjects_DetectedObject::has_bbox() const {
   return this != internal_default_instance() && bbox_ != NULL;
 }
-inline void DetectedObjects::clear_bbox() {
+inline void DetectedObjects_DetectedObject::clear_bbox() {
   if (GetArenaNoVirtual() == NULL && bbox_ != NULL) {
     delete bbox_;
   }
   bbox_ = NULL;
 }
-inline const ::darknetServer::DetectedObjects_box& DetectedObjects::bbox() const {
-  const ::darknetServer::DetectedObjects_box* p = bbox_;
-  // @@protoc_insertion_point(field_get:darknetServer.DetectedObjects.bbox)
-  return p != NULL ? *p : *reinterpret_cast<const ::darknetServer::DetectedObjects_box*>(
-      &::darknetServer::_DetectedObjects_box_default_instance_);
+inline const ::darknetServer::DetectedObjects_DetectedObject_box& DetectedObjects_DetectedObject::bbox() const {
+  const ::darknetServer::DetectedObjects_DetectedObject_box* p = bbox_;
+  // @@protoc_insertion_point(field_get:darknetServer.DetectedObjects.DetectedObject.bbox)
+  return p != NULL ? *p : *reinterpret_cast<const ::darknetServer::DetectedObjects_DetectedObject_box*>(
+      &::darknetServer::_DetectedObjects_DetectedObject_box_default_instance_);
 }
-inline ::darknetServer::DetectedObjects_box* DetectedObjects::release_bbox() {
-  // @@protoc_insertion_point(field_release:darknetServer.DetectedObjects.bbox)
+inline ::darknetServer::DetectedObjects_DetectedObject_box* DetectedObjects_DetectedObject::release_bbox() {
+  // @@protoc_insertion_point(field_release:darknetServer.DetectedObjects.DetectedObject.bbox)
   
-  ::darknetServer::DetectedObjects_box* temp = bbox_;
+  ::darknetServer::DetectedObjects_DetectedObject_box* temp = bbox_;
   bbox_ = NULL;
   return temp;
 }
-inline ::darknetServer::DetectedObjects_box* DetectedObjects::mutable_bbox() {
+inline ::darknetServer::DetectedObjects_DetectedObject_box* DetectedObjects_DetectedObject::mutable_bbox() {
   
   if (bbox_ == NULL) {
-    bbox_ = new ::darknetServer::DetectedObjects_box;
+    bbox_ = new ::darknetServer::DetectedObjects_DetectedObject_box;
   }
-  // @@protoc_insertion_point(field_mutable:darknetServer.DetectedObjects.bbox)
+  // @@protoc_insertion_point(field_mutable:darknetServer.DetectedObjects.DetectedObject.bbox)
   return bbox_;
 }
-inline void DetectedObjects::set_allocated_bbox(::darknetServer::DetectedObjects_box* bbox) {
+inline void DetectedObjects_DetectedObject::set_allocated_bbox(::darknetServer::DetectedObjects_DetectedObject_box* bbox) {
   ::google::protobuf::Arena* message_arena = GetArenaNoVirtual();
   if (message_arena == NULL) {
     delete bbox_;
@@ -682,114 +802,164 @@ inline void DetectedObjects::set_allocated_bbox(::darknetServer::DetectedObjects
     
   }
   bbox_ = bbox;
-  // @@protoc_insertion_point(field_set_allocated:darknetServer.DetectedObjects.bbox)
+  // @@protoc_insertion_point(field_set_allocated:darknetServer.DetectedObjects.DetectedObject.bbox)
 }
 
 // int32 classes = 2;
-inline void DetectedObjects::clear_classes() {
+inline void DetectedObjects_DetectedObject::clear_classes() {
   classes_ = 0;
 }
-inline ::google::protobuf::int32 DetectedObjects::classes() const {
-  // @@protoc_insertion_point(field_get:darknetServer.DetectedObjects.classes)
+inline ::google::protobuf::int32 DetectedObjects_DetectedObject::classes() const {
+  // @@protoc_insertion_point(field_get:darknetServer.DetectedObjects.DetectedObject.classes)
   return classes_;
 }
-inline void DetectedObjects::set_classes(::google::protobuf::int32 value) {
+inline void DetectedObjects_DetectedObject::set_classes(::google::protobuf::int32 value) {
   
   classes_ = value;
-  // @@protoc_insertion_point(field_set:darknetServer.DetectedObjects.classes)
+  // @@protoc_insertion_point(field_set:darknetServer.DetectedObjects.DetectedObject.classes)
 }
 
 // repeated float prob = 3;
-inline int DetectedObjects::prob_size() const {
+inline int DetectedObjects_DetectedObject::prob_size() const {
   return prob_.size();
 }
-inline void DetectedObjects::clear_prob() {
+inline void DetectedObjects_DetectedObject::clear_prob() {
   prob_.Clear();
 }
-inline float DetectedObjects::prob(int index) const {
-  // @@protoc_insertion_point(field_get:darknetServer.DetectedObjects.prob)
+inline float DetectedObjects_DetectedObject::prob(int index) const {
+  // @@protoc_insertion_point(field_get:darknetServer.DetectedObjects.DetectedObject.prob)
   return prob_.Get(index);
 }
-inline void DetectedObjects::set_prob(int index, float value) {
+inline void DetectedObjects_DetectedObject::set_prob(int index, float value) {
   prob_.Set(index, value);
-  // @@protoc_insertion_point(field_set:darknetServer.DetectedObjects.prob)
+  // @@protoc_insertion_point(field_set:darknetServer.DetectedObjects.DetectedObject.prob)
 }
-inline void DetectedObjects::add_prob(float value) {
+inline void DetectedObjects_DetectedObject::add_prob(float value) {
   prob_.Add(value);
-  // @@protoc_insertion_point(field_add:darknetServer.DetectedObjects.prob)
+  // @@protoc_insertion_point(field_add:darknetServer.DetectedObjects.DetectedObject.prob)
 }
 inline const ::google::protobuf::RepeatedField< float >&
-DetectedObjects::prob() const {
-  // @@protoc_insertion_point(field_list:darknetServer.DetectedObjects.prob)
+DetectedObjects_DetectedObject::prob() const {
+  // @@protoc_insertion_point(field_list:darknetServer.DetectedObjects.DetectedObject.prob)
   return prob_;
 }
 inline ::google::protobuf::RepeatedField< float >*
-DetectedObjects::mutable_prob() {
-  // @@protoc_insertion_point(field_mutable_list:darknetServer.DetectedObjects.prob)
+DetectedObjects_DetectedObject::mutable_prob() {
+  // @@protoc_insertion_point(field_mutable_list:darknetServer.DetectedObjects.DetectedObject.prob)
   return &prob_;
 }
 
 // repeated float mask = 4;
-inline int DetectedObjects::mask_size() const {
+inline int DetectedObjects_DetectedObject::mask_size() const {
   return mask_.size();
 }
-inline void DetectedObjects::clear_mask() {
+inline void DetectedObjects_DetectedObject::clear_mask() {
   mask_.Clear();
 }
-inline float DetectedObjects::mask(int index) const {
-  // @@protoc_insertion_point(field_get:darknetServer.DetectedObjects.mask)
+inline float DetectedObjects_DetectedObject::mask(int index) const {
+  // @@protoc_insertion_point(field_get:darknetServer.DetectedObjects.DetectedObject.mask)
   return mask_.Get(index);
 }
-inline void DetectedObjects::set_mask(int index, float value) {
+inline void DetectedObjects_DetectedObject::set_mask(int index, float value) {
   mask_.Set(index, value);
-  // @@protoc_insertion_point(field_set:darknetServer.DetectedObjects.mask)
+  // @@protoc_insertion_point(field_set:darknetServer.DetectedObjects.DetectedObject.mask)
 }
-inline void DetectedObjects::add_mask(float value) {
+inline void DetectedObjects_DetectedObject::add_mask(float value) {
   mask_.Add(value);
-  // @@protoc_insertion_point(field_add:darknetServer.DetectedObjects.mask)
+  // @@protoc_insertion_point(field_add:darknetServer.DetectedObjects.DetectedObject.mask)
 }
 inline const ::google::protobuf::RepeatedField< float >&
-DetectedObjects::mask() const {
-  // @@protoc_insertion_point(field_list:darknetServer.DetectedObjects.mask)
+DetectedObjects_DetectedObject::mask() const {
+  // @@protoc_insertion_point(field_list:darknetServer.DetectedObjects.DetectedObject.mask)
   return mask_;
 }
 inline ::google::protobuf::RepeatedField< float >*
-DetectedObjects::mutable_mask() {
-  // @@protoc_insertion_point(field_mutable_list:darknetServer.DetectedObjects.mask)
+DetectedObjects_DetectedObject::mutable_mask() {
+  // @@protoc_insertion_point(field_mutable_list:darknetServer.DetectedObjects.DetectedObject.mask)
   return &mask_;
 }
 
 // float objectness = 5;
-inline void DetectedObjects::clear_objectness() {
+inline void DetectedObjects_DetectedObject::clear_objectness() {
   objectness_ = 0;
 }
-inline float DetectedObjects::objectness() const {
-  // @@protoc_insertion_point(field_get:darknetServer.DetectedObjects.objectness)
+inline float DetectedObjects_DetectedObject::objectness() const {
+  // @@protoc_insertion_point(field_get:darknetServer.DetectedObjects.DetectedObject.objectness)
   return objectness_;
 }
-inline void DetectedObjects::set_objectness(float value) {
+inline void DetectedObjects_DetectedObject::set_objectness(float value) {
   
   objectness_ = value;
-  // @@protoc_insertion_point(field_set:darknetServer.DetectedObjects.objectness)
+  // @@protoc_insertion_point(field_set:darknetServer.DetectedObjects.DetectedObject.objectness)
 }
 
 // int32 sort_class = 6;
-inline void DetectedObjects::clear_sort_class() {
+inline void DetectedObjects_DetectedObject::clear_sort_class() {
   sort_class_ = 0;
 }
-inline ::google::protobuf::int32 DetectedObjects::sort_class() const {
-  // @@protoc_insertion_point(field_get:darknetServer.DetectedObjects.sort_class)
+inline ::google::protobuf::int32 DetectedObjects_DetectedObject::sort_class() const {
+  // @@protoc_insertion_point(field_get:darknetServer.DetectedObjects.DetectedObject.sort_class)
   return sort_class_;
 }
-inline void DetectedObjects::set_sort_class(::google::protobuf::int32 value) {
+inline void DetectedObjects_DetectedObject::set_sort_class(::google::protobuf::int32 value) {
   
   sort_class_ = value;
-  // @@protoc_insertion_point(field_set:darknetServer.DetectedObjects.sort_class)
+  // @@protoc_insertion_point(field_set:darknetServer.DetectedObjects.DetectedObject.sort_class)
+}
+
+// -------------------------------------------------------------------
+
+// DetectedObjects
+
+// int32 numObjects = 1;
+inline void DetectedObjects::clear_numobjects() {
+  numobjects_ = 0;
+}
+inline ::google::protobuf::int32 DetectedObjects::numobjects() const {
+  // @@protoc_insertion_point(field_get:darknetServer.DetectedObjects.numObjects)
+  return numobjects_;
+}
+inline void DetectedObjects::set_numobjects(::google::protobuf::int32 value) {
+  
+  numobjects_ = value;
+  // @@protoc_insertion_point(field_set:darknetServer.DetectedObjects.numObjects)
+}
+
+// repeated .darknetServer.DetectedObjects.DetectedObject objects = 2;
+inline int DetectedObjects::objects_size() const {
+  return objects_.size();
+}
+inline void DetectedObjects::clear_objects() {
+  objects_.Clear();
+}
+inline const ::darknetServer::DetectedObjects_DetectedObject& DetectedObjects::objects(int index) const {
+  // @@protoc_insertion_point(field_get:darknetServer.DetectedObjects.objects)
+  return objects_.Get(index);
+}
+inline ::darknetServer::DetectedObjects_DetectedObject* DetectedObjects::mutable_objects(int index) {
+  // @@protoc_insertion_point(field_mutable:darknetServer.DetectedObjects.objects)
+  return objects_.Mutable(index);
+}
+inline ::darknetServer::DetectedObjects_DetectedObject* DetectedObjects::add_objects() {
+  // @@protoc_insertion_point(field_add:darknetServer.DetectedObjects.objects)
+  return objects_.Add();
+}
+inline ::google::protobuf::RepeatedPtrField< ::darknetServer::DetectedObjects_DetectedObject >*
+DetectedObjects::mutable_objects() {
+  // @@protoc_insertion_point(field_mutable_list:darknetServer.DetectedObjects.objects)
+  return &objects_;
+}
+inline const ::google::protobuf::RepeatedPtrField< ::darknetServer::DetectedObjects_DetectedObject >&
+DetectedObjects::objects() const {
+  // @@protoc_insertion_point(field_list:darknetServer.DetectedObjects.objects)
+  return objects_;
 }
 
 #ifdef __GNUC__
   #pragma GCC diagnostic pop
 #endif  // __GNUC__
+// -------------------------------------------------------------------
+
 // -------------------------------------------------------------------
 
 // -------------------------------------------------------------------

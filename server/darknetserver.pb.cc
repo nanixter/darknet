@@ -25,11 +25,16 @@ class KeyFrameDefaultTypeInternal {
   ::google::protobuf::internal::ExplicitlyConstructed<KeyFrame>
       _instance;
 } _KeyFrame_default_instance_;
-class DetectedObjects_boxDefaultTypeInternal {
+class DetectedObjects_DetectedObject_boxDefaultTypeInternal {
  public:
-  ::google::protobuf::internal::ExplicitlyConstructed<DetectedObjects_box>
+  ::google::protobuf::internal::ExplicitlyConstructed<DetectedObjects_DetectedObject_box>
       _instance;
-} _DetectedObjects_box_default_instance_;
+} _DetectedObjects_DetectedObject_box_default_instance_;
+class DetectedObjects_DetectedObjectDefaultTypeInternal {
+ public:
+  ::google::protobuf::internal::ExplicitlyConstructed<DetectedObjects_DetectedObject>
+      _instance;
+} _DetectedObjects_DetectedObject_default_instance_;
 class DetectedObjectsDefaultTypeInternal {
  public:
   ::google::protobuf::internal::ExplicitlyConstructed<DetectedObjects>
@@ -58,7 +63,7 @@ void InitDefaultsKeyFrame() {
   ::google::protobuf::GoogleOnceInit(&once, &InitDefaultsKeyFrameImpl);
 }
 
-void InitDefaultsDetectedObjects_boxImpl() {
+void InitDefaultsDetectedObjects_DetectedObject_boxImpl() {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
 #ifdef GOOGLE_PROTOBUF_ENFORCE_UNIQUENESS
@@ -67,16 +72,38 @@ void InitDefaultsDetectedObjects_boxImpl() {
   ::google::protobuf::internal::InitProtobufDefaults();
 #endif  // GOOGLE_PROTOBUF_ENFORCE_UNIQUENESS
   {
-    void* ptr = &::darknetServer::_DetectedObjects_box_default_instance_;
-    new (ptr) ::darknetServer::DetectedObjects_box();
+    void* ptr = &::darknetServer::_DetectedObjects_DetectedObject_box_default_instance_;
+    new (ptr) ::darknetServer::DetectedObjects_DetectedObject_box();
     ::google::protobuf::internal::OnShutdownDestroyMessage(ptr);
   }
-  ::darknetServer::DetectedObjects_box::InitAsDefaultInstance();
+  ::darknetServer::DetectedObjects_DetectedObject_box::InitAsDefaultInstance();
 }
 
-void InitDefaultsDetectedObjects_box() {
+void InitDefaultsDetectedObjects_DetectedObject_box() {
   static GOOGLE_PROTOBUF_DECLARE_ONCE(once);
-  ::google::protobuf::GoogleOnceInit(&once, &InitDefaultsDetectedObjects_boxImpl);
+  ::google::protobuf::GoogleOnceInit(&once, &InitDefaultsDetectedObjects_DetectedObject_boxImpl);
+}
+
+void InitDefaultsDetectedObjects_DetectedObjectImpl() {
+  GOOGLE_PROTOBUF_VERIFY_VERSION;
+
+#ifdef GOOGLE_PROTOBUF_ENFORCE_UNIQUENESS
+  ::google::protobuf::internal::InitProtobufDefaultsForceUnique();
+#else
+  ::google::protobuf::internal::InitProtobufDefaults();
+#endif  // GOOGLE_PROTOBUF_ENFORCE_UNIQUENESS
+  protobuf_darknetserver_2eproto::InitDefaultsDetectedObjects_DetectedObject_box();
+  {
+    void* ptr = &::darknetServer::_DetectedObjects_DetectedObject_default_instance_;
+    new (ptr) ::darknetServer::DetectedObjects_DetectedObject();
+    ::google::protobuf::internal::OnShutdownDestroyMessage(ptr);
+  }
+  ::darknetServer::DetectedObjects_DetectedObject::InitAsDefaultInstance();
+}
+
+void InitDefaultsDetectedObjects_DetectedObject() {
+  static GOOGLE_PROTOBUF_DECLARE_ONCE(once);
+  ::google::protobuf::GoogleOnceInit(&once, &InitDefaultsDetectedObjects_DetectedObjectImpl);
 }
 
 void InitDefaultsDetectedObjectsImpl() {
@@ -87,7 +114,7 @@ void InitDefaultsDetectedObjectsImpl() {
 #else
   ::google::protobuf::internal::InitProtobufDefaults();
 #endif  // GOOGLE_PROTOBUF_ENFORCE_UNIQUENESS
-  protobuf_darknetserver_2eproto::InitDefaultsDetectedObjects_box();
+  protobuf_darknetserver_2eproto::InitDefaultsDetectedObjects_DetectedObject();
   {
     void* ptr = &::darknetServer::_DetectedObjects_default_instance_;
     new (ptr) ::darknetServer::DetectedObjects();
@@ -101,7 +128,7 @@ void InitDefaultsDetectedObjects() {
   ::google::protobuf::GoogleOnceInit(&once, &InitDefaultsDetectedObjectsImpl);
 }
 
-::google::protobuf::Metadata file_level_metadata[3];
+::google::protobuf::Metadata file_level_metadata[4];
 
 const ::google::protobuf::uint32 TableStruct::offsets[] GOOGLE_PROTOBUF_ATTRIBUTE_SECTION_VARIABLE(protodesc_cold) = {
   ~0u,  // no _has_bits_
@@ -115,35 +142,44 @@ const ::google::protobuf::uint32 TableStruct::offsets[] GOOGLE_PROTOBUF_ATTRIBUT
   GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::KeyFrame, widthstep_),
   GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::KeyFrame, data_),
   ~0u,  // no _has_bits_
-  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::DetectedObjects_box, _internal_metadata_),
+  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::DetectedObjects_DetectedObject_box, _internal_metadata_),
   ~0u,  // no _extensions_
   ~0u,  // no _oneof_case_
   ~0u,  // no _weak_field_map_
-  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::DetectedObjects_box, x_),
-  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::DetectedObjects_box, y_),
-  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::DetectedObjects_box, w_),
-  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::DetectedObjects_box, h_),
+  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::DetectedObjects_DetectedObject_box, x_),
+  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::DetectedObjects_DetectedObject_box, y_),
+  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::DetectedObjects_DetectedObject_box, w_),
+  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::DetectedObjects_DetectedObject_box, h_),
+  ~0u,  // no _has_bits_
+  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::DetectedObjects_DetectedObject, _internal_metadata_),
+  ~0u,  // no _extensions_
+  ~0u,  // no _oneof_case_
+  ~0u,  // no _weak_field_map_
+  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::DetectedObjects_DetectedObject, bbox_),
+  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::DetectedObjects_DetectedObject, classes_),
+  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::DetectedObjects_DetectedObject, prob_),
+  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::DetectedObjects_DetectedObject, mask_),
+  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::DetectedObjects_DetectedObject, objectness_),
+  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::DetectedObjects_DetectedObject, sort_class_),
   ~0u,  // no _has_bits_
   GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::DetectedObjects, _internal_metadata_),
   ~0u,  // no _extensions_
   ~0u,  // no _oneof_case_
   ~0u,  // no _weak_field_map_
-  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::DetectedObjects, bbox_),
-  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::DetectedObjects, classes_),
-  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::DetectedObjects, prob_),
-  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::DetectedObjects, mask_),
-  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::DetectedObjects, objectness_),
-  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::DetectedObjects, sort_class_),
+  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::DetectedObjects, numobjects_),
+  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::DetectedObjects, objects_),
 };
 static const ::google::protobuf::internal::MigrationSchema schemas[] GOOGLE_PROTOBUF_ATTRIBUTE_SECTION_VARIABLE(protodesc_cold) = {
   { 0, -1, sizeof(::darknetServer::KeyFrame)},
-  { 10, -1, sizeof(::darknetServer::DetectedObjects_box)},
-  { 19, -1, sizeof(::darknetServer::DetectedObjects)},
+  { 10, -1, sizeof(::darknetServer::DetectedObjects_DetectedObject_box)},
+  { 19, -1, sizeof(::darknetServer::DetectedObjects_DetectedObject)},
+  { 30, -1, sizeof(::darknetServer::DetectedObjects)},
 };
 
 static ::google::protobuf::Message const * const file_default_instances[] = {
   reinterpret_cast<const ::google::protobuf::Message*>(&::darknetServer::_KeyFrame_default_instance_),
-  reinterpret_cast<const ::google::protobuf::Message*>(&::darknetServer::_DetectedObjects_box_default_instance_),
+  reinterpret_cast<const ::google::protobuf::Message*>(&::darknetServer::_DetectedObjects_DetectedObject_box_default_instance_),
+  reinterpret_cast<const ::google::protobuf::Message*>(&::darknetServer::_DetectedObjects_DetectedObject_default_instance_),
   reinterpret_cast<const ::google::protobuf::Message*>(&::darknetServer::_DetectedObjects_default_instance_),
 };
 
@@ -163,7 +199,7 @@ void protobuf_AssignDescriptorsOnce() {
 void protobuf_RegisterTypes(const ::std::string&) GOOGLE_PROTOBUF_ATTRIBUTE_COLD;
 void protobuf_RegisterTypes(const ::std::string&) {
   protobuf_AssignDescriptorsOnce();
-  ::google::protobuf::internal::RegisterAllTypes(file_level_metadata, 3);
+  ::google::protobuf::internal::RegisterAllTypes(file_level_metadata, 4);
 }
 
 void AddDescriptorsImpl() {
@@ -172,18 +208,21 @@ void AddDescriptorsImpl() {
       "\n\023darknetserver.proto\022\rdarknetServer\"_\n\010"
       "KeyFrame\022\r\n\005width\030\001 \001(\005\022\016\n\006height\030\002 \001(\005\022"
       "\023\n\013numChannels\030\003 \001(\005\022\021\n\twidthStep\030\004 \001(\005\022"
-      "\014\n\004data\030\005 \003(\002\"\313\001\n\017DetectedObjects\0220\n\004bbo"
-      "x\030\001 \001(\0132\".darknetServer.DetectedObjects."
-      "box\022\017\n\007classes\030\002 \001(\005\022\014\n\004prob\030\003 \003(\002\022\014\n\004ma"
-      "sk\030\004 \003(\002\022\022\n\nobjectness\030\005 \001(\002\022\022\n\nsort_cla"
-      "ss\030\006 \001(\005\0321\n\003box\022\t\n\001x\030\001 \001(\002\022\t\n\001y\030\002 \001(\002\022\t\n"
-      "\001w\030\003 \001(\002\022\t\n\001h\030\004 \001(\0022a\n\016ImageDetection\022O\n"
-      "\020RequestDetection\022\027.darknetServer.KeyFra"
-      "me\032\036.darknetServer.DetectedObjects\"\0000\001b\006"
-      "proto3"
+      "\014\n\004data\030\005 \003(\002\"\301\002\n\017DetectedObjects\022\022\n\nnum"
+      "Objects\030\001 \001(\005\022>\n\007objects\030\002 \003(\0132-.darknet"
+      "Server.DetectedObjects.DetectedObject\032\331\001"
+      "\n\016DetectedObject\022\?\n\004bbox\030\001 \001(\01321.darknet"
+      "Server.DetectedObjects.DetectedObject.bo"
+      "x\022\017\n\007classes\030\002 \001(\005\022\014\n\004prob\030\003 \003(\002\022\014\n\004mask"
+      "\030\004 \003(\002\022\022\n\nobjectness\030\005 \001(\002\022\022\n\nsort_class"
+      "\030\006 \001(\005\0321\n\003box\022\t\n\001x\030\001 \001(\002\022\t\n\001y\030\002 \001(\002\022\t\n\001w"
+      "\030\003 \001(\002\022\t\n\001h\030\004 \001(\0022_\n\016ImageDetection\022M\n\020R"
+      "equestDetection\022\027.darknetServer.KeyFrame"
+      "\032\036.darknetServer.DetectedObjects\"\000b\006prot"
+      "o3"
   };
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
-      descriptor, 446);
+      descriptor, 562);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "darknetserver.proto", &protobuf_RegisterTypes);
 }
@@ -617,24 +656,24 @@ void KeyFrame::InternalSwap(KeyFrame* other) {
 
 // ===================================================================
 
-void DetectedObjects_box::InitAsDefaultInstance() {
+void DetectedObjects_DetectedObject_box::InitAsDefaultInstance() {
 }
 #if !defined(_MSC_VER) || _MSC_VER >= 1900
-const int DetectedObjects_box::kXFieldNumber;
-const int DetectedObjects_box::kYFieldNumber;
-const int DetectedObjects_box::kWFieldNumber;
-const int DetectedObjects_box::kHFieldNumber;
+const int DetectedObjects_DetectedObject_box::kXFieldNumber;
+const int DetectedObjects_DetectedObject_box::kYFieldNumber;
+const int DetectedObjects_DetectedObject_box::kWFieldNumber;
+const int DetectedObjects_DetectedObject_box::kHFieldNumber;
 #endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
-DetectedObjects_box::DetectedObjects_box()
+DetectedObjects_DetectedObject_box::DetectedObjects_DetectedObject_box()
   : ::google::protobuf::Message(), _internal_metadata_(NULL) {
   if (GOOGLE_PREDICT_TRUE(this != internal_default_instance())) {
-    ::protobuf_darknetserver_2eproto::InitDefaultsDetectedObjects_box();
+    ::protobuf_darknetserver_2eproto::InitDefaultsDetectedObjects_DetectedObject_box();
   }
   SharedCtor();
-  // @@protoc_insertion_point(constructor:darknetServer.DetectedObjects.box)
+  // @@protoc_insertion_point(constructor:darknetServer.DetectedObjects.DetectedObject.box)
 }
-DetectedObjects_box::DetectedObjects_box(const DetectedObjects_box& from)
+DetectedObjects_DetectedObject_box::DetectedObjects_DetectedObject_box(const DetectedObjects_DetectedObject_box& from)
   : ::google::protobuf::Message(),
       _internal_metadata_(NULL),
       _cached_size_(0) {
@@ -642,49 +681,49 @@ DetectedObjects_box::DetectedObjects_box(const DetectedObjects_box& from)
   ::memcpy(&x_, &from.x_,
     static_cast<size_t>(reinterpret_cast<char*>(&h_) -
     reinterpret_cast<char*>(&x_)) + sizeof(h_));
-  // @@protoc_insertion_point(copy_constructor:darknetServer.DetectedObjects.box)
+  // @@protoc_insertion_point(copy_constructor:darknetServer.DetectedObjects.DetectedObject.box)
 }
 
-void DetectedObjects_box::SharedCtor() {
+void DetectedObjects_DetectedObject_box::SharedCtor() {
   ::memset(&x_, 0, static_cast<size_t>(
       reinterpret_cast<char*>(&h_) -
       reinterpret_cast<char*>(&x_)) + sizeof(h_));
   _cached_size_ = 0;
 }
 
-DetectedObjects_box::~DetectedObjects_box() {
-  // @@protoc_insertion_point(destructor:darknetServer.DetectedObjects.box)
+DetectedObjects_DetectedObject_box::~DetectedObjects_DetectedObject_box() {
+  // @@protoc_insertion_point(destructor:darknetServer.DetectedObjects.DetectedObject.box)
   SharedDtor();
 }
 
-void DetectedObjects_box::SharedDtor() {
+void DetectedObjects_DetectedObject_box::SharedDtor() {
 }
 
-void DetectedObjects_box::SetCachedSize(int size) const {
+void DetectedObjects_DetectedObject_box::SetCachedSize(int size) const {
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
   _cached_size_ = size;
   GOOGLE_SAFE_CONCURRENT_WRITES_END();
 }
-const ::google::protobuf::Descriptor* DetectedObjects_box::descriptor() {
+const ::google::protobuf::Descriptor* DetectedObjects_DetectedObject_box::descriptor() {
   ::protobuf_darknetserver_2eproto::protobuf_AssignDescriptorsOnce();
   return ::protobuf_darknetserver_2eproto::file_level_metadata[kIndexInFileMessages].descriptor;
 }
 
-const DetectedObjects_box& DetectedObjects_box::default_instance() {
-  ::protobuf_darknetserver_2eproto::InitDefaultsDetectedObjects_box();
+const DetectedObjects_DetectedObject_box& DetectedObjects_DetectedObject_box::default_instance() {
+  ::protobuf_darknetserver_2eproto::InitDefaultsDetectedObjects_DetectedObject_box();
   return *internal_default_instance();
 }
 
-DetectedObjects_box* DetectedObjects_box::New(::google::protobuf::Arena* arena) const {
-  DetectedObjects_box* n = new DetectedObjects_box;
+DetectedObjects_DetectedObject_box* DetectedObjects_DetectedObject_box::New(::google::protobuf::Arena* arena) const {
+  DetectedObjects_DetectedObject_box* n = new DetectedObjects_DetectedObject_box;
   if (arena != NULL) {
     arena->Own(n);
   }
   return n;
 }
 
-void DetectedObjects_box::Clear() {
-// @@protoc_insertion_point(message_clear_start:darknetServer.DetectedObjects.box)
+void DetectedObjects_DetectedObject_box::Clear() {
+// @@protoc_insertion_point(message_clear_start:darknetServer.DetectedObjects.DetectedObject.box)
   ::google::protobuf::uint32 cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
@@ -695,11 +734,11 @@ void DetectedObjects_box::Clear() {
   _internal_metadata_.Clear();
 }
 
-bool DetectedObjects_box::MergePartialFromCodedStream(
+bool DetectedObjects_DetectedObject_box::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
 #define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
-  // @@protoc_insertion_point(parse_start:darknetServer.DetectedObjects.box)
+  // @@protoc_insertion_point(parse_start:darknetServer.DetectedObjects.DetectedObject.box)
   for (;;) {
     ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoffNoLastTag(127u);
     tag = p.first;
@@ -773,17 +812,17 @@ bool DetectedObjects_box::MergePartialFromCodedStream(
     }
   }
 success:
-  // @@protoc_insertion_point(parse_success:darknetServer.DetectedObjects.box)
+  // @@protoc_insertion_point(parse_success:darknetServer.DetectedObjects.DetectedObject.box)
   return true;
 failure:
-  // @@protoc_insertion_point(parse_failure:darknetServer.DetectedObjects.box)
+  // @@protoc_insertion_point(parse_failure:darknetServer.DetectedObjects.DetectedObject.box)
   return false;
 #undef DO_
 }
 
-void DetectedObjects_box::SerializeWithCachedSizes(
+void DetectedObjects_DetectedObject_box::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
-  // @@protoc_insertion_point(serialize_start:darknetServer.DetectedObjects.box)
+  // @@protoc_insertion_point(serialize_start:darknetServer.DetectedObjects.DetectedObject.box)
   ::google::protobuf::uint32 cached_has_bits = 0;
   (void) cached_has_bits;
 
@@ -811,13 +850,13 @@ void DetectedObjects_box::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         (::google::protobuf::internal::GetProto3PreserveUnknownsDefault()   ? _internal_metadata_.unknown_fields()   : _internal_metadata_.default_instance()), output);
   }
-  // @@protoc_insertion_point(serialize_end:darknetServer.DetectedObjects.box)
+  // @@protoc_insertion_point(serialize_end:darknetServer.DetectedObjects.DetectedObject.box)
 }
 
-::google::protobuf::uint8* DetectedObjects_box::InternalSerializeWithCachedSizesToArray(
+::google::protobuf::uint8* DetectedObjects_DetectedObject_box::InternalSerializeWithCachedSizesToArray(
     bool deterministic, ::google::protobuf::uint8* target) const {
   (void)deterministic; // Unused
-  // @@protoc_insertion_point(serialize_to_array_start:darknetServer.DetectedObjects.box)
+  // @@protoc_insertion_point(serialize_to_array_start:darknetServer.DetectedObjects.DetectedObject.box)
   ::google::protobuf::uint32 cached_has_bits = 0;
   (void) cached_has_bits;
 
@@ -845,12 +884,12 @@ void DetectedObjects_box::SerializeWithCachedSizes(
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         (::google::protobuf::internal::GetProto3PreserveUnknownsDefault()   ? _internal_metadata_.unknown_fields()   : _internal_metadata_.default_instance()), target);
   }
-  // @@protoc_insertion_point(serialize_to_array_end:darknetServer.DetectedObjects.box)
+  // @@protoc_insertion_point(serialize_to_array_end:darknetServer.DetectedObjects.DetectedObject.box)
   return target;
 }
 
-size_t DetectedObjects_box::ByteSizeLong() const {
-// @@protoc_insertion_point(message_byte_size_start:darknetServer.DetectedObjects.box)
+size_t DetectedObjects_DetectedObject_box::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:darknetServer.DetectedObjects.DetectedObject.box)
   size_t total_size = 0;
 
   if ((_internal_metadata_.have_unknown_fields() &&  ::google::protobuf::internal::GetProto3PreserveUnknownsDefault())) {
@@ -885,23 +924,23 @@ size_t DetectedObjects_box::ByteSizeLong() const {
   return total_size;
 }
 
-void DetectedObjects_box::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:darknetServer.DetectedObjects.box)
+void DetectedObjects_DetectedObject_box::MergeFrom(const ::google::protobuf::Message& from) {
+// @@protoc_insertion_point(generalized_merge_from_start:darknetServer.DetectedObjects.DetectedObject.box)
   GOOGLE_DCHECK_NE(&from, this);
-  const DetectedObjects_box* source =
-      ::google::protobuf::internal::DynamicCastToGenerated<const DetectedObjects_box>(
+  const DetectedObjects_DetectedObject_box* source =
+      ::google::protobuf::internal::DynamicCastToGenerated<const DetectedObjects_DetectedObject_box>(
           &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:darknetServer.DetectedObjects.box)
+  // @@protoc_insertion_point(generalized_merge_from_cast_fail:darknetServer.DetectedObjects.DetectedObject.box)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:darknetServer.DetectedObjects.box)
+  // @@protoc_insertion_point(generalized_merge_from_cast_success:darknetServer.DetectedObjects.DetectedObject.box)
     MergeFrom(*source);
   }
 }
 
-void DetectedObjects_box::MergeFrom(const DetectedObjects_box& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:darknetServer.DetectedObjects.box)
+void DetectedObjects_DetectedObject_box::MergeFrom(const DetectedObjects_DetectedObject_box& from) {
+// @@protoc_insertion_point(class_specific_merge_from_start:darknetServer.DetectedObjects.DetectedObject.box)
   GOOGLE_DCHECK_NE(&from, this);
   _internal_metadata_.MergeFrom(from._internal_metadata_);
   ::google::protobuf::uint32 cached_has_bits = 0;
@@ -921,29 +960,29 @@ void DetectedObjects_box::MergeFrom(const DetectedObjects_box& from) {
   }
 }
 
-void DetectedObjects_box::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:darknetServer.DetectedObjects.box)
+void DetectedObjects_DetectedObject_box::CopyFrom(const ::google::protobuf::Message& from) {
+// @@protoc_insertion_point(generalized_copy_from_start:darknetServer.DetectedObjects.DetectedObject.box)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
-void DetectedObjects_box::CopyFrom(const DetectedObjects_box& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:darknetServer.DetectedObjects.box)
+void DetectedObjects_DetectedObject_box::CopyFrom(const DetectedObjects_DetectedObject_box& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:darknetServer.DetectedObjects.DetectedObject.box)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
-bool DetectedObjects_box::IsInitialized() const {
+bool DetectedObjects_DetectedObject_box::IsInitialized() const {
   return true;
 }
 
-void DetectedObjects_box::Swap(DetectedObjects_box* other) {
+void DetectedObjects_DetectedObject_box::Swap(DetectedObjects_DetectedObject_box* other) {
   if (other == this) return;
   InternalSwap(other);
 }
-void DetectedObjects_box::InternalSwap(DetectedObjects_box* other) {
+void DetectedObjects_DetectedObject_box::InternalSwap(DetectedObjects_DetectedObject_box* other) {
   using std::swap;
   swap(x_, other->x_);
   swap(y_, other->y_);
@@ -953,7 +992,7 @@ void DetectedObjects_box::InternalSwap(DetectedObjects_box* other) {
   swap(_cached_size_, other->_cached_size_);
 }
 
-::google::protobuf::Metadata DetectedObjects_box::GetMetadata() const {
+::google::protobuf::Metadata DetectedObjects_DetectedObject_box::GetMetadata() const {
   protobuf_darknetserver_2eproto::protobuf_AssignDescriptorsOnce();
   return ::protobuf_darknetserver_2eproto::file_level_metadata[kIndexInFileMessages];
 }
@@ -961,28 +1000,28 @@ void DetectedObjects_box::InternalSwap(DetectedObjects_box* other) {
 
 // ===================================================================
 
-void DetectedObjects::InitAsDefaultInstance() {
-  ::darknetServer::_DetectedObjects_default_instance_._instance.get_mutable()->bbox_ = const_cast< ::darknetServer::DetectedObjects_box*>(
-      ::darknetServer::DetectedObjects_box::internal_default_instance());
+void DetectedObjects_DetectedObject::InitAsDefaultInstance() {
+  ::darknetServer::_DetectedObjects_DetectedObject_default_instance_._instance.get_mutable()->bbox_ = const_cast< ::darknetServer::DetectedObjects_DetectedObject_box*>(
+      ::darknetServer::DetectedObjects_DetectedObject_box::internal_default_instance());
 }
 #if !defined(_MSC_VER) || _MSC_VER >= 1900
-const int DetectedObjects::kBboxFieldNumber;
-const int DetectedObjects::kClassesFieldNumber;
-const int DetectedObjects::kProbFieldNumber;
-const int DetectedObjects::kMaskFieldNumber;
-const int DetectedObjects::kObjectnessFieldNumber;
-const int DetectedObjects::kSortClassFieldNumber;
+const int DetectedObjects_DetectedObject::kBboxFieldNumber;
+const int DetectedObjects_DetectedObject::kClassesFieldNumber;
+const int DetectedObjects_DetectedObject::kProbFieldNumber;
+const int DetectedObjects_DetectedObject::kMaskFieldNumber;
+const int DetectedObjects_DetectedObject::kObjectnessFieldNumber;
+const int DetectedObjects_DetectedObject::kSortClassFieldNumber;
 #endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
-DetectedObjects::DetectedObjects()
+DetectedObjects_DetectedObject::DetectedObjects_DetectedObject()
   : ::google::protobuf::Message(), _internal_metadata_(NULL) {
   if (GOOGLE_PREDICT_TRUE(this != internal_default_instance())) {
-    ::protobuf_darknetserver_2eproto::InitDefaultsDetectedObjects();
+    ::protobuf_darknetserver_2eproto::InitDefaultsDetectedObjects_DetectedObject();
   }
   SharedCtor();
-  // @@protoc_insertion_point(constructor:darknetServer.DetectedObjects)
+  // @@protoc_insertion_point(constructor:darknetServer.DetectedObjects.DetectedObject)
 }
-DetectedObjects::DetectedObjects(const DetectedObjects& from)
+DetectedObjects_DetectedObject::DetectedObjects_DetectedObject(const DetectedObjects_DetectedObject& from)
   : ::google::protobuf::Message(),
       _internal_metadata_(NULL),
       prob_(from.prob_),
@@ -990,57 +1029,57 @@ DetectedObjects::DetectedObjects(const DetectedObjects& from)
       _cached_size_(0) {
   _internal_metadata_.MergeFrom(from._internal_metadata_);
   if (from.has_bbox()) {
-    bbox_ = new ::darknetServer::DetectedObjects_box(*from.bbox_);
+    bbox_ = new ::darknetServer::DetectedObjects_DetectedObject_box(*from.bbox_);
   } else {
     bbox_ = NULL;
   }
   ::memcpy(&classes_, &from.classes_,
     static_cast<size_t>(reinterpret_cast<char*>(&sort_class_) -
     reinterpret_cast<char*>(&classes_)) + sizeof(sort_class_));
-  // @@protoc_insertion_point(copy_constructor:darknetServer.DetectedObjects)
+  // @@protoc_insertion_point(copy_constructor:darknetServer.DetectedObjects.DetectedObject)
 }
 
-void DetectedObjects::SharedCtor() {
+void DetectedObjects_DetectedObject::SharedCtor() {
   ::memset(&bbox_, 0, static_cast<size_t>(
       reinterpret_cast<char*>(&sort_class_) -
       reinterpret_cast<char*>(&bbox_)) + sizeof(sort_class_));
   _cached_size_ = 0;
 }
 
-DetectedObjects::~DetectedObjects() {
-  // @@protoc_insertion_point(destructor:darknetServer.DetectedObjects)
+DetectedObjects_DetectedObject::~DetectedObjects_DetectedObject() {
+  // @@protoc_insertion_point(destructor:darknetServer.DetectedObjects.DetectedObject)
   SharedDtor();
 }
 
-void DetectedObjects::SharedDtor() {
+void DetectedObjects_DetectedObject::SharedDtor() {
   if (this != internal_default_instance()) delete bbox_;
 }
 
-void DetectedObjects::SetCachedSize(int size) const {
+void DetectedObjects_DetectedObject::SetCachedSize(int size) const {
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
   _cached_size_ = size;
   GOOGLE_SAFE_CONCURRENT_WRITES_END();
 }
-const ::google::protobuf::Descriptor* DetectedObjects::descriptor() {
+const ::google::protobuf::Descriptor* DetectedObjects_DetectedObject::descriptor() {
   ::protobuf_darknetserver_2eproto::protobuf_AssignDescriptorsOnce();
   return ::protobuf_darknetserver_2eproto::file_level_metadata[kIndexInFileMessages].descriptor;
 }
 
-const DetectedObjects& DetectedObjects::default_instance() {
-  ::protobuf_darknetserver_2eproto::InitDefaultsDetectedObjects();
+const DetectedObjects_DetectedObject& DetectedObjects_DetectedObject::default_instance() {
+  ::protobuf_darknetserver_2eproto::InitDefaultsDetectedObjects_DetectedObject();
   return *internal_default_instance();
 }
 
-DetectedObjects* DetectedObjects::New(::google::protobuf::Arena* arena) const {
-  DetectedObjects* n = new DetectedObjects;
+DetectedObjects_DetectedObject* DetectedObjects_DetectedObject::New(::google::protobuf::Arena* arena) const {
+  DetectedObjects_DetectedObject* n = new DetectedObjects_DetectedObject;
   if (arena != NULL) {
     arena->Own(n);
   }
   return n;
 }
 
-void DetectedObjects::Clear() {
-// @@protoc_insertion_point(message_clear_start:darknetServer.DetectedObjects)
+void DetectedObjects_DetectedObject::Clear() {
+// @@protoc_insertion_point(message_clear_start:darknetServer.DetectedObjects.DetectedObject)
   ::google::protobuf::uint32 cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
@@ -1057,17 +1096,17 @@ void DetectedObjects::Clear() {
   _internal_metadata_.Clear();
 }
 
-bool DetectedObjects::MergePartialFromCodedStream(
+bool DetectedObjects_DetectedObject::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
 #define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
-  // @@protoc_insertion_point(parse_start:darknetServer.DetectedObjects)
+  // @@protoc_insertion_point(parse_start:darknetServer.DetectedObjects.DetectedObject)
   for (;;) {
     ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoffNoLastTag(127u);
     tag = p.first;
     if (!p.second) goto handle_unusual;
     switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // .darknetServer.DetectedObjects.box bbox = 1;
+      // .darknetServer.DetectedObjects.DetectedObject.box bbox = 1;
       case 1: {
         if (static_cast< ::google::protobuf::uint8>(tag) ==
             static_cast< ::google::protobuf::uint8>(10u /* 10 & 0xFF */)) {
@@ -1171,21 +1210,21 @@ bool DetectedObjects::MergePartialFromCodedStream(
     }
   }
 success:
-  // @@protoc_insertion_point(parse_success:darknetServer.DetectedObjects)
+  // @@protoc_insertion_point(parse_success:darknetServer.DetectedObjects.DetectedObject)
   return true;
 failure:
-  // @@protoc_insertion_point(parse_failure:darknetServer.DetectedObjects)
+  // @@protoc_insertion_point(parse_failure:darknetServer.DetectedObjects.DetectedObject)
   return false;
 #undef DO_
 }
 
-void DetectedObjects::SerializeWithCachedSizes(
+void DetectedObjects_DetectedObject::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
-  // @@protoc_insertion_point(serialize_start:darknetServer.DetectedObjects)
+  // @@protoc_insertion_point(serialize_start:darknetServer.DetectedObjects.DetectedObject)
   ::google::protobuf::uint32 cached_has_bits = 0;
   (void) cached_has_bits;
 
-  // .darknetServer.DetectedObjects.box bbox = 1;
+  // .darknetServer.DetectedObjects.DetectedObject.box bbox = 1;
   if (this->has_bbox()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
       1, *this->bbox_, output);
@@ -1228,17 +1267,17 @@ void DetectedObjects::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         (::google::protobuf::internal::GetProto3PreserveUnknownsDefault()   ? _internal_metadata_.unknown_fields()   : _internal_metadata_.default_instance()), output);
   }
-  // @@protoc_insertion_point(serialize_end:darknetServer.DetectedObjects)
+  // @@protoc_insertion_point(serialize_end:darknetServer.DetectedObjects.DetectedObject)
 }
 
-::google::protobuf::uint8* DetectedObjects::InternalSerializeWithCachedSizesToArray(
+::google::protobuf::uint8* DetectedObjects_DetectedObject::InternalSerializeWithCachedSizesToArray(
     bool deterministic, ::google::protobuf::uint8* target) const {
   (void)deterministic; // Unused
-  // @@protoc_insertion_point(serialize_to_array_start:darknetServer.DetectedObjects)
+  // @@protoc_insertion_point(serialize_to_array_start:darknetServer.DetectedObjects.DetectedObject)
   ::google::protobuf::uint32 cached_has_bits = 0;
   (void) cached_has_bits;
 
-  // .darknetServer.DetectedObjects.box bbox = 1;
+  // .darknetServer.DetectedObjects.DetectedObject.box bbox = 1;
   if (this->has_bbox()) {
     target = ::google::protobuf::internal::WireFormatLite::
       InternalWriteMessageToArray(
@@ -1290,12 +1329,12 @@ void DetectedObjects::SerializeWithCachedSizes(
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         (::google::protobuf::internal::GetProto3PreserveUnknownsDefault()   ? _internal_metadata_.unknown_fields()   : _internal_metadata_.default_instance()), target);
   }
-  // @@protoc_insertion_point(serialize_to_array_end:darknetServer.DetectedObjects)
+  // @@protoc_insertion_point(serialize_to_array_end:darknetServer.DetectedObjects.DetectedObject)
   return target;
 }
 
-size_t DetectedObjects::ByteSizeLong() const {
-// @@protoc_insertion_point(message_byte_size_start:darknetServer.DetectedObjects)
+size_t DetectedObjects_DetectedObject::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:darknetServer.DetectedObjects.DetectedObject)
   size_t total_size = 0;
 
   if ((_internal_metadata_.have_unknown_fields() &&  ::google::protobuf::internal::GetProto3PreserveUnknownsDefault())) {
@@ -1335,7 +1374,7 @@ size_t DetectedObjects::ByteSizeLong() const {
     total_size += data_size;
   }
 
-  // .darknetServer.DetectedObjects.box bbox = 1;
+  // .darknetServer.DetectedObjects.DetectedObject.box bbox = 1;
   if (this->has_bbox()) {
     total_size += 1 +
       ::google::protobuf::internal::WireFormatLite::MessageSize(
@@ -1368,6 +1407,300 @@ size_t DetectedObjects::ByteSizeLong() const {
   return total_size;
 }
 
+void DetectedObjects_DetectedObject::MergeFrom(const ::google::protobuf::Message& from) {
+// @@protoc_insertion_point(generalized_merge_from_start:darknetServer.DetectedObjects.DetectedObject)
+  GOOGLE_DCHECK_NE(&from, this);
+  const DetectedObjects_DetectedObject* source =
+      ::google::protobuf::internal::DynamicCastToGenerated<const DetectedObjects_DetectedObject>(
+          &from);
+  if (source == NULL) {
+  // @@protoc_insertion_point(generalized_merge_from_cast_fail:darknetServer.DetectedObjects.DetectedObject)
+    ::google::protobuf::internal::ReflectionOps::Merge(from, this);
+  } else {
+  // @@protoc_insertion_point(generalized_merge_from_cast_success:darknetServer.DetectedObjects.DetectedObject)
+    MergeFrom(*source);
+  }
+}
+
+void DetectedObjects_DetectedObject::MergeFrom(const DetectedObjects_DetectedObject& from) {
+// @@protoc_insertion_point(class_specific_merge_from_start:darknetServer.DetectedObjects.DetectedObject)
+  GOOGLE_DCHECK_NE(&from, this);
+  _internal_metadata_.MergeFrom(from._internal_metadata_);
+  ::google::protobuf::uint32 cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  prob_.MergeFrom(from.prob_);
+  mask_.MergeFrom(from.mask_);
+  if (from.has_bbox()) {
+    mutable_bbox()->::darknetServer::DetectedObjects_DetectedObject_box::MergeFrom(from.bbox());
+  }
+  if (from.classes() != 0) {
+    set_classes(from.classes());
+  }
+  if (from.objectness() != 0) {
+    set_objectness(from.objectness());
+  }
+  if (from.sort_class() != 0) {
+    set_sort_class(from.sort_class());
+  }
+}
+
+void DetectedObjects_DetectedObject::CopyFrom(const ::google::protobuf::Message& from) {
+// @@protoc_insertion_point(generalized_copy_from_start:darknetServer.DetectedObjects.DetectedObject)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+void DetectedObjects_DetectedObject::CopyFrom(const DetectedObjects_DetectedObject& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:darknetServer.DetectedObjects.DetectedObject)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool DetectedObjects_DetectedObject::IsInitialized() const {
+  return true;
+}
+
+void DetectedObjects_DetectedObject::Swap(DetectedObjects_DetectedObject* other) {
+  if (other == this) return;
+  InternalSwap(other);
+}
+void DetectedObjects_DetectedObject::InternalSwap(DetectedObjects_DetectedObject* other) {
+  using std::swap;
+  prob_.InternalSwap(&other->prob_);
+  mask_.InternalSwap(&other->mask_);
+  swap(bbox_, other->bbox_);
+  swap(classes_, other->classes_);
+  swap(objectness_, other->objectness_);
+  swap(sort_class_, other->sort_class_);
+  _internal_metadata_.Swap(&other->_internal_metadata_);
+  swap(_cached_size_, other->_cached_size_);
+}
+
+::google::protobuf::Metadata DetectedObjects_DetectedObject::GetMetadata() const {
+  protobuf_darknetserver_2eproto::protobuf_AssignDescriptorsOnce();
+  return ::protobuf_darknetserver_2eproto::file_level_metadata[kIndexInFileMessages];
+}
+
+
+// ===================================================================
+
+void DetectedObjects::InitAsDefaultInstance() {
+}
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
+const int DetectedObjects::kNumObjectsFieldNumber;
+const int DetectedObjects::kObjectsFieldNumber;
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+
+DetectedObjects::DetectedObjects()
+  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  if (GOOGLE_PREDICT_TRUE(this != internal_default_instance())) {
+    ::protobuf_darknetserver_2eproto::InitDefaultsDetectedObjects();
+  }
+  SharedCtor();
+  // @@protoc_insertion_point(constructor:darknetServer.DetectedObjects)
+}
+DetectedObjects::DetectedObjects(const DetectedObjects& from)
+  : ::google::protobuf::Message(),
+      _internal_metadata_(NULL),
+      objects_(from.objects_),
+      _cached_size_(0) {
+  _internal_metadata_.MergeFrom(from._internal_metadata_);
+  numobjects_ = from.numobjects_;
+  // @@protoc_insertion_point(copy_constructor:darknetServer.DetectedObjects)
+}
+
+void DetectedObjects::SharedCtor() {
+  numobjects_ = 0;
+  _cached_size_ = 0;
+}
+
+DetectedObjects::~DetectedObjects() {
+  // @@protoc_insertion_point(destructor:darknetServer.DetectedObjects)
+  SharedDtor();
+}
+
+void DetectedObjects::SharedDtor() {
+}
+
+void DetectedObjects::SetCachedSize(int size) const {
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+}
+const ::google::protobuf::Descriptor* DetectedObjects::descriptor() {
+  ::protobuf_darknetserver_2eproto::protobuf_AssignDescriptorsOnce();
+  return ::protobuf_darknetserver_2eproto::file_level_metadata[kIndexInFileMessages].descriptor;
+}
+
+const DetectedObjects& DetectedObjects::default_instance() {
+  ::protobuf_darknetserver_2eproto::InitDefaultsDetectedObjects();
+  return *internal_default_instance();
+}
+
+DetectedObjects* DetectedObjects::New(::google::protobuf::Arena* arena) const {
+  DetectedObjects* n = new DetectedObjects;
+  if (arena != NULL) {
+    arena->Own(n);
+  }
+  return n;
+}
+
+void DetectedObjects::Clear() {
+// @@protoc_insertion_point(message_clear_start:darknetServer.DetectedObjects)
+  ::google::protobuf::uint32 cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  objects_.Clear();
+  numobjects_ = 0;
+  _internal_metadata_.Clear();
+}
+
+bool DetectedObjects::MergePartialFromCodedStream(
+    ::google::protobuf::io::CodedInputStream* input) {
+#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+  ::google::protobuf::uint32 tag;
+  // @@protoc_insertion_point(parse_start:darknetServer.DetectedObjects)
+  for (;;) {
+    ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoffNoLastTag(127u);
+    tag = p.first;
+    if (!p.second) goto handle_unusual;
+    switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
+      // int32 numObjects = 1;
+      case 1: {
+        if (static_cast< ::google::protobuf::uint8>(tag) ==
+            static_cast< ::google::protobuf::uint8>(8u /* 8 & 0xFF */)) {
+
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_INT32>(
+                 input, &numobjects_)));
+        } else {
+          goto handle_unusual;
+        }
+        break;
+      }
+
+      // repeated .darknetServer.DetectedObjects.DetectedObject objects = 2;
+      case 2: {
+        if (static_cast< ::google::protobuf::uint8>(tag) ==
+            static_cast< ::google::protobuf::uint8>(18u /* 18 & 0xFF */)) {
+          DO_(::google::protobuf::internal::WireFormatLite::ReadMessage(input, add_objects()));
+        } else {
+          goto handle_unusual;
+        }
+        break;
+      }
+
+      default: {
+      handle_unusual:
+        if (tag == 0) {
+          goto success;
+        }
+        DO_(::google::protobuf::internal::WireFormat::SkipField(
+              input, tag, _internal_metadata_.mutable_unknown_fields()));
+        break;
+      }
+    }
+  }
+success:
+  // @@protoc_insertion_point(parse_success:darknetServer.DetectedObjects)
+  return true;
+failure:
+  // @@protoc_insertion_point(parse_failure:darknetServer.DetectedObjects)
+  return false;
+#undef DO_
+}
+
+void DetectedObjects::SerializeWithCachedSizes(
+    ::google::protobuf::io::CodedOutputStream* output) const {
+  // @@protoc_insertion_point(serialize_start:darknetServer.DetectedObjects)
+  ::google::protobuf::uint32 cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // int32 numObjects = 1;
+  if (this->numobjects() != 0) {
+    ::google::protobuf::internal::WireFormatLite::WriteInt32(1, this->numobjects(), output);
+  }
+
+  // repeated .darknetServer.DetectedObjects.DetectedObject objects = 2;
+  for (unsigned int i = 0,
+      n = static_cast<unsigned int>(this->objects_size()); i < n; i++) {
+    ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
+      2, this->objects(static_cast<int>(i)), output);
+  }
+
+  if ((_internal_metadata_.have_unknown_fields() &&  ::google::protobuf::internal::GetProto3PreserveUnknownsDefault())) {
+    ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
+        (::google::protobuf::internal::GetProto3PreserveUnknownsDefault()   ? _internal_metadata_.unknown_fields()   : _internal_metadata_.default_instance()), output);
+  }
+  // @@protoc_insertion_point(serialize_end:darknetServer.DetectedObjects)
+}
+
+::google::protobuf::uint8* DetectedObjects::InternalSerializeWithCachedSizesToArray(
+    bool deterministic, ::google::protobuf::uint8* target) const {
+  (void)deterministic; // Unused
+  // @@protoc_insertion_point(serialize_to_array_start:darknetServer.DetectedObjects)
+  ::google::protobuf::uint32 cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // int32 numObjects = 1;
+  if (this->numobjects() != 0) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteInt32ToArray(1, this->numobjects(), target);
+  }
+
+  // repeated .darknetServer.DetectedObjects.DetectedObject objects = 2;
+  for (unsigned int i = 0,
+      n = static_cast<unsigned int>(this->objects_size()); i < n; i++) {
+    target = ::google::protobuf::internal::WireFormatLite::
+      InternalWriteMessageToArray(
+        2, this->objects(static_cast<int>(i)), deterministic, target);
+  }
+
+  if ((_internal_metadata_.have_unknown_fields() &&  ::google::protobuf::internal::GetProto3PreserveUnknownsDefault())) {
+    target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
+        (::google::protobuf::internal::GetProto3PreserveUnknownsDefault()   ? _internal_metadata_.unknown_fields()   : _internal_metadata_.default_instance()), target);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:darknetServer.DetectedObjects)
+  return target;
+}
+
+size_t DetectedObjects::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:darknetServer.DetectedObjects)
+  size_t total_size = 0;
+
+  if ((_internal_metadata_.have_unknown_fields() &&  ::google::protobuf::internal::GetProto3PreserveUnknownsDefault())) {
+    total_size +=
+      ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
+        (::google::protobuf::internal::GetProto3PreserveUnknownsDefault()   ? _internal_metadata_.unknown_fields()   : _internal_metadata_.default_instance()));
+  }
+  // repeated .darknetServer.DetectedObjects.DetectedObject objects = 2;
+  {
+    unsigned int count = static_cast<unsigned int>(this->objects_size());
+    total_size += 1UL * count;
+    for (unsigned int i = 0; i < count; i++) {
+      total_size +=
+        ::google::protobuf::internal::WireFormatLite::MessageSize(
+          this->objects(static_cast<int>(i)));
+    }
+  }
+
+  // int32 numObjects = 1;
+  if (this->numobjects() != 0) {
+    total_size += 1 +
+      ::google::protobuf::internal::WireFormatLite::Int32Size(
+        this->numobjects());
+  }
+
+  int cached_size = ::google::protobuf::internal::ToCachedSize(total_size);
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = cached_size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+  return total_size;
+}
+
 void DetectedObjects::MergeFrom(const ::google::protobuf::Message& from) {
 // @@protoc_insertion_point(generalized_merge_from_start:darknetServer.DetectedObjects)
   GOOGLE_DCHECK_NE(&from, this);
@@ -1390,19 +1723,9 @@ void DetectedObjects::MergeFrom(const DetectedObjects& from) {
   ::google::protobuf::uint32 cached_has_bits = 0;
   (void) cached_has_bits;
 
-  prob_.MergeFrom(from.prob_);
-  mask_.MergeFrom(from.mask_);
-  if (from.has_bbox()) {
-    mutable_bbox()->::darknetServer::DetectedObjects_box::MergeFrom(from.bbox());
-  }
-  if (from.classes() != 0) {
-    set_classes(from.classes());
-  }
-  if (from.objectness() != 0) {
-    set_objectness(from.objectness());
-  }
-  if (from.sort_class() != 0) {
-    set_sort_class(from.sort_class());
+  objects_.MergeFrom(from.objects_);
+  if (from.numobjects() != 0) {
+    set_numobjects(from.numobjects());
   }
 }
 
@@ -1430,12 +1753,8 @@ void DetectedObjects::Swap(DetectedObjects* other) {
 }
 void DetectedObjects::InternalSwap(DetectedObjects* other) {
   using std::swap;
-  prob_.InternalSwap(&other->prob_);
-  mask_.InternalSwap(&other->mask_);
-  swap(bbox_, other->bbox_);
-  swap(classes_, other->classes_);
-  swap(objectness_, other->objectness_);
-  swap(sort_class_, other->sort_class_);
+  objects_.InternalSwap(&other->objects_);
+  swap(numobjects_, other->numobjects_);
   _internal_metadata_.Swap(&other->_internal_metadata_);
   swap(_cached_size_, other->_cached_size_);
 }

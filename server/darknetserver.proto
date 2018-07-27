@@ -32,5 +32,6 @@ message DetectedObjects {
 		int32 sort_class=6;
 	}
 
-	repeated DetectedObject objects;
+	int32 numObjects=1;
+	repeated DetectedObject objects=2;
 }
