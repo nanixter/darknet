@@ -31,7 +31,6 @@ message DetectedObjects {
 		float objectness=5;
 		int32 sort_class=6;
 	}
-
-	int32 numObjects=1;
+	
 	repeated DetectedObject objects=2;
 }

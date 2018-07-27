@@ -111,23 +111,20 @@ class ImageDetectionClient {
             // corresponds solely to the request for updates introduced by Finish().
             GPR_ASSERT(ok);
 
-            std::vector<DetectedObjects> detectedObjects;
-            DetectedObjects object;
-            while(call->async_reader->Read(&object, got_tag)) {
-                detectedObjects.push_back(object);
-            }
-
             if (call->status.ok()) {
                 // print out what we received...
-                std::cout   << "Objects detected: " << std::endl;
-                for (auto i = detectedObjects.begin(); i < detectedObjects.end(); i++) {
-                    std::cout   << i->bbox().x() << ", "
-                                << i->bbox().y() << ", "
-                                << i->bbox().w() << ", "
-                                << i->bbox().h() << ", "
-                                << i->classes() << ", ";
-                    for (auto j = 0; j < i->prob_size(); j++) {
-                        std::cout << i->prob(j);
+                std::cout << call->detectedObjects.objects_size() << " objects detected." <<std::endl;
+                for (int i = 0; i < call->detectedObjects.objects_size(); i++) {
+                    DetectedObject object = call->detectedObjects.objects(i);
+                    std::cout   << "Object of class " << object.classes() 
+                                << "detected at :" << std::endl;
+                    std::cout   << "x: " << object.bbox().x() << ", "
+                                << "y: " << object.bbox().y() << ", "
+                                << "w: " << object.bbox().w() << ", "
+                                << "h: " << object.bbox().h() << ", ";
+                    std::cout << "Probability: "
+                    for (auto j = 0; j < object.prob_size(); j++) {
+                        std::cout << object.prob(j) << " ";
                     }
                     std::cout << std::endl;
                 }
