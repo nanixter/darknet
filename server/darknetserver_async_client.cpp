@@ -44,7 +44,7 @@ Image getImageFromMat(cv::Mat &m) {
     image.height = m.rows;
     image.width = m.cols;
     image.numChannels = m.channels();
-    image.widthStep = (int)m.step1();
+    image.widthStep = (int)m.step;
     image.data = new float[image.height*image.width*image.numChannels]();
 
     for(int i = 0; i < image.height; ++i){
@@ -115,14 +115,14 @@ class ImageDetectionClient {
                 // print out what we received...
                 std::cout << call->detectedObjects.objects_size() << " objects detected." <<std::endl;
                 for (int i = 0; i < call->detectedObjects.objects_size(); i++) {
-                    DetectedObject object = call->detectedObjects.objects(i);
+                    auto object = call->detectedObjects.objects(i);
                     std::cout   << "Object of class " << object.classes() 
                                 << "detected at :" << std::endl;
                     std::cout   << "x: " << object.bbox().x() << ", "
                                 << "y: " << object.bbox().y() << ", "
                                 << "w: " << object.bbox().w() << ", "
                                 << "h: " << object.bbox().h() << ", ";
-                    std::cout << "Probability: "
+                    std::cout << "Probability: ";
                     for (auto j = 0; j < object.prob_size(); j++) {
                         std::cout << object.prob(j) << " ";
                     }
@@ -188,7 +188,7 @@ int main(int argc, char** argv) {
         }
     }
     if (NULL == filename) {
-        printf("Couldn't open file");
+        std::cout << "Usage:" << std::endl << argv[0] << " -f <vid_file>" << std::endl;
         return -1;
     }   
     printf("video file: %s\n", filename);
@@ -199,11 +199,15 @@ int main(int argc, char** argv) {
         cv::Mat capturedFrame;
         while(capture.read(capturedFrame)) {
             // The actual RPC call!
+			//std::cout << "capturedFrame =" << std::endl << capturedFrame << std::endl << std::endl;
             Image image = getImageFromMat(capturedFrame);
             printImage(image);
             // ImageDetection.AsyncSendImage(&image);
         }
-    }
+	} else { 
+		std::cout << "Couldn't open " << filename <<std::endl;
+		return -1;
+	}
 
     std::cout << "Press control-c to quit" << std::endl;
     completionThread.join();  //blocks forever

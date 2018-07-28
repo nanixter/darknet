@@ -14,16 +14,17 @@ PROTOS_PATH = .
 
 vpath %.proto $(PROTOS_PATH)
 
-all: system-check darknetserver_async_client darknetserver_async_server
+all: system-check darknetserver_async_client 
+#darknetserver_async_server
 
 darknetserver_async_client: darknetserver.pb.o darknetserver.grpc.pb.o darknetserver_async_client.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
-darknetserver_async_server: darknetserver.pb.o darknetserver.grpc.pb.o darknetserver_async_server.o
-	$(CXX) $^ $(LDFLAGS) -o $@
+#darknetserver_async_server: darknetserver.pb.o darknetserver.grpc.pb.o darknetserver_async_server.o
+#	$(CXX) $^ $(LDFLAGS) -o $@
 
-darknetserver_async_client.o: darknetserver_async_client.cpp
-	$(CXX) $(CXXFLAGS) $^ $(LDFLAGS) -o $@
+#darknetserver_async_client.o: darknetserver_async_client.cpp
+#	$(CXX) $(CXXFLAGS) $^ $(LDFLAGS) -o $@
 
 .PRECIOUS: %.grpc.pb.cc
 %.grpc.pb.cc: %.proto

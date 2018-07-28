@@ -21,6 +21,8 @@ bad.list
 grpc
 libdarknet*
 weights
+darknetserver_async_client
+darknetserver_async_server
 
 # OS Generated #
 .DS_Store*

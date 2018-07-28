@@ -166,7 +166,6 @@ const ::google::protobuf::uint32 TableStruct::offsets[] GOOGLE_PROTOBUF_ATTRIBUT
   ~0u,  // no _extensions_
   ~0u,  // no _oneof_case_
   ~0u,  // no _weak_field_map_
-  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::DetectedObjects, numobjects_),
   GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::darknetServer::DetectedObjects, objects_),
 };
 static const ::google::protobuf::internal::MigrationSchema schemas[] GOOGLE_PROTOBUF_ATTRIBUTE_SECTION_VARIABLE(protodesc_cold) = {
@@ -208,21 +207,20 @@ void AddDescriptorsImpl() {
       "\n\023darknetserver.proto\022\rdarknetServer\"_\n\010"
       "KeyFrame\022\r\n\005width\030\001 \001(\005\022\016\n\006height\030\002 \001(\005\022"
       "\023\n\013numChannels\030\003 \001(\005\022\021\n\twidthStep\030\004 \001(\005\022"
-      "\014\n\004data\030\005 \003(\002\"\301\002\n\017DetectedObjects\022\022\n\nnum"
-      "Objects\030\001 \001(\005\022>\n\007objects\030\002 \003(\0132-.darknet"
-      "Server.DetectedObjects.DetectedObject\032\331\001"
-      "\n\016DetectedObject\022\?\n\004bbox\030\001 \001(\01321.darknet"
-      "Server.DetectedObjects.DetectedObject.bo"
-      "x\022\017\n\007classes\030\002 \001(\005\022\014\n\004prob\030\003 \003(\002\022\014\n\004mask"
-      "\030\004 \003(\002\022\022\n\nobjectness\030\005 \001(\002\022\022\n\nsort_class"
-      "\030\006 \001(\005\0321\n\003box\022\t\n\001x\030\001 \001(\002\022\t\n\001y\030\002 \001(\002\022\t\n\001w"
-      "\030\003 \001(\002\022\t\n\001h\030\004 \001(\0022_\n\016ImageDetection\022M\n\020R"
-      "equestDetection\022\027.darknetServer.KeyFrame"
-      "\032\036.darknetServer.DetectedObjects\"\000b\006prot"
-      "o3"
+      "\014\n\004data\030\005 \003(\002\"\255\002\n\017DetectedObjects\022>\n\007obj"
+      "ects\030\002 \003(\0132-.darknetServer.DetectedObjec"
+      "ts.DetectedObject\032\331\001\n\016DetectedObject\022\?\n\004"
+      "bbox\030\001 \001(\01321.darknetServer.DetectedObjec"
+      "ts.DetectedObject.box\022\017\n\007classes\030\002 \001(\005\022\014"
+      "\n\004prob\030\003 \003(\002\022\014\n\004mask\030\004 \003(\002\022\022\n\nobjectness"
+      "\030\005 \001(\002\022\022\n\nsort_class\030\006 \001(\005\0321\n\003box\022\t\n\001x\030\001"
+      " \001(\002\022\t\n\001y\030\002 \001(\002\022\t\n\001w\030\003 \001(\002\022\t\n\001h\030\004 \001(\0022_\n"
+      "\016ImageDetection\022M\n\020RequestDetection\022\027.da"
+      "rknetServer.KeyFrame\032\036.darknetServer.Det"
+      "ectedObjects\"\000b\006proto3"
   };
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
-      descriptor, 562);
+      descriptor, 542);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "darknetserver.proto", &protobuf_RegisterTypes);
 }
@@ -1490,7 +1488,6 @@ void DetectedObjects_DetectedObject::InternalSwap(DetectedObjects_DetectedObject
 void DetectedObjects::InitAsDefaultInstance() {
 }
 #if !defined(_MSC_VER) || _MSC_VER >= 1900
-const int DetectedObjects::kNumObjectsFieldNumber;
 const int DetectedObjects::kObjectsFieldNumber;
 #endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
@@ -1508,12 +1505,10 @@ DetectedObjects::DetectedObjects(const DetectedObjects& from)
       objects_(from.objects_),
       _cached_size_(0) {
   _internal_metadata_.MergeFrom(from._internal_metadata_);
-  numobjects_ = from.numobjects_;
   // @@protoc_insertion_point(copy_constructor:darknetServer.DetectedObjects)
 }
 
 void DetectedObjects::SharedCtor() {
-  numobjects_ = 0;
   _cached_size_ = 0;
 }
 
@@ -1555,7 +1550,6 @@ void DetectedObjects::Clear() {
   (void) cached_has_bits;
 
   objects_.Clear();
-  numobjects_ = 0;
   _internal_metadata_.Clear();
 }
 
@@ -1569,20 +1563,6 @@ bool DetectedObjects::MergePartialFromCodedStream(
     tag = p.first;
     if (!p.second) goto handle_unusual;
     switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // int32 numObjects = 1;
-      case 1: {
-        if (static_cast< ::google::protobuf::uint8>(tag) ==
-            static_cast< ::google::protobuf::uint8>(8u /* 8 & 0xFF */)) {
-
-          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_INT32>(
-                 input, &numobjects_)));
-        } else {
-          goto handle_unusual;
-        }
-        break;
-      }
-
       // repeated .darknetServer.DetectedObjects.DetectedObject objects = 2;
       case 2: {
         if (static_cast< ::google::protobuf::uint8>(tag) ==
@@ -1620,11 +1600,6 @@ void DetectedObjects::SerializeWithCachedSizes(
   ::google::protobuf::uint32 cached_has_bits = 0;
   (void) cached_has_bits;
 
-  // int32 numObjects = 1;
-  if (this->numobjects() != 0) {
-    ::google::protobuf::internal::WireFormatLite::WriteInt32(1, this->numobjects(), output);
-  }
-
   // repeated .darknetServer.DetectedObjects.DetectedObject objects = 2;
   for (unsigned int i = 0,
       n = static_cast<unsigned int>(this->objects_size()); i < n; i++) {
@@ -1645,11 +1620,6 @@ void DetectedObjects::SerializeWithCachedSizes(
   // @@protoc_insertion_point(serialize_to_array_start:darknetServer.DetectedObjects)
   ::google::protobuf::uint32 cached_has_bits = 0;
   (void) cached_has_bits;
-
-  // int32 numObjects = 1;
-  if (this->numobjects() != 0) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteInt32ToArray(1, this->numobjects(), target);
-  }
 
   // repeated .darknetServer.DetectedObjects.DetectedObject objects = 2;
   for (unsigned int i = 0,
@@ -1687,13 +1657,6 @@ size_t DetectedObjects::ByteSizeLong() const {
     }
   }
 
-  // int32 numObjects = 1;
-  if (this->numobjects() != 0) {
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::Int32Size(
-        this->numobjects());
-  }
-
   int cached_size = ::google::protobuf::internal::ToCachedSize(total_size);
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
   _cached_size_ = cached_size;
@@ -1724,9 +1687,6 @@ void DetectedObjects::MergeFrom(const DetectedObjects& from) {
   (void) cached_has_bits;
 
   objects_.MergeFrom(from.objects_);
-  if (from.numobjects() != 0) {
-    set_numobjects(from.numobjects());
-  }
 }
 
 void DetectedObjects::CopyFrom(const ::google::protobuf::Message& from) {
@@ -1754,7 +1714,6 @@ void DetectedObjects::Swap(DetectedObjects* other) {
 void DetectedObjects::InternalSwap(DetectedObjects* other) {
   using std::swap;
   objects_.InternalSwap(&other->objects_);
-  swap(numobjects_, other->numobjects_);
   _internal_metadata_.Swap(&other->_internal_metadata_);
   swap(_cached_size_, other->_cached_size_);
 }

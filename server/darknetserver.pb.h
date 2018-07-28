@@ -578,18 +578,11 @@ class DetectedObjects : public ::google::protobuf::Message /* @@protoc_insertion
   const ::google::protobuf::RepeatedPtrField< ::darknetServer::DetectedObjects_DetectedObject >&
       objects() const;
 
-  // int32 numObjects = 1;
-  void clear_numobjects();
-  static const int kNumObjectsFieldNumber = 1;
-  ::google::protobuf::int32 numobjects() const;
-  void set_numobjects(::google::protobuf::int32 value);
-
   // @@protoc_insertion_point(class_scope:darknetServer.DetectedObjects)
  private:
 
   ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
   ::google::protobuf::RepeatedPtrField< ::darknetServer::DetectedObjects_DetectedObject > objects_;
-  ::google::protobuf::int32 numobjects_;
   mutable int _cached_size_;
   friend struct ::protobuf_darknetserver_2eproto::TableStruct;
   friend void ::protobuf_darknetserver_2eproto::InitDefaultsDetectedObjectsImpl();
@@ -910,20 +903,6 @@ inline void DetectedObjects_DetectedObject::set_sort_class(::google::protobuf::i
 // -------------------------------------------------------------------
 
 // DetectedObjects
-
-// int32 numObjects = 1;
-inline void DetectedObjects::clear_numobjects() {
-  numobjects_ = 0;
-}
-inline ::google::protobuf::int32 DetectedObjects::numobjects() const {
-  // @@protoc_insertion_point(field_get:darknetServer.DetectedObjects.numObjects)
-  return numobjects_;
-}
-inline void DetectedObjects::set_numobjects(::google::protobuf::int32 value) {
-  
-  numobjects_ = value;
-  // @@protoc_insertion_point(field_set:darknetServer.DetectedObjects.numObjects)
-}
 
 // repeated .darknetServer.DetectedObjects.DetectedObject objects = 2;
 inline int DetectedObjects::objects_size() const {
