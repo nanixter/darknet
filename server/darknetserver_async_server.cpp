@@ -1,30 +1,18 @@
-/*
- *
- * Copyright 2015 gRPC authors.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- */
-
-#include <memory>
+#include "opencv2/highgui/highgui.hpp"
 #include <iostream>
+#include <memory>
 #include <string>
-#include <thread>
+#include <cstring>
+#include <vector>
+#include <cstdio>
 
 #include <grpcpp/grpcpp.h>
 #include <grpc/support/log.h>
+#include <thread>
 
-#include "helloworld.grpc.pb.h"
+#include "darknetserver.grpc.pb.h"
+
+#include "darknet.h"
 
 using grpc::Server;
 using grpc::ServerAsyncResponseWriter;
@@ -32,9 +20,9 @@ using grpc::ServerBuilder;
 using grpc::ServerContext;
 using grpc::ServerCompletionQueue;
 using grpc::Status;
-using helloworld::HelloRequest;
-using helloworld::HelloReply;
-using helloworld::Greeter;
+using darknetServer::DetectedObjects;
+using darknetServer::KeyFrame;
+using darknetServer::ImageDetection;
 
 class ServerImpl final {
  public:
@@ -72,7 +60,7 @@ class ServerImpl final {
     // Take in the "service" instance (in this case representing an asynchronous
     // server) and the completion queue "cq" used for asynchronous communication
     // with the gRPC runtime.
-    CallData(Greeter::AsyncService* service, ServerCompletionQueue* cq)
+    CallData(ImageDetection::AsyncService* service, ServerCompletionQueue* cq)
         : service_(service), cq_(cq), responder_(&ctx_), status_(CREATE) {
       // Invoke the serving logic right away.
       Proceed();
@@ -115,7 +103,7 @@ class ServerImpl final {
    private:
     // The means of communication with the gRPC runtime for an asynchronous
     // server.
-    Greeter::AsyncService* service_;
+    ImageDetection::AsyncService* service_;
     // The producer-consumer queue where for asynchronous server notifications.
     ServerCompletionQueue* cq_;
     // Context for the rpc, allowing to tweak aspects of it such as the use
@@ -124,12 +112,12 @@ class ServerImpl final {
     ServerContext ctx_;
 
     // What we get from the client.
-    HelloRequest request_;
+    KeyFrame frame;
     // What we send back to the client.
-    HelloReply reply_;
+    DetectedObjects objects;
 
     // The means to get back to the client.
-    ServerAsyncResponseWriter<HelloReply> responder_;
+    ServerAsyncResponseWriter<DetectedObjects> asyncResponder;
 
     // Let's implement a tiny state machine with the following states.
     enum CallStatus { CREATE, PROCESS, FINISH };
@@ -155,7 +143,7 @@ class ServerImpl final {
   }
 
   std::unique_ptr<ServerCompletionQueue> cq_;
-  Greeter::AsyncService service_;
+  ImageDetection::AsyncService service_;
   std::unique_ptr<Server> server_;
 };
 
