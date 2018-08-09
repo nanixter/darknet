@@ -23,6 +23,8 @@ libdarknet*
 weights
 darknetserver_async_client
 darknetserver_async_server
+*.sublime-project
+*.sublime-workspace
 
 # OS Generated #
 .DS_Store*
