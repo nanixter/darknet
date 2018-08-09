@@ -30,8 +30,8 @@ typedef struct {
 } Image;
 
 void printImage(Image &image){
-    std::cout << "width: " << image.width <<std::endl;
-    std::cout << "height: " << image.height <<std::endl;
+    std::cout << "width: " << image.width;
+    std::cout << " height: " << image.height <<std::endl;
     std::cout << "numChannels: " << image.numChannels <<std::endl;
     std::cout << "widthStep: " << image.widthStep <<std::endl;
     std::cout << "Data: " << std::endl;
@@ -39,21 +39,22 @@ void printImage(Image &image){
         std::cout << image.data[i];
 }
 
-Image getImageFromMat(cv::Mat &m) {
+Image getImageFromMat(cv::Mat *m) {
     Image image;
-    image.height = m.rows;
-    image.width = m.cols;
-    image.numChannels = m.channels();
-    image.widthStep = (int)m.step;
+    image.height = m->rows;
+    image.width = m->cols;
+    image.numChannels = m->channels();
+    image.widthStep = (int)m->step;
     image.data = new float[image.height*image.width*image.numChannels]();
 
     for(int i = 0; i < image.height; ++i){
         for(int k= 0; k < image.numChannels; ++k){
             for(int j = 0; j < image.width; ++j){
-                image.data[k*image.width*image.height + i*image.width + j] = m.data[i*image.widthStep + j*image.numChannels + k]/255.;
+                image.data[k*image.width*image.height + i*image.width + j] = m->data[i*image.widthStep + j*image.numChannels + k]/255.;
             }
         }
     }
+	return image;
 }
 
 class ImageDetectionClient {
@@ -179,8 +180,10 @@ int main(int argc, char** argv) {
         &detectionClient);
 
     // Do any associated setup (metadata etc.)
+	// TODO: Do we support multiple file formats?
 
     // Open the input video file
+    // TODO: Fork multiple processes and send multiple video streams.
     char *filename;
     for(int i = 0; i < argc-1; ++i){
         if(0==strcmp(argv[i], "-f")){
@@ -198,11 +201,11 @@ int main(int argc, char** argv) {
     if (capture.isOpened()) {
         cv::Mat capturedFrame;
         while(capture.read(capturedFrame)) {
+            // Convert the image from cv::Mat to the image format that darknet expects
+			Image image = getImageFromMat(&capturedFrame);
+            //printImage(image);
             // The actual RPC call!
-			//std::cout << "capturedFrame =" << std::endl << capturedFrame << std::endl << std::endl;
-            Image image = getImageFromMat(capturedFrame);
-            printImage(image);
-            // ImageDetection.AsyncSendImage(&image);
+            ImageDetection.AsyncSendImage(&image);
         }
 	} else { 
 		std::cout << "Couldn't open " << filename <<std::endl;
