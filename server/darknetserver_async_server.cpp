@@ -1,4 +1,3 @@
-#include "opencv2/highgui/highgui.hpp"
 #include <iostream>
 #include <memory>
 #include <string>
@@ -12,7 +11,7 @@
 
 #include "darknetserver.grpc.pb.h"
 
-#include "darknet.h"
+#include "darknet_wrapper.h"
 
 using grpc::Server;
 using grpc::ServerAsyncResponseWriter;
@@ -23,10 +22,15 @@ using grpc::Status;
 using darknetServer::DetectedObjects;
 using darknetServer::KeyFrame;
 using darknetServer::ImageDetection;
+using DarknetWrapper::WorkRequest;
+using DarknetWrapper::DetectionQueue;
+using DarknetWrapper::Detector;
+
 
 class ServerImpl final {
  public:
   ~ServerImpl() {
+    detector.Shutdown();
     server_->Shutdown();
     // Always shutdown the completion queue after the server.
     cq_->Shutdown();
@@ -36,12 +40,19 @@ class ServerImpl final {
   void Run() {
     std::string server_address("0.0.0.0:50051");
 
+    // Initialize detector - pass it the request and completion queues
+    // Initialization must be done before launching the detection thread.
+    detector.Init(&requestQueue, &completionQueue);
+
+    // start a Thread to run doDetection
+    std::thread detectionThread(&Detector::doDetection, &detector);
+
     ServerBuilder builder;
     // Listen on the given address without any authentication mechanism.
     builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
     // Register "service_" as the instance through which we'll communicate with
     // clients. In this case it corresponds to an *asynchronous* service.
-    builder.RegisterService(&service_);
+    builder.RegisterService(&service);
     // Get hold of the completion queue used for the asynchronous communication
     // with the gRPC runtime.
     cq_ = builder.AddCompletionQueue();
@@ -49,8 +60,14 @@ class ServerImpl final {
     server_ = builder.BuildAndStart();
     std::cout << "Server listening on " << server_address << std::endl;
 
-    // Proceed to the server's main loop.
-    HandleRpcs();
+    // Start the thread that handles the second half of the processing.
+    std::thread laterHalfThread(doLaterHalf);
+    // The server's main loop.
+    doFirstHalf();
+
+    // Wait for the other threads to 
+    detectionThread.join();
+    laterHalfThread.join();
   }
 
  private:
@@ -61,43 +78,49 @@ class ServerImpl final {
     // server) and the completion queue "cq" used for asynchronous communication
     // with the gRPC runtime.
     CallData(ImageDetection::AsyncService* service, ServerCompletionQueue* cq)
-        : service_(service), cq_(cq), responder_(&ctx_), status_(CREATE) {
+        : service_(service), cq_(cq), asyncResponder(&ctx_), status_(CREATE) {
       // Invoke the serving logic right away.
-      Proceed();
+      handleRequest();
     }
 
-    void Proceed() {
+    void scheduleRequest() {
       if (status_ == CREATE) {
         // Make this instance progress to the PROCESS state.
-        status_ = PROCESS;
+        status_ = READY;
 
         // As part of the initial CREATE state, we *request* that the system
-        // start processing SayHello requests. In this request, "this" acts are
+        // start processing RequestDetection requests. In this request, "this" acts as
         // the tag uniquely identifying the request (so that different CallData
-        // instances can serve different requests concurrently), in this case
-        // the memory address of this CallData instance.
-        service_->RequestSayHello(&ctx_, &request_, &responder_, cq_, cq_,
-                                  this);
-      } else if (status_ == PROCESS) {
+        // instances can serve different requests concurrently).
+        service_->RequestRequestDetection(&ctx_, &frame, &asyncResponder, cq_, cq_, this);
+      } else if (status_ == READY) {
         // Spawn a new CallData instance to serve new clients while we process
         // the one for this CallData. The instance will deallocate itself as
         // part of its FINISH state.
         new CallData(service_, cq_);
 
         // The actual processing.
-        std::string prefix("Hello ");
-        reply_.set_message(prefix + request_.name());
-
-        // And we are done! Let the gRPC runtime know we've finished, using the
-        // memory address of this instance as the uniquely identifying tag for
-        // the event.
-        status_ = FINISH;
-        responder_.Finish(reply_, Status::OK, this);
+        WorkRequest work;
+        work.done = false;
+        work.tag = this;
+        work.frame = this.frame;
+        requestQueue.push_back(workRequest);
+        status_ = PROCESSING;
       } else {
         GPR_ASSERT(status_ == FINISH);
         // Once in the FINISH state, deallocate ourselves (CallData).
         delete this;
       }
+    }
+
+    void completeRequest(WorkRequest &work) {
+        GPR_ASSERT(status_ == PROCESSING);
+        GPR_ASSERT(work.done == true);
+
+        // GPU processing is done! Time to pass the results back to the client.
+        this.objects = work.objects;
+        status_ = FINISH;
+        responder_.Finish(&(this.objects), Status::OK, this);
     }
 
    private:
@@ -113,6 +136,7 @@ class ServerImpl final {
 
     // What we get from the client.
     KeyFrame frame;
+
     // What we send back to the client.
     DetectedObjects objects;
 
@@ -120,14 +144,14 @@ class ServerImpl final {
     ServerAsyncResponseWriter<DetectedObjects> asyncResponder;
 
     // Let's implement a tiny state machine with the following states.
-    enum CallStatus { CREATE, PROCESS, FINISH };
+    enum CallStatus { CREATE, READY, PROCESSING, FINISH };
     CallStatus status_;  // The current serving state.
   };
 
   // This can be run in multiple threads if needed.
-  void HandleRpcs() {
+  void doFirstHalf() {
     // Spawn a new CallData instance to serve new clients.
-    new CallData(&service_, cq_.get());
+    new CallData(&service, cq_.get());
     void* tag;  // uniquely identifies a request.
     bool ok;
     while (true) {
@@ -138,12 +162,26 @@ class ServerImpl final {
       // tells us whether there is any kind of event or cq_ is shutting down.
       GPR_ASSERT(cq_->Next(&tag, &ok));
       GPR_ASSERT(ok);
-      static_cast<CallData*>(tag)->Proceed();
+      static_cast<CallData*>(tag)->scheduleRequest();
     }
   }
 
+  void doLaterHalf() {
+    while(true) {
+      WorkRequest work;
+      completionQueue.pop_front(work);
+      static_cast<CallData*>(work.tag)->
+      static_cast<CallData*>(work.tag)->completeRequest(&work);
+    }
+  }
+
+  // Darknet detector
+  Detector detector;
+  DetectionQueue requestQueue;
+  DetectionQueue completionQueue;
+
   std::unique_ptr<ServerCompletionQueue> cq_;
-  ImageDetection::AsyncService service_;
+  ImageDetection::AsyncService service;
   std::unique_ptr<Server> server_;
 };
 
