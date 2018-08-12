@@ -27,10 +27,9 @@ message DetectedObjects {
 		box bbox=1;
 		int32 classes=2;
 		repeated float prob=3;
-		repeated float mask=4;
 		float objectness=5;
 		int32 sort_class=6;
 	}
-	
-	repeated DetectedObject objects=2;
+
+	repeated DetectedObject objects=1;
 }

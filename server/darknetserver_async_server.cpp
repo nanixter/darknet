@@ -2,6 +2,7 @@
 #include <memory>
 #include <string>
 #include <cstring>
+#include <cstdlib>
 #include <vector>
 #include <cstdio>
 
@@ -29,165 +30,170 @@ using DarknetWrapper::Detector;
 
 class ServerImpl final {
  public:
-  ~ServerImpl() {
-    detector.Shutdown();
-    server_->Shutdown();
-    // Always shutdown the completion queue after the server.
-    cq_->Shutdown();
-  }
+	~ServerImpl() {
+		detector.Shutdown();
+		server_->Shutdown();
+		// Always shutdown the completion queue after the server.
+		cq_->Shutdown();
+	}
 
-  // There is no shutdown handling in this code.
-  void Run() {
-    std::string server_address("0.0.0.0:50051");
+	// There is no shutdown handling in this code.
+	void Run(int argc, char** argv) {
+		std::string server_address("0.0.0.0:50051");
 
-    // Initialize detector - pass it the request and completion queues
-    // Initialization must be done before launching the detection thread.
-    detector.Init(&requestQueue, &completionQueue);
+		// Initialize detector - pass it the request and completion queues
+		// Initialization must be done before launching the detection thread.
+		detector.Init(argc, argv, &requestQueue, &completionQueue);
 
-    // start a Thread to run doDetection
-    std::thread detectionThread(&Detector::doDetection, &detector);
+		// start a Thread to run doDetection
+		std::thread detectionThread(&Detector::doDetection, &detector);
 
-    ServerBuilder builder;
-    // Listen on the given address without any authentication mechanism.
-    builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
-    // Register "service_" as the instance through which we'll communicate with
-    // clients. In this case it corresponds to an *asynchronous* service.
-    builder.RegisterService(&service);
-    // Get hold of the completion queue used for the asynchronous communication
-    // with the gRPC runtime.
-    cq_ = builder.AddCompletionQueue();
-    // Finally assemble the server.
-    server_ = builder.BuildAndStart();
-    std::cout << "Server listening on " << server_address << std::endl;
+		ServerBuilder builder;
+		// Listen on the given address without any authentication mechanism.
+		builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+		// Register "service_" as the instance through which we'll communicate with
+		// clients. In this case it corresponds to an *asynchronous* service.
+		builder.RegisterService(&service);
+		// Get hold of the completion queue used for the asynchronous communication
+		// with the gRPC runtime.
+		cq_ = builder.AddCompletionQueue();
+		// Finally assemble the server.
+		server_ = builder.BuildAndStart();
+		std::cout << "Server listening on " << server_address << std::endl;
 
-    // Start the thread that handles the second half of the processing.
-    std::thread laterHalfThread(doLaterHalf);
-    // The server's main loop.
-    doFirstHalf();
+		// Start the thread that handles the second half of the processing.
+		std::thread laterHalfThread(doLaterHalf);
+		// The server's main loop.
+		doFirstHalf();
 
-    // Wait for the other threads to 
-    detectionThread.join();
-    laterHalfThread.join();
-  }
+		// Wait for the other threads to
+		detectionThread.join();
+		laterHalfThread.join();
+	}
 
  private:
-  // Class encompasing the state and logic needed to serve a request.
-  class CallData {
-   public:
-    // Take in the "service" instance (in this case representing an asynchronous
-    // server) and the completion queue "cq" used for asynchronous communication
-    // with the gRPC runtime.
-    CallData(ImageDetection::AsyncService* service, ServerCompletionQueue* cq)
-        : service_(service), cq_(cq), asyncResponder(&ctx_), status_(CREATE) {
-      // Invoke the serving logic right away.
-      handleRequest();
-    }
+	// Class encompasing the state and logic needed to serve a request.
+	class CallData {
+	 public:
+		// Take in the "service" instance (in this case representing an asynchronous
+		// server) and the completion queue "cq" used for asynchronous communication
+		// with the gRPC runtime.
+		CallData(ImageDetection::AsyncService* service, ServerCompletionQueue* cq)
+				: service_(service), cq_(cq), asyncResponder(&ctx_), status_(CREATE) {
+			// Invoke the serving logic right away.
+			handleRequest();
+		}
 
-    void scheduleRequest() {
-      if (status_ == CREATE) {
-        // Make this instance progress to the PROCESS state.
-        status_ = READY;
+		void scheduleRequest() {
+			if (status_ == CREATE) {
+				// Make this instance progress to the PROCESS state.
+				status_ = READY;
 
-        // As part of the initial CREATE state, we *request* that the system
-        // start processing RequestDetection requests. In this request, "this" acts as
-        // the tag uniquely identifying the request (so that different CallData
-        // instances can serve different requests concurrently).
-        service_->RequestRequestDetection(&ctx_, &frame, &asyncResponder, cq_, cq_, this);
-      } else if (status_ == READY) {
-        // Spawn a new CallData instance to serve new clients while we process
-        // the one for this CallData. The instance will deallocate itself as
-        // part of its FINISH state.
-        new CallData(service_, cq_);
+				// As part of the initial CREATE state, we *request* that the system
+				// start processing RequestDetection requests. In this request, "this" acts as
+				// the tag uniquely identifying the request (so that different CallData
+				// instances can serve different requests concurrently).
+				service_->RequestRequestDetection(&ctx_, &frame, &asyncResponder, cq_, cq_, this);
+			} else if (status_ == READY) {
+				// Spawn a new CallData instance to serve new clients while we process
+				// the one for this CallData. The instance will deallocate itself as
+				// part of its FINISH state.
+				new CallData(service_, cq_);
 
-        // The actual processing.
-        WorkRequest work;
-        work.done = false;
-        work.tag = this;
-        work.frame = this.frame;
-        requestQueue.push_back(workRequest);
-        status_ = PROCESSING;
-      } else {
-        GPR_ASSERT(status_ == FINISH);
-        // Once in the FINISH state, deallocate ourselves (CallData).
-        delete this;
-      }
-    }
+				// The actual processing.
+				WorkRequest work;
+				work.done = false;
+				work.tag = this;
+				work.frame = this.frame;
+				requestQueue.push_back(workRequest);
+				status_ = PROCESSING;
+			} else {
+				GPR_ASSERT(status_ == FINISH);
+				// Once in the FINISH state, deallocate ourselves (CallData).
+				delete this;
+			}
+		}
 
-    void completeRequest(WorkRequest &work) {
-        GPR_ASSERT(status_ == PROCESSING);
-        GPR_ASSERT(work.done == true);
+		void completeRequest(WorkRequest &work) {
+				GPR_ASSERT(status_ == PROCESSING);
+				GPR_ASSERT(work.done == true);
 
-        // GPU processing is done! Time to pass the results back to the client.
-        this.objects = work.objects;
-        status_ = FINISH;
-        responder_.Finish(&(this.objects), Status::OK, this);
-    }
+				// GPU processing is done! Time to pass the results back to the client.
+				this.objects = work.detectedObjects;
+				status_ = FINISH;
+				responder_.Finish(&(this.objects), Status::OK, this);
+		}
 
-   private:
-    // The means of communication with the gRPC runtime for an asynchronous
-    // server.
-    ImageDetection::AsyncService* service_;
-    // The producer-consumer queue where for asynchronous server notifications.
-    ServerCompletionQueue* cq_;
-    // Context for the rpc, allowing to tweak aspects of it such as the use
-    // of compression, authentication, as well as to send metadata back to the
-    // client.
-    ServerContext ctx_;
+	 private:
+		// The means of communication with the gRPC runtime for an asynchronous
+		// server.
+		ImageDetection::AsyncService* service_;
+		// The producer-consumer queue where for asynchronous server notifications.
+		ServerCompletionQueue* cq_;
+		// Context for the rpc, allowing to tweak aspects of it such as the use
+		// of compression, authentication, as well as to send metadata back to the
+		// client.
+		ServerContext ctx_;
 
-    // What we get from the client.
-    KeyFrame frame;
+		// What we get from the client.
+		KeyFrame frame;
 
-    // What we send back to the client.
-    DetectedObjects objects;
+		// What we send back to the client.
+		DetectedObjects objects;
 
-    // The means to get back to the client.
-    ServerAsyncResponseWriter<DetectedObjects> asyncResponder;
+		// The means to get back to the client.
+		ServerAsyncResponseWriter<DetectedObjects> asyncResponder;
 
-    // Let's implement a tiny state machine with the following states.
-    enum CallStatus { CREATE, READY, PROCESSING, FINISH };
-    CallStatus status_;  // The current serving state.
-  };
+		// Let's implement a tiny state machine with the following states.
+		enum CallStatus { CREATE, READY, PROCESSING, FINISH };
+		CallStatus status_;  // The current serving state.
+	};
 
-  // This can be run in multiple threads if needed.
-  void doFirstHalf() {
-    // Spawn a new CallData instance to serve new clients.
-    new CallData(&service, cq_.get());
-    void* tag;  // uniquely identifies a request.
-    bool ok;
-    while (true) {
-      // Block waiting to read the next event from the completion queue. The
-      // event is uniquely identified by its tag, which in this case is the
-      // memory address of a CallData instance.
-      // The return value of Next should always be checked. This return value
-      // tells us whether there is any kind of event or cq_ is shutting down.
-      GPR_ASSERT(cq_->Next(&tag, &ok));
-      GPR_ASSERT(ok);
-      static_cast<CallData*>(tag)->scheduleRequest();
-    }
-  }
+	// This can be run in multiple threads if needed.
+	void doFirstHalf() {
+		// Spawn a new CallData instance to serve new clients.
+		new CallData(&service, cq_.get());
+		void* tag;  // uniquely identifies a request.
+		bool ok;
+		while (true) {
+			// Block waiting to read the next event from the completion queue. The
+			// event is uniquely identified by its tag, which in this case is the
+			// memory address of a CallData instance.
+			// The return value of Next should always be checked. This return value
+			// tells us whether there is any kind of event or cq_ is shutting down.
+			GPR_ASSERT(cq_->Next(&tag, &ok));
+			GPR_ASSERT(ok);
+			static_cast<CallData*>(tag)->scheduleRequest();
+		}
+	}
 
-  void doLaterHalf() {
-    while(true) {
-      WorkRequest work;
-      completionQueue.pop_front(work);
-      static_cast<CallData*>(work.tag)->
-      static_cast<CallData*>(work.tag)->completeRequest(&work);
-    }
-  }
+	void doLaterHalf() {
+		while(true) {
+			WorkRequest work;
+			completionQueue.pop_front(work);
+			static_cast<CallData*>(work.tag)->completeRequest(&work);
+		}
+	}
 
-  // Darknet detector
-  Detector detector;
-  DetectionQueue requestQueue;
-  DetectionQueue completionQueue;
+	// Darknet detector
+	Detector detector;
+	DetectionQueue requestQueue;
+	DetectionQueue completionQueue;
 
-  std::unique_ptr<ServerCompletionQueue> cq_;
-  ImageDetection::AsyncService service;
-  std::unique_ptr<Server> server_;
+	std::unique_ptr<ServerCompletionQueue> cq_;
+	ImageDetection::AsyncService service;
+	std::unique_ptr<Server> server_;
 };
 
 int main(int argc, char** argv) {
-  ServerImpl server;
-  server.Run();
 
-  return 0;
+	if(argc < 4){
+		fprintf(stderr, "usage: %s <datacfg> <cfg> <weights>\n", argv[0]);
+		return EXIT_FAILURE;
+	}
+
+	ServerImpl server;
+	server.Run(argc, argv);
+
+	return EXIT_SUCCESS;
 }
