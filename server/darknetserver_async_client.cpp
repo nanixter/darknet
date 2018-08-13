@@ -72,6 +72,7 @@ class ImageDetectionClient {
         for (int i = 0; i < (image->height * image->width * image->numChannels); i++)
             frame.add_data(image->data[i]);
 
+//		std::cout << "Image size: " << frame.data_size() <<std::endl;
         // Call object to store rpc data
         AsyncClientCall* call = new AsyncClientCall;
 
@@ -92,6 +93,7 @@ class ImageDetectionClient {
         // Request that, upon completion of the RPC, "reply" be updated with the
         // server's response; "status" with the indication of whether the operation
         // was successful. Tag the request with the memory address of the call object.
+		std::cout<<"Initiating new call"<<std::endl;
         call->async_reader->Finish(&call->detectedObjects, &call->status, (void*)call);
 
     }
@@ -130,7 +132,7 @@ class ImageDetectionClient {
                     std::cout << std::endl;
                 }
             } else {
-                std::cout << "RPC failed" << std::endl;
+                std::cout << "RPC failed: " << call->status.error_code() <<": " <<call->status.error_message() << std::endl;
             }
 
             // Once we're complete, deallocate the call object.
@@ -172,8 +174,10 @@ int main(int argc, char** argv) {
     // localhost at port 50051). We indicate that the channel isn't authenticated
     // (use of InsecureChannelCredentials()).
     // TODO: Replace with an authenticated channel
-    ImageDetectionClient detectionClient(grpc::CreateChannel(
-            "localhost:50051", grpc::InsecureChannelCredentials()));
+	grpc::ChannelArguments ch_args;
+	ch_args.SetMaxReceiveMessageSize(-1);
+    ImageDetectionClient detectionClient(grpc::CreateCustomChannel(
+            "localhost:50051", grpc::InsecureChannelCredentials(), ch_args));
 
     // Spawn reader thread that loops indefinitely
     std::thread completionThread = std::thread(&ImageDetectionClient::AsyncCompleteRpc, 

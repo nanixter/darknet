@@ -1,6 +1,6 @@
 # Darknet Makefile. Adapted from example Makefile provided by grpc authors.
 GPU=1
-OPENCV=1
+OPENCV_CPP=1
 CUDNN=1
 
 CXX = g++
@@ -16,20 +16,17 @@ GRPC_CPP_PLUGIN_PATH ?= `which $(GRPC_CPP_PLUGIN)`
 
 PROTOS_PATH = .
 
-ifeq ($(OPENCV), 1)
-#CPPFLAGS+= -DOPENCV
-CXXFLAGS+= -DOPENCV
+ifeq ($(OPENCV_CPP), 1)
+CXXFLAGS+= -DOPENCV_CPP
 LDFLAGS+= `pkg-config --libs opencv`
 endif
 
 ifeq ($(GPU), 1)
-#CPPFLAGS+= -DGPU -I/usr/local/cuda/include/
 CXXFLAGS+= -DGPU -I/usr/local/cuda/include/
 LDFLAGS+= -L/usr/local/cuda/lib64 -lcuda -lcudart -lcublas -lcurand
 endif
 
 ifeq ($(CUDNN), 1)
-#CPPFLAGS+= -DCUDNN
 CXXFLAGS+= -DCUDNN
 LDFLAGS+= -lcudnn
 endif
