@@ -425,18 +425,6 @@ class DetectedObjects_DetectedObject : public ::google::protobuf::Message /* @@p
   ::google::protobuf::RepeatedField< float >*
       mutable_prob();
 
-  // repeated float mask = 4;
-  int mask_size() const;
-  void clear_mask();
-  static const int kMaskFieldNumber = 4;
-  float mask(int index) const;
-  void set_mask(int index, float value);
-  void add_mask(float value);
-  const ::google::protobuf::RepeatedField< float >&
-      mask() const;
-  ::google::protobuf::RepeatedField< float >*
-      mutable_mask();
-
   // .darknetServer.DetectedObjects.DetectedObject.box bbox = 1;
   bool has_bbox() const;
   void clear_bbox();
@@ -470,8 +458,6 @@ class DetectedObjects_DetectedObject : public ::google::protobuf::Message /* @@p
   ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
   ::google::protobuf::RepeatedField< float > prob_;
   mutable int _prob_cached_byte_size_;
-  ::google::protobuf::RepeatedField< float > mask_;
-  mutable int _mask_cached_byte_size_;
   ::darknetServer::DetectedObjects_DetectedObject_box* bbox_;
   ::google::protobuf::int32 classes_;
   float objectness_;
@@ -566,10 +552,10 @@ class DetectedObjects : public ::google::protobuf::Message /* @@protoc_insertion
 
   // accessors -------------------------------------------------------
 
-  // repeated .darknetServer.DetectedObjects.DetectedObject objects = 2;
+  // repeated .darknetServer.DetectedObjects.DetectedObject objects = 1;
   int objects_size() const;
   void clear_objects();
-  static const int kObjectsFieldNumber = 2;
+  static const int kObjectsFieldNumber = 1;
   const ::darknetServer::DetectedObjects_DetectedObject& objects(int index) const;
   ::darknetServer::DetectedObjects_DetectedObject* mutable_objects(int index);
   ::darknetServer::DetectedObjects_DetectedObject* add_objects();
@@ -842,36 +828,6 @@ DetectedObjects_DetectedObject::mutable_prob() {
   return &prob_;
 }
 
-// repeated float mask = 4;
-inline int DetectedObjects_DetectedObject::mask_size() const {
-  return mask_.size();
-}
-inline void DetectedObjects_DetectedObject::clear_mask() {
-  mask_.Clear();
-}
-inline float DetectedObjects_DetectedObject::mask(int index) const {
-  // @@protoc_insertion_point(field_get:darknetServer.DetectedObjects.DetectedObject.mask)
-  return mask_.Get(index);
-}
-inline void DetectedObjects_DetectedObject::set_mask(int index, float value) {
-  mask_.Set(index, value);
-  // @@protoc_insertion_point(field_set:darknetServer.DetectedObjects.DetectedObject.mask)
-}
-inline void DetectedObjects_DetectedObject::add_mask(float value) {
-  mask_.Add(value);
-  // @@protoc_insertion_point(field_add:darknetServer.DetectedObjects.DetectedObject.mask)
-}
-inline const ::google::protobuf::RepeatedField< float >&
-DetectedObjects_DetectedObject::mask() const {
-  // @@protoc_insertion_point(field_list:darknetServer.DetectedObjects.DetectedObject.mask)
-  return mask_;
-}
-inline ::google::protobuf::RepeatedField< float >*
-DetectedObjects_DetectedObject::mutable_mask() {
-  // @@protoc_insertion_point(field_mutable_list:darknetServer.DetectedObjects.DetectedObject.mask)
-  return &mask_;
-}
-
 // float objectness = 5;
 inline void DetectedObjects_DetectedObject::clear_objectness() {
   objectness_ = 0;
@@ -904,7 +860,7 @@ inline void DetectedObjects_DetectedObject::set_sort_class(::google::protobuf::i
 
 // DetectedObjects
 
-// repeated .darknetServer.DetectedObjects.DetectedObject objects = 2;
+// repeated .darknetServer.DetectedObjects.DetectedObject objects = 1;
 inline int DetectedObjects::objects_size() const {
   return objects_.size();
 }

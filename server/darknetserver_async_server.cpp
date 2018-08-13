@@ -62,7 +62,7 @@ class ServerImpl final {
 		std::cout << "Server listening on " << server_address << std::endl;
 
 		// Start the thread that handles the second half of the processing.
-		std::thread laterHalfThread(doLaterHalf);
+		std::thread laterHalfThread(&ServerImpl::doLaterHalf, this);
 		// The server's main loop.
 		doFirstHalf();
 
@@ -78,10 +78,11 @@ class ServerImpl final {
 		// Take in the "service" instance (in this case representing an asynchronous
 		// server) and the completion queue "cq" used for asynchronous communication
 		// with the gRPC runtime.
-		CallData(ImageDetection::AsyncService* service, ServerCompletionQueue* cq)
+		CallData(ImageDetection::AsyncService* service, ServerCompletionQueue* cq, DetectionQueue *requestQ)
 				: service_(service), cq_(cq), asyncResponder(&ctx_), status_(CREATE) {
 			// Invoke the serving logic right away.
-			handleRequest();
+			this->requestQueue = requestQ;
+			scheduleRequest();
 		}
 
 		void scheduleRequest() {
@@ -98,14 +99,14 @@ class ServerImpl final {
 				// Spawn a new CallData instance to serve new clients while we process
 				// the one for this CallData. The instance will deallocate itself as
 				// part of its FINISH state.
-				new CallData(service_, cq_);
+				new CallData(service_, cq_, requestQueue);
 
 				// The actual processing.
 				WorkRequest work;
 				work.done = false;
 				work.tag = this;
-				work.frame = this.frame;
-				requestQueue.push_back(workRequest);
+				work.frame = this->frame;
+				requestQueue->push_back(work);
 				status_ = PROCESSING;
 			} else {
 				GPR_ASSERT(status_ == FINISH);
@@ -119,9 +120,9 @@ class ServerImpl final {
 				GPR_ASSERT(work.done == true);
 
 				// GPU processing is done! Time to pass the results back to the client.
-				this.objects = work.detectedObjects;
+				this->objects = work.detectedObjects;
 				status_ = FINISH;
-				responder_.Finish(&(this.objects), Status::OK, this);
+				asyncResponder.Finish((this->objects), Status::OK, this);
 		}
 
 	 private:
@@ -134,6 +135,8 @@ class ServerImpl final {
 		// of compression, authentication, as well as to send metadata back to the
 		// client.
 		ServerContext ctx_;
+
+		DetectionQueue *requestQueue;
 
 		// What we get from the client.
 		KeyFrame frame;
@@ -152,7 +155,7 @@ class ServerImpl final {
 	// This can be run in multiple threads if needed.
 	void doFirstHalf() {
 		// Spawn a new CallData instance to serve new clients.
-		new CallData(&service, cq_.get());
+		new CallData(&service, cq_.get(), &requestQueue);
 		void* tag;  // uniquely identifies a request.
 		bool ok;
 		while (true) {
@@ -171,7 +174,7 @@ class ServerImpl final {
 		while(true) {
 			WorkRequest work;
 			completionQueue.pop_front(work);
-			static_cast<CallData*>(work.tag)->completeRequest(&work);
+			static_cast<CallData*>(work.tag)->completeRequest(work);
 		}
 	}
 

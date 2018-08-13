@@ -205,7 +205,7 @@ int main(int argc, char** argv) {
 			Image image = getImageFromMat(&capturedFrame);
             //printImage(image);
             // The actual RPC call!
-            ImageDetection.AsyncSendImage(&image);
+            detectionClient.AsyncSendImage(&image);
         }
 	} else { 
 		std::cout << "Couldn't open " << filename <<std::endl;

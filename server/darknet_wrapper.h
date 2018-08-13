@@ -34,20 +34,20 @@ namespace DarknetWrapper {
 	public:
 
 		void push_back(WorkRequest elem) {
-			std::lock_guard<std::mutex> lock(this.mutex);
-			this.queue.push(elem);
-			this.cv.notify_one();
+			std::lock_guard<std::mutex> lock(this->mutex);
+			this->queue.push(elem);
+			this->cv.notify_one();
 		}
 
 		// TODO: Make this a counting cv instead so that we can batch images!
 		void pop_front(WorkRequest &elem) {
-			std::unique_lock<std::mutex> lock(this.mutex);
-			cv.wait(lock, !this.queue.empty());
+			std::unique_lock<std::mutex> lock(this->mutex);
+			cv.wait(lock, [this](){ return !this->queue.empty(); });
 
 			// Once the cv wakes us up....
-			if(!this.queue.empty()) {
-				elem = this.queue.front();
-				this.queue.pop();
+			if(!this->queue.empty()) {
+				elem = this->queue.front();
+				this->queue.pop();
 			}
 		}
 
@@ -64,8 +64,8 @@ namespace DarknetWrapper {
 
 		void Init(int argc, char** argv, DetectionQueue *requestQueue, DetectionQueue *completionQueue) {
 			// Store pointers to the workQueues
-			this.requestQueue = requestQueue;
-			this.completionQueue = completionQueue;
+			this->requestQueue = requestQueue;
+			this->completionQueue = completionQueue;
 
 			// Initialization: Load config files, labels, graph, etc.,
 			// Config the GPU and get into a thread that is ready to accept
@@ -78,9 +78,9 @@ namespace DarknetWrapper {
 			net = load_network(cfgfile, weightfile, 0);
 			set_batch_network(net, 1);
 
-			this.numNetworkOutputs = size_network();
-    		this.predictions = new float[numNetworkOutputs];
-    		this.average = new float[numNetworkOutputs];
+			this->numNetworkOutputs = size_network();
+    		this->predictions = new float[numNetworkOutputs];
+    		this->average = new float[numNetworkOutputs];
 		}
 
 		void doDetection() {
@@ -94,14 +94,14 @@ namespace DarknetWrapper {
 
 			while(true) {
 				// Wait on the requestQueue
-				requestQueue.pop_front(elem);
+				requestQueue->pop_front(elem);
 
 				// Convert to the right format
 				// Allocate memory for data in 'image', based on the size of 'data' in frame
 				newImage.data = new float[elem.frame.data_size()];
 
 				// Copy from the frame in elem to the 'image' format that darknet uses internally...
-				this.convertFrameToImage(&(elem.frame), &newImage);
+				this->convertFrameToImage(&(elem.frame), &newImage);
 
 				// Convert to the RGBGR format that YOLO operates on..
 				rgbgr_image(newImage);
@@ -112,8 +112,8 @@ namespace DarknetWrapper {
 
 				/* Now we finally run the actual network	*/
 				network_predict(net, newImage_letterboxed.data);
-				this.remember_network();
-				dets = this.average_predictions(&nboxes, newImage.h, newImage.w);
+				this->remember_network();
+				dets = this->average_predictions(&nboxes, newImage.h, newImage.w);
 
 				// What the hell does this do?
 				if (nms > 0) {
@@ -123,12 +123,12 @@ namespace DarknetWrapper {
 				/* Copy detected objects to the WorkRequest */
 				for (int i = 0; i < nboxes; i++) {
 					if(dets[i].objectness == 0) continue;
-					darknetServer::box bbox;
+					darknetServer::DetectedObjects_DetectedObject_box bbox;
 					bbox.set_x(dets[i].bbox.x);
 					bbox.set_y(dets[i].bbox.y);
 					bbox.set_w(dets[i].bbox.w);
 					bbox.set_h(dets[i].bbox.h);
-					darknetServer::DetectedObject *object = elem.detecteObjects.add_objects();
+					darknetServer::DetectedObjects_DetectedObject *object = elem.detectedObjects.add_objects();
 					object->set_allocated_bbox(&bbox);
 					object->set_objectness(dets[i].objectness);
 					object->set_classes(dets[i].classes);
@@ -138,7 +138,7 @@ namespace DarknetWrapper {
 				}
 
 				// Put the result back on the completionQueue.
-				completionQueue.push_back(elem);
+				completionQueue->push_back(elem);
 
 				// Clean up
 				free_detections(dets, nboxes);
@@ -146,14 +146,14 @@ namespace DarknetWrapper {
 			}
 		}
 
-		void ShutDown() {
+		void Shutdown() {
 			// Set locally owned pointers to NULL;
-			this.requestQueue = nullptr;
-			this.completionQueue = nullptr;
+			this->requestQueue = nullptr;
+			this->completionQueue = nullptr;
 
 			// Free any darknet resources held. Close the GPU connection, etc...
-			delete this.predictions;
-			delete this.average;
+			delete this->predictions;
+			delete this->average;
 		}
 
 	private:
@@ -161,7 +161,7 @@ namespace DarknetWrapper {
 			newImage->w = frame->width();
 			newImage->h = frame->height();
 			newImage->c = frame->numchannels();
-			int dataSize = frame.data_size();
+			int dataSize = frame->data_size();
 			for (int i = 0; i < dataSize; i++)
 				newImage->data[i] = frame->data(i);
 		}
@@ -170,8 +170,8 @@ namespace DarknetWrapper {
 		int size_network()
 		{
 			int count = 0;
-			for(int i = 0; i < this.net->n; ++i){
-				layer l = this.net->layers[i];
+			for(int i = 0; i < this->net->n; ++i){
+				layer l = this->net->layers[i];
 				if(l.type == YOLO || l.type == REGION || l.type == DETECTION){
 					count += l.outputs;
 				}
@@ -181,10 +181,10 @@ namespace DarknetWrapper {
 		void remember_network()
 		{
 			int count = 0;
-			for(int i = 0; i < this.net->n; ++i){
-				layer l = this.net->layers[i];
+			for(int i = 0; i < this->net->n; ++i){
+				layer l = this->net->layers[i];
 				if(l.type == YOLO || l.type == REGION || l.type == DETECTION){
-					std::memcpy(predictions + count, this.net->layers[i].output, sizeof(float) * l.outputs);
+					std::memcpy(predictions + count, this->net->layers[i].output, sizeof(float) * l.outputs);
 					count += l.outputs;
 				}
 			}
@@ -194,17 +194,17 @@ namespace DarknetWrapper {
 		{
 			int i, j;
 			int count = 0;
-			fill_cpu(this.numNetworkOutputs, 0, average, 1);
-			axpy_cpu(this.numNetworkOutputs, 1./3, predictions, 1, average, 1);
+			fill_cpu(this->numNetworkOutputs, 0, average, 1);
+			axpy_cpu(this->numNetworkOutputs, 1./3, predictions, 1, average, 1);
 
-			for(i = 0; i < this.net->n; ++i){
-				layer l = this.net->layers[i];
+			for(i = 0; i < this->net->n; ++i){
+				layer l = this->net->layers[i];
 				if(l.type == YOLO || l.type == REGION || l.type == DETECTION){
 					std::memcpy(l.output, average + count, sizeof(float) * l.outputs);
 					count += l.outputs;
 				}
 			}
-			return get_network_boxes(this.net, width, height, 0.5, 0.5, 0, 1, nboxes);
+			return get_network_boxes(this->net, width, height, 0.5, 0.5, 0, 1, nboxes);
 		}
 
 		// All the darknet globals.

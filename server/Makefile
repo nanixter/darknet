@@ -1,31 +1,51 @@
 # Darknet Makefile. Adapted from example Makefile provided by grpc authors.
+GPU=1
+OPENCV=1
+CUDNN=1
 
 CXX = g++
-CPPFLAGS += `pkg-config --cflags protobuf grpc`
-CXXFLAGS += -std=c++11
+DARKNET_HEADER_PATH = ../include/
+CPPFLAGS += `pkg-config --cflags protobuf grpc` -DGPU
+CXXFLAGS += -std=c++11 -I $(DARKNET_HEADER_PATH) -DGPU
 LDFLAGS += -L/usr/local/lib `pkg-config --libs protobuf grpc++ grpc opencv`\
-           -Wl,--no-as-needed -lgrpc++_reflection -Wl,--as-needed -ldl \
+           -Wl,--no-as-needed -lgrpc++_reflection -Wl,--as-needed -ldl -lpthread\
            -L../ -Wl,--as-needed -ldarknet
 PROTOC = protoc
 GRPC_CPP_PLUGIN = grpc_cpp_plugin
 GRPC_CPP_PLUGIN_PATH ?= `which $(GRPC_CPP_PLUGIN)`
 
 PROTOS_PATH = .
-DARKNET_HEADER_PATH = ../include
+
+ifeq ($(OPENCV), 1)
+#CPPFLAGS+= -DOPENCV
+CXXFLAGS+= -DOPENCV
+LDFLAGS+= `pkg-config --libs opencv`
+endif
+
+ifeq ($(GPU), 1)
+#CPPFLAGS+= -DGPU -I/usr/local/cuda/include/
+CXXFLAGS+= -DGPU -I/usr/local/cuda/include/
+LDFLAGS+= -L/usr/local/cuda/lib64 -lcuda -lcudart -lcublas -lcurand
+endif
+
+ifeq ($(CUDNN), 1)
+#CPPFLAGS+= -DCUDNN
+CXXFLAGS+= -DCUDNN
+LDFLAGS+= -lcudnn
+endif
 
 vpath %.proto $(PROTOS_PATH)
 
-all: system-check darknetserver_async_client 
-#darknetserver_async_server
+all: system-check darknetserver_async_client darknetserver_async_server
 
 darknetserver_async_client: darknetserver.pb.o darknetserver.grpc.pb.o darknetserver_async_client.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
-#darknetserver_async_server: darknetserver.pb.o darknetserver.grpc.pb.o darknetserver_async_server.o darknet_wrapper.o
-#	$(CXX) $^ $(LDFLAGS) -o $@
+darknetserver_async_server: darknetserver.pb.o darknetserver.grpc.pb.o darknetserver_async_server.o
+	$(CXX) $^ -I $(DARKNET_HEADER_PATH) $(LDFLAGS) -o $@
 
-# darknet_wrapper.o: darknetserver.pb.o
-	# $(CXX) $(CXXFLAGS) -I $(DARKNET_HEADER_PATH) $^ $(LDFLAGS) -o $@
+#darknet_wrapper.o: darknetserver.pb.o
+#	 $(CXX) $(CXXFLAGS) -I $(DARKNET_HEADER_PATH) $^ $(LDFLAGS) -o $@
 
 .PRECIOUS: %.grpc.pb.cc
 %.grpc.pb.cc: %.proto
