@@ -11,8 +11,53 @@
 
 #include "darknetserver.pb.h"
 
+typedef enum {
+    CONVOLUTIONAL,
+    DECONVOLUTIONAL,
+    CONNECTED,
+    MAXPOOL,
+    SOFTMAX,
+    DETECTION,
+    DROPOUT,
+    CROP,
+    ROUTE,
+    COST,
+    NORMALIZATION,
+    AVGPOOL,
+    LOCAL,
+    SHORTCUT,
+    ACTIVE,
+    RNN,
+    GRU,
+    LSTM,
+    CRNN,
+    BATCHNORM,
+    NETWORK,
+    XNOR,
+    REGION,
+    YOLO,
+    REORG,
+    UPSAMPLE,
+    LOGXENT,
+    L2NORM,
+    BLANK
+} LAYER_TYPE;
+
 extern "C" {
-#include "darknet.h"
+	struct layer;
+	struct image;
+	struct detection;
+	struct network;
+	void cuda_set_device(int);
+	network *load_network(char *cfg, char *weights, int clear);
+	void set_batch_network(network *net, int b);
+	void rgbgr_image(image im);
+	image letterbox_image(image im, int w, int h);
+	float *network_predict(network *net, float *input);
+	void do_nms_obj(detection *dets, int total, int classes, float thresh);
+	void fill_cpu(int N, float ALPHA, float * X, int INCX);
+	void axpy_cpu(int N, float ALPHA, float *X, int INCX, float *Y, int INCY);
+	detection *get_network_boxes(network *net, int w, int h, float thresh, float hier, int *map, int relative, int *num);
 }
 
 #ifdef OPENCV
@@ -78,7 +123,7 @@ namespace DarknetWrapper {
 			net = load_network(cfgfile, weightfile, 0);
 			set_batch_network(net, 1);
 
-			this->numNetworkOutputs = size_network();
+			this->numNetworkOutputs = this.size_network();
     		this->predictions = new float[numNetworkOutputs];
     		this->average = new float[numNetworkOutputs];
 		}
