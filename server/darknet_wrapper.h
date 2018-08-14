@@ -77,8 +77,31 @@ namespace DarknetWrapper {
 			set_batch_network(net, 1);
 
 			this->numNetworkOutputs = this->size_network();
-    		this->predictions = new float[numNetworkOutputs];
-    		this->average = new float[numNetworkOutputs];
+			this->predictions = new float[numNetworkOutputs];
+			this->average = new float[numNetworkOutputs];
+
+			if (argc > 4) {
+				//test
+				std::cout << "TEST" <<std::endl;
+				char *videoFile = argv[4];
+				CvCapture * cap; = cvCreateFileCapture(filename);
+
+				image newImage;
+				image newImage_letterboxed;
+
+				int status = fill_image_from_stream(cap, newImage);
+				while (status != 0) {
+					letterbox_image_into(newImage, net->w, net->h, newImage_letterboxed);
+
+					/* Now we finally run the actual network	*/
+					network_predict(net, newImage_letterboxed.data);
+					this->remember_network();
+					dets = this->average_predictions(&nboxes, newImage.h, newImage.w);
+
+					std::cout << "nboxes = " << nboxes << std::endl;
+					status = fill_image_from_stream(cap, newImage);
+				}
+			}
 		}
 
 		void doDetection() {
@@ -121,8 +144,8 @@ namespace DarknetWrapper {
 				if (nms > 0) {
 					do_nms_obj(dets, nboxes, l.classes, nms);
 				}
-			    //draw_detections(newImage_letterboxed, dets, nboxes, 0.5, NULL, NULL, l.classes);
-			    //save_image(newImage_letterboxed, "detected");
+				//draw_detections(newImage_letterboxed, dets, nboxes, 0.5, NULL, NULL, l.classes);
+				//save_image(newImage_letterboxed, "detected");
 
 				/* Copy detected objects to the WorkRequest */
 				for (int i = 0; i < nboxes; i++) {
