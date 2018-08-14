@@ -8,6 +8,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <cstring>
+#include <sys/time.h>
 
 #include "darknetserver.pb.h"
 
@@ -15,6 +16,36 @@ extern "C" {
 	#undef __cplusplus
 	#include "darknet.h"
 	#define __cplusplus 1
+}
+
+struct timestamp {
+    struct timeval start;
+    struct timeval end;
+};
+
+static inline void tvsub(struct timeval *x,
+						 struct timeval *y,
+						 struct timeval *ret)
+{
+	ret->tv_sec = x->tv_sec - y->tv_sec;
+	ret->tv_usec = x->tv_usec - y->tv_usec;
+	if (ret->tv_usec < 0) {
+		ret->tv_sec--;
+		ret->tv_usec += 1000000;
+	}
+}
+
+void probe_time_start(struct timestamp *ts)
+{
+    gettimeofday(&ts->start, NULL);
+}
+
+float probe_time_end(struct timestamp *ts)
+{
+    struct timeval tv;
+    gettimeofday(&ts->end, NULL);
+	tvsub(&ts->end, &ts->start, &tv);
+	return (tv.tv_sec * 1000.0 + (float) tv.tv_usec / 1000.0);
 }
 
 namespace DarknetWrapper {
@@ -72,7 +103,7 @@ namespace DarknetWrapper {
 			char *datacfg = argv[1];
 			char *cfgfile = argv[2];
 			char *weightfile = argv[3];
-			
+
 			//test
 			if (argc > 4)
 				test_server_detection(cfgfile, weightfile, argv[4]);
@@ -98,8 +129,10 @@ namespace DarknetWrapper {
 				image newImage_letterboxed;
 				// Wait on the requestQueue
 				requestQueue->pop_front(elem);
-				
+
 				std::cout << "doDetection: new requeust " << elem.tag << std::endl;
+				probe_time_start(&call->ts_detect);
+
 				// Convert to the right format
 				// Allocate memory for data in 'image', based on the size of 'data' in frame
 				newImage.data = new float[elem.frame.data_size()];
@@ -134,15 +167,15 @@ namespace DarknetWrapper {
 				for (int i = 0; i < nboxes; i++) {
 					if(dets[i].objectness == 0) continue;
 					darknetServer::DetectedObjects_DetectedObject *object = elem.detectedObjects.add_objects();
-					std::cout << "Det " <<i <<":" << std::endl;
-					std::cout << "BBOX: " 
-							<< " x: " <<dets[i].bbox.x 
-							<< " y: " <<dets[i].bbox.y 
-							<< " w: " <<dets[i].bbox.w 
-							<< " h: " <<dets[i].bbox.h << std::endl;
-					std::cout << "objectness: " << dets[i].objectness << std::endl;
-					std::cout << "classes: " << dets[i].classes << std::endl;
-					std::cout << "sort_class: " << dets[i].sort_class << std::endl;
+					// std::cout << "Det " <<i <<":" << std::endl;
+					// std::cout << "BBOX: "
+					// 		<< " x: " <<dets[i].bbox.x
+					// 		<< " y: " <<dets[i].bbox.y
+					// 		<< " w: " <<dets[i].bbox.w
+					// 		<< " h: " <<dets[i].bbox.h << std::endl;
+					// std::cout << "objectness: " << dets[i].objectness << std::endl;
+					// std::cout << "classes: " << dets[i].classes << std::endl;
+					// std::cout << "sort_class: " << dets[i].sort_class << std::endl;
 					darknetServer::DetectedObjects_DetectedObject_box *bbox = object->mutable_bbox();
 					bbox->set_x(dets[i].bbox.x);
 					bbox->set_y(dets[i].bbox.y);
@@ -151,16 +184,17 @@ namespace DarknetWrapper {
 					object->set_objectness(dets[i].objectness);
 					object->set_classes(dets[i].classes);
 					object->set_sort_class(dets[i].sort_class);
-					std::cout << "Probabilities:" << std::endl;
-					std::cout << l.classes << std::endl;
+					// std::cout << "Probabilities:" << std::endl;
+					// std::cout << l.classes << std::endl;
 					for (int j = 0; j < l.classes; j++) {
-						std::cout << dets[i].prob[j];
+						// std::cout << dets[i].prob[j];
 						object->add_prob(dets[i].prob[j]);
 					}
-					std::cout <<std::endl;
+					// std::cout <<std::endl;
 				}
 
 				elem.done = true;
+				std::cout << elem->tag << " GPU processing took " << probe_time_end(&call->ts_detect) << " milliseconds"<< std::endl;
 				// Put the result back on the completionQueue.
 				completionQueue->push_back(elem);
 
@@ -232,6 +266,7 @@ namespace DarknetWrapper {
 		}
 
 		// All the darknet globals.
+		struct timestamp ts_detect;
 		DetectionQueue *requestQueue;
 		DetectionQueue *completionQueue;
 		float *predictions;

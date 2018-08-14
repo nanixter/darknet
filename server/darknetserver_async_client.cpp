@@ -115,7 +115,7 @@ class ImageDetectionClient {
 		//usleep(1000);
 		// Call object to store rpc data
 		AsyncClientCall* call = new AsyncClientCall;
-		
+
 		//call->startTime = rdtsc();
 		probe_time_start(&call->ts_detect);
 
@@ -147,7 +147,7 @@ class ImageDetectionClient {
 		while (cq_.Next(&got_tag, &ok)) {
 			// The tag in this example is the memory location of the call object
 			AsyncClientCall* call = static_cast<AsyncClientCall*>(got_tag);
-			
+
 			// Store the completion time...
 			//call->endTime = rdtsc();
 			std::cout << "This request took " << probe_time_end(&call->ts_detect) << " milliseconds"<< std::endl;
