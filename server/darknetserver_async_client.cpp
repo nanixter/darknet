@@ -150,7 +150,7 @@ class ImageDetectionClient {
 			
 			// Store the completion time...
 			//call->endTime = rdtsc();
-			std::cout << "This request took " << probe_time_end(&call->ts_detect) << " usecs"<< std::endl;
+			std::cout << "This request took " << probe_time_end(&call->ts_detect) << " milliseconds"<< std::endl;
 
 			// Verify that the request was completed successfully. Note that "ok"
 			// corresponds solely to the request for updates introduced by Finish().
@@ -163,7 +163,7 @@ class ImageDetectionClient {
 				for (int i = 0; i < call->detectedObjects.objects_size(); i++) {
 					auto object = call->detectedObjects.objects(i);
 					std::cout   << "Object of class " << object.classes()
-								<< "detected at :" << std::endl;
+								<< " detected at :" << std::endl;
 					std::cout   << "x: " << object.bbox().x() << ", "
 								<< "y: " << object.bbox().y() << ", "
 								<< "w: " << object.bbox().w() << ", "
