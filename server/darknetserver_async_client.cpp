@@ -5,6 +5,7 @@
 #include <cstring>
 #include <vector>
 #include <cstdio>
+#include <unistd.h>
 
 #include <grpcpp/grpcpp.h>
 #include <grpc/support/log.h>
@@ -72,7 +73,7 @@ class ImageDetectionClient {
 		for (int i = 0; i < (image->height * image->width * image->numChannels); i++)
 			frame.add_data(image->data[i]);
 
-//		std::cout << "Image size: " << frame.data_size() <<std::endl;
+		sleep(5);
 		// Call object to store rpc data
 		AsyncClientCall* call = new AsyncClientCall;
 
@@ -93,7 +94,6 @@ class ImageDetectionClient {
 		// Request that, upon completion of the RPC, "reply" be updated with the
 		// server's response; "status" with the indication of whether the operation
 		// was successful. Tag the request with the memory address of the call object.
-		std::cout<<"Initiating new call"<<std::endl;
 		call->async_reader->Finish(&call->detectedObjects, &call->status, (void*)call);
 
 	}
