@@ -1,5 +1,13 @@
-#include "darknet.h"
+#include "network.h"
+#include "detection_layer.h"
+#include "region_layer.h"
+#include "cost_layer.h"
+#include "utils.h"
+#include "parser.h"
+#include "box.h"
 #include "image.h"
+#include "demo.h"
+#include <sys/time.h>
 
 network *net;
 float *predictions;
@@ -34,7 +42,7 @@ detection *average_predictions(int *nboxes, int height, int width)
 	int i;
 	int count = 0;
 	fill_cpu(numNetworkOutputs, 0, average, 1);
-	axpy_cpu(numNetworkOutputs, 1./3, predictions, 1, average, 1);
+	axpy_cpu(numNetworkOutputs, 1.0, predictions, 1, average, 1);
 
 	for(i = 0; i < net->n; ++i){
 		layer l = net->layers[i];
@@ -46,12 +54,13 @@ detection *average_predictions(int *nboxes, int height, int width)
 	return get_network_boxes(net, width, height, 0.5, 0.5, 0, 1, nboxes);
 }
 
-void test_server_detection(network *network, float *pred, float *avg, const char *videoFile) {
+void test_server_detection(const char *cfgfile, const char *weightfile, const char *videoFile) {
 	printf("TEST\n");
-	net = network;
-	predictions = pred;
-	average = avg;
+	net = load_network(cfgfile, weightfile, 0);
+	set_batch_network(net, 1);
 	numNetworkOutputs = size_network2();
+	predictions = (float *)malloc(sizeof(float)*numNetworkOutputs);
+	average = (float *)malloc(sizeof(float)*numNetworkOutputs);
 	CvCapture * cap = cvCreateFileCapture(videoFile);
 
 	image newImage;

@@ -21,16 +21,13 @@ endif
 
 vpath %.proto $(PROTOS_PATH)
 
-all: system-check darknetserver_async_client darknetserver_async_server
+all: system-check client server
 
-darknetserver_async_client: darknetserver.pb.o darknetserver.grpc.pb.o darknetserver_async_client.o
+client: darknetserver.pb.o darknetserver.grpc.pb.o darknetserver_async_client.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
-darknetserver_async_server: darknetserver.pb.o darknetserver.grpc.pb.o darknetserver_async_server.o
+server: darknetserver.pb.o darknetserver.grpc.pb.o darknetserver_async_server.o
 	$(CXX) $^ -I $(DARKNET_HEADER_PATH) $(LDFLAGS) -o $@
-
-#darknet_wrapper.o: darknetserver.pb.o
-#	 $(CXX) $(CXXFLAGS) -I $(DARKNET_HEADER_PATH) $^ $(LDFLAGS) -o $@
 
 .PRECIOUS: %.grpc.pb.cc
 %.grpc.pb.cc: %.proto
@@ -41,7 +38,7 @@ darknetserver_async_server: darknetserver.pb.o darknetserver.grpc.pb.o darknetse
 	$(PROTOC) -I $(PROTOS_PATH) --cpp_out=. $<
 
 clean:
-	rm -f *.o *.pb.cc *.pb.h darknetserver_async_client darknetserver_async_server
+	rm -f *.o *.pb.cc *.pb.h client server
 
 
 # The following is to test your system and ensure a smoother experience.

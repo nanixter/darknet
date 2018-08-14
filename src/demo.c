@@ -101,7 +101,6 @@ void *detect_in_thread(void *ptr)
     int nboxes = 0;
     dets = avg_predictions(net, &nboxes);
 
-
     /*
        int i,j;
        box zero = {0};

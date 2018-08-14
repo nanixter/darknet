@@ -5,11 +5,13 @@
 #include <cstring>
 #include <vector>
 #include <cstdio>
+#include <cstdlib>
 #include <unistd.h>
 
 #include <grpcpp/grpcpp.h>
 #include <grpc/support/log.h>
 #include <thread>
+#include <sys/time.h>
 
 #include "darknetserver.grpc.pb.h"
 
@@ -22,6 +24,36 @@ using darknetServer::DetectedObjects;
 using darknetServer::KeyFrame;
 using darknetServer::ImageDetection;
 
+struct timestamp {
+    struct timeval start;
+    struct timeval end;
+};
+
+static inline void tvsub(struct timeval *x,
+						 struct timeval *y,
+						 struct timeval *ret)
+{
+	ret->tv_sec = x->tv_sec - y->tv_sec;
+	ret->tv_usec = x->tv_usec - y->tv_usec;
+	if (ret->tv_usec < 0) {
+		ret->tv_sec--;
+		ret->tv_usec += 1000000;
+	}
+}
+
+void probe_time_start(struct timestamp *ts)
+{
+    gettimeofday(&ts->start, NULL);
+}
+
+float probe_time_end(struct timestamp *ts)
+{
+    struct timeval tv;
+    gettimeofday(&ts->end, NULL);
+	tvsub(&ts->end, &ts->start, &tv);
+	return (tv.tv_sec * 1000.0 + (float) tv.tv_usec / 1000.0);
+}
+
 typedef struct {
 	int width;
 	int height;
@@ -29,6 +61,13 @@ typedef struct {
 	int widthStep;
 	float *data;
 } Image;
+
+uint64_t rdtsc() {
+	unsigned int lo,hi;
+	__asm__ __volatile__ ("mfence\t\nrdtsc" : "=a" (lo), "=d" (hi));
+	return ((uint64_t)hi << 32) | lo;
+}
+
 
 void printImage(Image &image){
 	std::cout << "width: " << image.width;
@@ -73,9 +112,12 @@ class ImageDetectionClient {
 		for (int i = 0; i < (image->height * image->width * image->numChannels); i++)
 			frame.add_data(image->data[i]);
 
-		sleep(5);
+		//usleep(1000);
 		// Call object to store rpc data
 		AsyncClientCall* call = new AsyncClientCall;
+		
+		//call->startTime = rdtsc();
+		probe_time_start(&call->ts_detect);
 
 		// stub_->PrepareAsyncSayHello() creates an RPC object, returning
 		// an instance to store in "call" but does not actually start the RPC
@@ -83,9 +125,6 @@ class ImageDetectionClient {
 		// the "call" instance in order to get updates on the ongoing RPC.
 		call->async_reader =
 			stub_->PrepareAsyncRequestDetection(&call->context, frame, &cq_);
-
-		//Send any associated Metadata
-		// call->reader_writer->
 
 		// StartCall initiates the RPC call
 		// Tag: the memory address of the call object.
@@ -106,13 +145,17 @@ class ImageDetectionClient {
 
 		// Block until the next result is available in the completion queue "cq".
 		while (cq_.Next(&got_tag, &ok)) {
-
 			// The tag in this example is the memory location of the call object
 			AsyncClientCall* call = static_cast<AsyncClientCall*>(got_tag);
+			
+			// Store the completion time...
+			//call->endTime = rdtsc();
+			std::cout << "This request took " << probe_time_end(&call->ts_detect) << " usecs"<< std::endl;
 
 			// Verify that the request was completed successfully. Note that "ok"
 			// corresponds solely to the request for updates introduced by Finish().
 			GPR_ASSERT(ok);
+
 
 			if (call->status.ok()) {
 				// print out what we received...
@@ -147,6 +190,11 @@ class ImageDetectionClient {
 		// Container for the data we expect from the server.
 		DetectedObjects detectedObjects;
 
+		// Timestamps
+		uint64_t startTime;
+		uint64_t endTime;
+		struct timestamp ts_detect;
+
 		// Context for the client. It could be used to convey extra information to
 		// the server and/or tweak certain RPC behaviors.
 		ClientContext context;
@@ -177,7 +225,7 @@ int main(int argc, char** argv) {
 	grpc::ChannelArguments ch_args;
 	ch_args.SetMaxReceiveMessageSize(-1);
 	ImageDetectionClient detectionClient(grpc::CreateCustomChannel(
-			"localhost:50051", grpc::InsecureChannelCredentials(), ch_args));
+			"128.83.122.71:50051", grpc::InsecureChannelCredentials(), ch_args));
 
 	// Spawn reader thread that loops indefinitely
 	std::thread completionThread = std::thread(&ImageDetectionClient::AsyncCompleteRpc,
@@ -210,6 +258,7 @@ int main(int argc, char** argv) {
 			//printImage(image);
 			// The actual RPC call!
 			detectionClient.AsyncSendImage(&image);
+			sleep(2);
 		}
 	} else {
 		std::cout << "Couldn't open " << filename <<std::endl;

@@ -39,7 +39,7 @@ class ServerImpl final {
 
 	// There is no shutdown handling in this code.
 	void Run(int argc, char** argv) {
-		std::string server_address("0.0.0.0:50051");
+		std::string server_address("128.83.122.71:50051");
 
 		// Initialize detector - pass it the request and completion queues
 		// Initialization must be done before launching the detection thread.
@@ -95,6 +95,7 @@ class ServerImpl final {
 				// start processing RequestDetection requests. In this request, "this" acts as
 				// the tag uniquely identifying the request (so that different CallData
 				// instances can serve different requests concurrently).
+				//std::cout << "New CallData " << this << " spawned" << std::endl;
 				service_->RequestRequestDetection(&ctx_, &frame, &asyncResponder, cq_, cq_, this);
 			} else if (status_ == READY) {
 				// Spawn a new CallData instance to serve new clients while we process
@@ -107,6 +108,7 @@ class ServerImpl final {
 				work.done = false;
 				work.tag = this;
 				work.frame = this->frame;
+				//std::cout << "Recieved request " << this << " Pushing onto requestQ" << std::endl;
 				requestQueue->push_back(work);
 				status_ = PROCESSING;
 			} else {
@@ -119,7 +121,7 @@ class ServerImpl final {
 		void completeRequest(WorkRequest &work) {
 				GPR_ASSERT(status_ == PROCESSING);
 				GPR_ASSERT(work.done == true);
-
+				//std::cout << "Request " << this << " completed." << std::endl;
 				// GPU processing is done! Time to pass the results back to the client.
 				this->objects = work.detectedObjects;
 				status_ = FINISH;
@@ -165,7 +167,9 @@ class ServerImpl final {
 			// memory address of a CallData instance.
 			// The return value of Next should always be checked. This return value
 			// tells us whether there is any kind of event or cq_ is shutting down.
+			//std::cout << __LINE__ << "sleep on grpc q" <<std::endl;
 			GPR_ASSERT(cq_->Next(&tag, &ok));
+			//std::cout << __LINE__ << "got req. Call schedule" <<std::endl;
 			GPR_ASSERT(ok);
 			static_cast<CallData*>(tag)->scheduleRequest();
 		}
@@ -174,7 +178,9 @@ class ServerImpl final {
 	void doLaterHalf() {
 		while(true) {
 			WorkRequest work;
+			//std::cout << __LINE__ << "doLaterHalf: sleep on queue" <<std::endl;
 			completionQueue.pop_front(work);
+			//std::cout << __LINE__ << "doLaterHalf: got completion notice" <<std::endl;
 			static_cast<CallData*>(work.tag)->completeRequest(work);
 		}
 	}
