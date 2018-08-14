@@ -73,7 +73,7 @@ namespace DarknetWrapper {
 			char *cfgfile = argv[2];
 			char *weightfile = argv[3];
 
-			net = load_network(cfgfile, weightfile, 0);
+			this->net = load_network(cfgfile, weightfile, 0);
 			set_batch_network(net, 1);
 
 			this->numNetworkOutputs = this->size_network();
@@ -84,10 +84,12 @@ namespace DarknetWrapper {
 				//test
 				std::cout << "TEST" <<std::endl;
 				char *videoFile = argv[4];
-				CvCapture * cap; = cvCreateFileCapture(filename);
+				CvCapture * cap; = cvCreateFileCapture(videoFile);
 
 				image newImage;
 				image newImage_letterboxed;
+				detection *dets = nullptr;
+				int nboxes = 0;
 
 				int status = fill_image_from_stream(cap, newImage);
 				while (status != 0) {
