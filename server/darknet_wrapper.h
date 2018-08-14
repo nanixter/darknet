@@ -82,7 +82,7 @@ namespace DarknetWrapper {
 
 			//test
 			if (argc > 4)
-				test_server_detection(argv[4]);
+				test_server_detection(net, predictions, average, argv[4]);
 		}
 
 		void doDetection() {

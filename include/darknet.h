@@ -753,7 +753,7 @@ void do_nms_sort(detection *dets, int total, int classes, float thresh);
 
 matrix make_matrix(int rows, int cols);
 
-void test_server_detection(const char *videoFile);
+void test_server_detection(network *net, float *predictions, float *average, const char *videoFile);
 
 #ifndef __cplusplus
 #ifdef OPENCV
