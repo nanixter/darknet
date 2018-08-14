@@ -60,9 +60,8 @@ void test_server_detection(network *network, float *pred, float *avg, const char
 	int nboxes = 0;
 
 	newImage = get_image_from_stream(cap);
+	newImage_letterboxed = letterbox_image(newImage, net->w, net->h);
 	while (newImage.data != 0) {
-		letterbox_image_into(newImage, net->w, net->h, newImage_letterboxed);
-
 		/* Now we finally run the actual network	*/
 		network_predict(net, newImage_letterboxed.data);
 		remember_network2();
@@ -70,5 +69,6 @@ void test_server_detection(network *network, float *pred, float *avg, const char
 
 		printf("nboxes = %d\n", nboxes);
 		newImage = get_image_from_stream(cap);
+		letterbox_image_into(newImage, net->w, net->h, newImage_letterboxed);
 	}
 }
