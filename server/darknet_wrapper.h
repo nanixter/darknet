@@ -101,12 +101,16 @@ namespace DarknetWrapper {
 				// Copy from the frame in elem to the 'image' format that darknet uses internally...
 				this->convertFrameToImage(&(elem.frame), &newImage);
 
+				save_image(newImage, "recieved");
+
 				// Convert to the RGBGR format that YOLO operates on..
 				rgbgr_image(newImage);
 
 				// Add black borders (letter-boxing) around the image to ensure that the image
 				// is of the correct width and height that YOLO expects.
 				newImage_letterboxed = letterbox_image(newImage, net->w, net->h);
+
+				save_image(newImage_letterboxed, "letterboxed");
 
 				/* Now we finally run the actual network	*/
 				network_predict(net, newImage_letterboxed.data);
@@ -117,6 +121,9 @@ namespace DarknetWrapper {
 				if (nms > 0) {
 					do_nms_obj(dets, nboxes, l.classes, nms);
 				}
+
+			    draw_detections(newImage_letterboxed, dets, nboxes, 0.5, NULL, NULL, l.classes);
+			    save_image(newImage_letterboxed, "detected");
 
 				/* Copy detected objects to the WorkRequest */
 				for (int i = 0; i < nboxes; i++) {
