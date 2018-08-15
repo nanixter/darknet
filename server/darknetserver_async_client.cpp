@@ -150,7 +150,6 @@ class ImageDetectionClient {
 
 			// Store the completion time...
 			//call->endTime = rdtsc();
-			std::cout << "This request took " << probe_time_end(&call->ts_detect) << " milliseconds"<< std::endl;
 
 			// Verify that the request was completed successfully. Note that "ok"
 			// corresponds solely to the request for updates introduced by Finish().
@@ -159,25 +158,26 @@ class ImageDetectionClient {
 
 			if (call->status.ok()) {
 				// print out what we received...
-				std::cout << call->detectedObjects.objects_size() << " objects detected." <<std::endl;
-				for (int i = 0; i < call->detectedObjects.objects_size(); i++) {
-					auto object = call->detectedObjects.objects(i);
-					std::cout   << "Object of class " << object.classes()
-								<< " detected at :" << std::endl;
-					std::cout   << "x: " << object.bbox().x() << ", "
-								<< "y: " << object.bbox().y() << ", "
-								<< "w: " << object.bbox().w() << ", "
-								<< "h: " << object.bbox().h() << ", ";
-					std::cout << "Probability: ";
-					for (auto j = 0; j < object.prob_size(); j++) {
-						std::cout << object.prob(j) << " ";
-					}
-					std::cout << std::endl;
-				}
+				std::cout << call <<" " << call->detectedObjects.objects_size() << " objects detected." <<std::endl;
+				//for (int i = 0; i < call->detectedObjects.objects_size(); i++) {
+				//	auto object = call->detectedObjects.objects(i);
+					//std::cout   << "Object of class " << object.classes()
+					//			<< " detected at :" << std::endl;
+					//std::cout   << "x: " << object.bbox().x() << ", "
+					//			<< "y: " << object.bbox().y() << ", "
+					//			<< "w: " << object.bbox().w() << ", "
+					//			<< "h: " << object.bbox().h() << ", ";
+					//std::cout << "Probability: ";
+					//for (auto j = 0; j < object.prob_size(); j++) {
+					//	std::cout << object.prob(j) << " ";
+					//}
+					//std::cout << std::endl;
+				//}
 			} else {
 				std::cout << "RPC failed: " << call->status.error_code() <<": " <<call->status.error_message() << std::endl;
 			}
 
+			std::cout << "This request took " << probe_time_end(&call->ts_detect) << " milliseconds"<< std::endl;
 			// Once we're complete, deallocate the call object.
 			delete call;
 		}
@@ -225,7 +225,8 @@ int main(int argc, char** argv) {
 	grpc::ChannelArguments ch_args;
 	ch_args.SetMaxReceiveMessageSize(-1);
 	ImageDetectionClient detectionClient(grpc::CreateCustomChannel(
-			"128.83.122.71:50051", grpc::InsecureChannelCredentials(), ch_args));
+			"localhost:50051", grpc::InsecureChannelCredentials(), ch_args));
+			//"128.83.122.71:50051", grpc::InsecureChannelCredentials(), ch_args));
 
 	// Spawn reader thread that loops indefinitely
 	std::thread completionThread = std::thread(&ImageDetectionClient::AsyncCompleteRpc,
@@ -258,7 +259,7 @@ int main(int argc, char** argv) {
 			//printImage(image);
 			// The actual RPC call!
 			detectionClient.AsyncSendImage(&image);
-			sleep(2);
+			sleep(1);
 		}
 	} else {
 		std::cout << "Couldn't open " << filename <<std::endl;

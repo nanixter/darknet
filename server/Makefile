@@ -16,7 +16,7 @@ PROTOS_PATH = .
 
 ifeq ($(GPU), 1)
 CXXFLAGS+= -DGPU -I/usr/local/cuda/include/
-LDFLAGS+= -L/usr/local/cuda/lib64 -lcuda -lcudart -lcublas -lcurand -lcudnn
+LDFLAGS+= -L/usr/local/cuda/lib64 -Wl,--as-needed -lcuda -lcudart -lcublas -lcurand -lcudnn
 endif
 
 vpath %.proto $(PROTOS_PATH)

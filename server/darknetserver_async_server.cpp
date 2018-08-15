@@ -39,7 +39,8 @@ class ServerImpl final {
 
 	// There is no shutdown handling in this code.
 	void Run(int argc, char** argv) {
-		std::string server_address("128.83.122.71:50051");
+		std::string server_address("localhost:50051");
+		//std::string server_address("128.83.122.71:50051");
 
 		// Initialize detector - pass it the request and completion queues
 		// Initialization must be done before launching the detection thread.

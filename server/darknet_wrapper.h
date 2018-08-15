@@ -131,7 +131,7 @@ namespace DarknetWrapper {
 				requestQueue->pop_front(elem);
 
 				std::cout << "doDetection: new requeust " << elem.tag << std::endl;
-				probe_time_start(&call->ts_detect);
+				probe_time_start(&ts_detect);
 
 				// Convert to the right format
 				// Allocate memory for data in 'image', based on the size of 'data' in frame
@@ -152,6 +152,7 @@ namespace DarknetWrapper {
 				//save_image(newImage_letterboxed, "letterboxed");
 
 				/* Now we finally run the actual network	*/
+				probe_time_start(&ts_gpu);
 				network_predict(net, newImage_letterboxed.data);
 				this->remember_network();
 				dets = this->average_predictions(&nboxes, newImage.h, newImage.w);
@@ -160,6 +161,7 @@ namespace DarknetWrapper {
 				if (nms > 0) {
 					do_nms_obj(dets, nboxes, l.classes, nms);
 				}
+				std::cout << elem.tag << " GPU processing took " << probe_time_end(&ts_gpu) << " milliseconds"<< std::endl;
 				//draw_detections(newImage_letterboxed, dets, nboxes, 0.5, NULL, NULL, l.classes);
 				//save_image(newImage_letterboxed, "detected");
 
@@ -194,8 +196,8 @@ namespace DarknetWrapper {
 				}
 
 				elem.done = true;
-				std::cout << elem->tag << " GPU processing took " << probe_time_end(&call->ts_detect) << " milliseconds"<< std::endl;
 				// Put the result back on the completionQueue.
+				std::cout << elem.tag << " doDetection: took " << probe_time_end(&ts_detect) << " milliseconds"<< std::endl;
 				completionQueue->push_back(elem);
 
 				// Clean up
@@ -267,6 +269,7 @@ namespace DarknetWrapper {
 
 		// All the darknet globals.
 		struct timestamp ts_detect;
+		struct timestamp ts_gpu;
 		DetectionQueue *requestQueue;
 		DetectionQueue *completionQueue;
 		float *predictions;
