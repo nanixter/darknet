@@ -35,12 +35,12 @@ static inline void tvsub(struct timeval *x,
 	}
 }
 
-void probe_time_start(struct timestamp *ts)
+void probe_time_start2(struct timestamp *ts)
 {
     gettimeofday(&ts->start, NULL);
 }
 
-float probe_time_end(struct timestamp *ts)
+float probe_time_end2(struct timestamp *ts)
 {
     struct timeval tv;
     gettimeofday(&ts->end, NULL);
@@ -99,7 +99,9 @@ namespace DarknetWrapper {
 			// Initialization: Load config files, labels, graph, etc.,
 			// Config the GPU and get into a thread that is ready to accept
 			// images for detection.
+			#ifdef GPU
 			cuda_set_device(0);
+			#endif
 			char *datacfg = argv[1];
 			char *cfgfile = argv[2];
 			char *weightfile = argv[3];
@@ -117,21 +119,22 @@ namespace DarknetWrapper {
 
 		}
 
-		void doDetection() {
+//		void doDetection() {
+		void doDetection(WorkRequest &elem) {
 			float nms = .4;
 			layer l = net->layers[net->n-1];
 			detection *dets = nullptr;
 			int nboxes = 0;
 
-			while(true) {
-				WorkRequest elem;
+//			while(true) {
+//				WorkRequest elem;
 				image newImage;
 				image newImage_letterboxed;
 				// Wait on the requestQueue
-				requestQueue->pop_front(elem);
+				//requestQueue->pop_front(elem);
 
 				std::cout << "doDetection: new requeust " << elem.tag << std::endl;
-				probe_time_start(&ts_detect);
+				probe_time_start2(&ts_detect);
 
 				// Convert to the right format
 				// Allocate memory for data in 'image', based on the size of 'data' in frame
@@ -149,10 +152,11 @@ namespace DarknetWrapper {
 				// is of the correct width and height that YOLO expects.
 				newImage_letterboxed = letterbox_image(newImage, net->w, net->h);
 
+				std::cout << elem.tag << " Image manipulation took " << probe_time_end2(&ts_detect) << " milliseconds"<< std::endl;
 				//save_image(newImage_letterboxed, "letterboxed");
 
 				/* Now we finally run the actual network	*/
-				probe_time_start(&ts_gpu);
+				probe_time_start2(&ts_gpu);
 				network_predict(net, newImage_letterboxed.data);
 				this->remember_network();
 				dets = this->average_predictions(&nboxes, newImage.h, newImage.w);
@@ -161,7 +165,7 @@ namespace DarknetWrapper {
 				if (nms > 0) {
 					do_nms_obj(dets, nboxes, l.classes, nms);
 				}
-				std::cout << elem.tag << " GPU processing took " << probe_time_end(&ts_gpu) << " milliseconds"<< std::endl;
+				std::cout << elem.tag << " GPU processing took " << probe_time_end2(&ts_gpu) << " milliseconds"<< std::endl;
 				//draw_detections(newImage_letterboxed, dets, nboxes, 0.5, NULL, NULL, l.classes);
 				//save_image(newImage_letterboxed, "detected");
 
@@ -197,13 +201,13 @@ namespace DarknetWrapper {
 
 				elem.done = true;
 				// Put the result back on the completionQueue.
-				std::cout << elem.tag << " doDetection: took " << probe_time_end(&ts_detect) << " milliseconds"<< std::endl;
-				completionQueue->push_back(elem);
+				std::cout << elem.tag << " doDetection: took " << probe_time_end2(&ts_detect) << " milliseconds"<< std::endl;
+//				completionQueue->push_back(elem);
 
 				// Clean up
 				free_detections(dets, nboxes);
 				delete [] newImage.data;
-			}
+//			}
 		}
 
 		void Shutdown() {

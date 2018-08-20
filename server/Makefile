@@ -4,7 +4,7 @@ GPU=1
 CXX = g++
 DARKNET_HEADER_PATH = ../include/
 CPPFLAGS += `pkg-config --cflags protobuf grpc` -g
-CXXFLAGS += -std=c++11 -I $(DARKNET_HEADER_PATH) -DGPU
+CXXFLAGS += -std=c++11 -I $(DARKNET_HEADER_PATH) 
 LDFLAGS += -L/usr/local/lib `pkg-config --libs protobuf grpc++ grpc opencv`\
            -Wl,--no-as-needed -lgrpc++_reflection -Wl,--as-needed -ldl -lpthread\
            -L../ -Wl,--as-needed -ldarknet

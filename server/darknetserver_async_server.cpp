@@ -9,6 +9,7 @@
 #include <grpcpp/grpcpp.h>
 #include <grpc/support/log.h>
 #include <thread>
+#include <sys/time.h>
 
 #include "darknetserver.grpc.pb.h"
 
@@ -26,7 +27,6 @@ using darknetServer::ImageDetection;
 using DarknetWrapper::WorkRequest;
 using DarknetWrapper::DetectionQueue;
 using DarknetWrapper::Detector;
-
 
 class ServerImpl final {
  public:
@@ -47,7 +47,7 @@ class ServerImpl final {
 		detector.Init(argc, argv, &requestQueue, &completionQueue);
 
 		// start a Thread to run doDetection
-		std::thread detectionThread(&Detector::doDetection, &detector);
+		//std::thread detectionThread(&Detector::doDetection, &detector);
 
 		ServerBuilder builder;
 		// Listen on the given address without any authentication mechanism.
@@ -64,13 +64,13 @@ class ServerImpl final {
 		std::cout << "Server listening on " << server_address << std::endl;
 
 		// Start the thread that handles the second half of the processing.
-		std::thread laterHalfThread(&ServerImpl::doLaterHalf, this);
+		//std::thread laterHalfThread(&ServerImpl::doLaterHalf, this);
 		// The server's main loop.
 		doFirstHalf();
 
 		// Wait for the other threads to
-		detectionThread.join();
-		laterHalfThread.join();
+		//detectionThread.join();
+		//laterHalfThread.join();
 	}
 
  private:
@@ -80,10 +80,11 @@ class ServerImpl final {
 		// Take in the "service" instance (in this case representing an asynchronous
 		// server) and the completion queue "cq" used for asynchronous communication
 		// with the gRPC runtime.
-		CallData(ImageDetection::AsyncService* service, ServerCompletionQueue* cq, DetectionQueue *requestQ)
+		CallData(ImageDetection::AsyncService* service, ServerCompletionQueue* cq, DetectionQueue *requestQ, Detector *detector)
 				: service_(service), cq_(cq), asyncResponder(&ctx_), status_(CREATE) {
 			// Invoke the serving logic right away.
 			this->requestQueue = requestQ;
+			this->detector = detector;
 			scheduleRequest();
 		}
 
@@ -102,7 +103,8 @@ class ServerImpl final {
 				// Spawn a new CallData instance to serve new clients while we process
 				// the one for this CallData. The instance will deallocate itself as
 				// part of its FINISH state.
-				new CallData(service_, cq_, requestQueue);
+				probe_time_start2(&ts_server);
+				new CallData(service_, cq_, requestQueue, detector);
 
 				// The actual processing.
 				WorkRequest work;
@@ -110,8 +112,10 @@ class ServerImpl final {
 				work.tag = this;
 				work.frame = this->frame;
 				//std::cout << "Recieved request " << this << " Pushing onto requestQ" << std::endl;
-				requestQueue->push_back(work);
+				//requestQueue->push_back(work);
+				detector->doDetection(work);
 				status_ = PROCESSING;
+				completeRequest(work);
 			} else {
 				GPR_ASSERT(status_ == FINISH);
 				// Once in the FINISH state, deallocate ourselves (CallData).
@@ -126,6 +130,7 @@ class ServerImpl final {
 				// GPU processing is done! Time to pass the results back to the client.
 				this->objects = work.detectedObjects;
 				status_ = FINISH;
+				std::cout << work.tag << "Server took " << probe_time_end2(&ts_server) << " milliseconds"<< std::endl;
 				asyncResponder.Finish((this->objects), Status::OK, this);
 		}
 
@@ -140,6 +145,8 @@ class ServerImpl final {
 		// client.
 		ServerContext ctx_;
 
+		struct timestamp ts_server;
+		Detector *detector;
 		DetectionQueue *requestQueue;
 
 		// What we get from the client.
@@ -159,7 +166,7 @@ class ServerImpl final {
 	// This can be run in multiple threads if needed.
 	void doFirstHalf() {
 		// Spawn a new CallData instance to serve new clients.
-		new CallData(&service, cq_.get(), &requestQueue);
+		new CallData(&service, cq_.get(), &requestQueue, &detector);
 		void* tag;  // uniquely identifies a request.
 		bool ok;
 		while (true) {

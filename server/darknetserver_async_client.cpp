@@ -41,12 +41,12 @@ static inline void tvsub(struct timeval *x,
 	}
 }
 
-void probe_time_start(struct timestamp *ts)
+void probe_time_start2(struct timestamp *ts)
 {
     gettimeofday(&ts->start, NULL);
 }
 
-float probe_time_end(struct timestamp *ts)
+float probe_time_end2(struct timestamp *ts)
 {
     struct timeval tv;
     gettimeofday(&ts->end, NULL);
@@ -111,30 +111,57 @@ class ImageDetectionClient {
 		frame.set_numchannels(image->numChannels);
 		for (int i = 0; i < (image->height * image->width * image->numChannels); i++)
 			frame.add_data(image->data[i]);
-
+		std::cout << "data size: "<< frame.data_size();
 		//usleep(1000);
+		for (int j = 0; j<10; j++) {
 		// Call object to store rpc data
 		AsyncClientCall* call = new AsyncClientCall;
 
 		//call->startTime = rdtsc();
-		probe_time_start(&call->ts_detect);
+		probe_time_start2(&call->ts_detect);
 
 		// stub_->PrepareAsyncSayHello() creates an RPC object, returning
 		// an instance to store in "call" but does not actually start the RPC
 		// Because we are using the asynchronous API, we need to hold on to
 		// the "call" instance in order to get updates on the ongoing RPC.
-		call->async_reader =
-			stub_->PrepareAsyncRequestDetection(&call->context, frame, &cq_);
-
+		//call->async_reader =
+		//	stub_->PrepareAsyncRequestDetection(&call->context, frame, &cq_);
+		call->status =  stub_->RequestDetection(&call->context, frame, &call->detectedObjects);
 		// StartCall initiates the RPC call
 		// Tag: the memory address of the call object.
-		call->async_reader->StartCall();
+		//call->async_reader->StartCall();
 
 		// Request that, upon completion of the RPC, "reply" be updated with the
 		// server's response; "status" with the indication of whether the operation
 		// was successful. Tag the request with the memory address of the call object.
-		call->async_reader->Finish(&call->detectedObjects, &call->status, (void*)call);
+		//call->async_reader->Finish(&call->detectedObjects, &call->status, (void*)call);
 
+			if (call->status.ok()) {
+				// print out what we received...
+				std::cout << call <<" " << call->detectedObjects.objects_size() << " objects detected." <<std::endl;
+				//for (int i = 0; i < call->detectedObjects.objects_size(); i++) {
+				//	auto object = call->detectedObjects.objects(i);
+					//std::cout   << "Object of class " << object.classes()
+					//			<< " detected at :" << std::endl;
+					//std::cout   << "x: " << object.bbox().x() << ", "
+					//			<< "y: " << object.bbox().y() << ", "
+					//			<< "w: " << object.bbox().w() << ", "
+					//			<< "h: " << object.bbox().h() << ", ";
+					//std::cout << "Probability: ";
+					//for (auto j = 0; j < object.prob_size(); j++) {
+					//	std::cout << object.prob(j) << " ";
+					//}
+					//std::cout << std::endl;
+				//}
+			} else {
+				std::cout << "RPC failed: " << call->status.error_code() <<": " <<call->status.error_message() << std::endl;
+			}
+
+			std::cout << "This request took " << probe_time_end2(&call->ts_detect) << " milliseconds"<< std::endl;
+		
+			// Once we're complete, deallocate the call object.
+			delete call;
+		}
 	}
 
 	// Loop while listening for completed responses.
@@ -177,7 +204,7 @@ class ImageDetectionClient {
 				std::cout << "RPC failed: " << call->status.error_code() <<": " <<call->status.error_message() << std::endl;
 			}
 
-			std::cout << "This request took " << probe_time_end(&call->ts_detect) << " milliseconds"<< std::endl;
+			std::cout << "This request took " << probe_time_end2(&call->ts_detect) << " milliseconds"<< std::endl;
 			// Once we're complete, deallocate the call object.
 			delete call;
 		}
@@ -229,8 +256,8 @@ int main(int argc, char** argv) {
 			//"128.83.122.71:50051", grpc::InsecureChannelCredentials(), ch_args));
 
 	// Spawn reader thread that loops indefinitely
-	std::thread completionThread = std::thread(&ImageDetectionClient::AsyncCompleteRpc,
-		&detectionClient);
+//	std::thread completionThread = std::thread(&ImageDetectionClient::AsyncCompleteRpc,
+//		&detectionClient);
 
 	// Do any associated setup (metadata etc.)
 	// TODO: Do we support multiple file formats?
@@ -258,7 +285,8 @@ int main(int argc, char** argv) {
 			Image image = getImageFromMat(&capturedFrame);
 			//printImage(image);
 			// The actual RPC call!
-			detectionClient.AsyncSendImage(&image);
+			for(int i = 0; i<10; i++)
+				detectionClient.AsyncSendImage(&image);
 			sleep(1);
 		}
 	} else {
@@ -267,7 +295,7 @@ int main(int argc, char** argv) {
 	}
 
 	std::cout << "Press control-c to quit" << std::endl;
-	completionThread.join();  //blocks forever
+//	completionThread.join();  //blocks forever
 
 	return 0;
 }
