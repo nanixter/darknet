@@ -53,8 +53,8 @@ namespace DarknetWrapper {
 	typedef struct
 	{
 		bool done;
-		darknetServer::KeyFrame frame;
-		darknetServer::DetectedObjects detectedObjects;
+		const darknetServer::KeyFrame *frame;
+		darknetServer::DetectedObjects *detectedObjects;
 		void *tag;
 	} WorkRequest;
 
@@ -86,40 +86,6 @@ namespace DarknetWrapper {
 		std::condition_variable cv;
 
 	}; // class DetectionQueue
-
-	class AsyncDetector : Detector
-	{
-	public:
-		void Init(int argc, char** argv, DetectionQueue *requestQueue, DetectionQueue *completionQueue) {
-			// Store pointers to the workQueues
-			this->requestQueue = requestQueue;
-			this->completionQueue = completionQueue;
-			Detector::Init(argc, argv);
-		}
-
-		void Shutdown() {
-			// Set locally owned pointers to NULL;
-			this->requestQueue = nullptr;
-			this->completionQueue = nullptr;
-			Detector::Shutdown();
-		}
-
-		void doDetection() {
-			while(true) {
-				WorkRequest elem;
-				// Wait on the requestQueue
-				requestQueue->pop_front(elem);
-				Detector::doDetection(elem);
-				// Put the result back on the completionQueue.
-				completionQueue->push_back(elem);
-			}
-		}
-
-	private:
-		DetectionQueue *requestQueue;
-		DetectionQueue *completionQueue;
-
-	};
 
 	class Detector {
 	public:
@@ -167,10 +133,10 @@ namespace DarknetWrapper {
 
 			// Convert to the right format
 			// Allocate memory for data in 'image', based on the size of 'data' in frame
-			newImage.data = new float[elem.frame.data_size()];
+			newImage.data = new float[elem.frame->data_size()];
 
 			// Copy from the frame in elem to the 'image' format that darknet uses internally...
-			this->convertFrameToImage(&(elem.frame), &newImage);
+			this->convertFrameToImage(elem.frame, &newImage);
 
 			//save_image(newImage, "recieved");
 
@@ -202,7 +168,7 @@ namespace DarknetWrapper {
 			/* Copy detected objects to the WorkRequest */
 			for (int i = 0; i < nboxes; i++) {
 				if(dets[i].objectness == 0) continue;
-				darknetServer::DetectedObjects_DetectedObject *object = elem.detectedObjects.add_objects();
+				darknetServer::DetectedObjects_DetectedObject *object = elem.detectedObjects->add_objects();
 				// std::cout << "Det " <<i <<":" << std::endl;
 				// std::cout << "BBOX: "
 				// 		<< " x: " <<dets[i].bbox.x
@@ -238,7 +204,7 @@ namespace DarknetWrapper {
 		}
 
 	private:
-		void convertFrameToImage(darknetServer::KeyFrame *frame, image *newImage) {
+		void convertFrameToImage(const darknetServer::KeyFrame *frame, image *newImage) {
 			newImage->w = frame->width();
 			newImage->h = frame->height();
 			newImage->c = frame->numchannels();
@@ -301,6 +267,40 @@ namespace DarknetWrapper {
 		int numNetworkOutputs;
 
 	}; // class Detector
+
+	class AsyncDetector : Detector
+	{
+	  public:
+		void Init(int argc, char** argv, DetectionQueue *requestQueue, DetectionQueue *completionQueue) {
+			// Store pointers to the workQueues
+			this->requestQueue = requestQueue;
+			this->completionQueue = completionQueue;
+			Detector::Init(argc, argv);
+		}
+
+		void Shutdown() {
+			// Set locally owned pointers to NULL;
+			this->requestQueue = nullptr;
+			this->completionQueue = nullptr;
+			Detector::Shutdown();
+		}
+
+		void doDetection() {
+			while(true) {
+				WorkRequest elem;
+				// Wait on the requestQueue
+				requestQueue->pop_front(elem);
+				Detector::doDetection(elem);
+				// Put the result back on the completionQueue.
+				completionQueue->push_back(elem);
+			}
+		}
+
+	  private:
+		DetectionQueue *requestQueue;
+		DetectionQueue *completionQueue;
+
+	};
 
 } // namespace DarknetWrapper
 

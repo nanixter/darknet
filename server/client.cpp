@@ -120,7 +120,7 @@ class ImageDetectionClient {
 		probe_time_start2(&ts_detect);
 
 		// RPC Call
-		status =  stub_->RequestDetection(&context, &frame, &detectedObjects);
+		status =  stub_->RequestDetection(&context, frame, &detectedObjects);
 
 		if (status.ok()) {
 			std::cout << " " << detectedObjects.objects_size()
@@ -178,10 +178,10 @@ int main(int argc, char** argv) {
 		while(capture.read(capturedFrame)) {
 			// Convert the image from cv::Mat to the image format that darknet expects
 			Image image = getImageFromMat(&capturedFrame);
-			//printImage(image);
+
 			// The actual RPC call!
-			for(int i = 0; i<10; i++)
-				detectionClient.sendImage(&image);
+			detectionClient.sendImage(&image);
+
 			// Rate-limit ourselves.
 			// For testing purposes only.
 			sleep(1);

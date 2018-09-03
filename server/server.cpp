@@ -37,11 +37,7 @@ class ServiceImpl final : public ImageDetection::Service {
 
 	// TODO: Catch terminate signals and actually do clean up.
 	explicit ServiceImpl(int argc, char** argv) {
-		// Initialize detector - pass it the request and completion queues
-		// requestQueue and completionQueue are meant for asynchronous calls
-		// to the detector (not used in synchronous version.)
-		// TODO: Refactor detector into base and threaded classes.
-		detector.Init(argc, argv, &this->requestQueue, &this->completionQueue);
+		detector.Init(argc, argv);
 	}
 
 	Status RequestDetection(ServerContext* context,
@@ -49,17 +45,17 @@ class ServiceImpl final : public ImageDetection::Service {
 		// Start timer
 		probe_time_start2(&ts_server);
 
-		// The actual processing.
+		// This structure was mostly created for the Async version, but we use it too...
 		WorkRequest work;
 		work.done = false;
 		work.tag = this;
-		std::memcpy(&(work.frame), frame, sizeof(KeyFrame));
+		work.frame = frame;
+		work.detectedObjects = objects;
 
-		detector->doDetection(work);
+		// The actual processing.
+		detector.doDetection(work);
 
 		GPR_ASSERT(work.done == true);
-		// GPU processing is done! Time to pass the results back to the client.
-		objects = &(work.detectedObjects);
 
 		std::cout << work.tag << "Server took " << probe_time_end2(&ts_server) << " milliseconds"<< std::endl;
 		return Status::OK;
@@ -70,8 +66,6 @@ class ServiceImpl final : public ImageDetection::Service {
 
 	// Darknet detector
 	Detector detector;
-	DetectionQueue requestQueue;
-	DetectionQueue completionQueue;
 };
 
 int main(int argc, char** argv) {

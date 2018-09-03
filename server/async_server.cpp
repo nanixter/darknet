@@ -108,7 +108,8 @@ class ServerImpl final {
 				WorkRequest work;
 				work.done = false;
 				work.tag = this;
-				work.frame = this->frame;
+				work.frame = &(this->frame);
+				work.detectedObjects = &(this->objects);
 				//std::cout << "Recieved request " << this << " Pushing onto requestQ" << std::endl;
 				requestQueue->push_back(work);
 				status_ = PROCESSING;
@@ -124,7 +125,6 @@ class ServerImpl final {
 				GPR_ASSERT(work.done == true);
 				//std::cout << "Request " << this << " completed." << std::endl;
 				// GPU processing is done! Time to pass the results back to the client.
-				this->objects = work.detectedObjects;
 				status_ = FINISH;
 				asyncResponder.Finish((this->objects), Status::OK, this);
 		}

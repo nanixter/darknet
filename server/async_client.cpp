@@ -41,12 +41,12 @@ static inline void tvsub(struct timeval *x,
 	}
 }
 
-void probe_time_start(struct timestamp *ts)
+void probe_time_start2(struct timestamp *ts)
 {
     gettimeofday(&ts->start, NULL);
 }
 
-float probe_time_end(struct timestamp *ts)
+float probe_time_end2(struct timestamp *ts)
 {
     struct timeval tv;
     gettimeofday(&ts->end, NULL);
@@ -117,7 +117,7 @@ class ImageDetectionClient {
 		AsyncClientCall* call = new AsyncClientCall;
 
 		//call->startTime = rdtsc();
-		probe_time_start(&call->ts_detect);
+		probe_time_start2(&call->ts_detect);
 
 		// stub_->PrepareAsyncSayHello() creates an RPC object, returning
 		// an instance to store in "call" but does not actually start the RPC
@@ -177,7 +177,7 @@ class ImageDetectionClient {
 				std::cout << "RPC failed: " << call->status.error_code() <<": " <<call->status.error_message() << std::endl;
 			}
 
-			std::cout << "This request took " << probe_time_end(&call->ts_detect) << " milliseconds"<< std::endl;
+			std::cout << "This request took " << probe_time_end2(&call->ts_detect) << " milliseconds"<< std::endl;
 			// Once we're complete, deallocate the call object.
 			delete call;
 		}
