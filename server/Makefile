@@ -4,7 +4,7 @@ GPU=1
 CXX = g++
 DARKNET_HEADER_PATH = ../include/
 CPPFLAGS += `pkg-config --cflags protobuf grpc` -g
-CXXFLAGS += -std=c++11 -I $(DARKNET_HEADER_PATH) -DGPU
+CXXFLAGS += -std=c++11 -I $(DARKNET_HEADER_PATH)
 LDFLAGS += -L/usr/local/lib `pkg-config --libs protobuf grpc++ grpc opencv`\
            -Wl,--no-as-needed -lgrpc++_reflection -Wl,--as-needed -ldl -lpthread\
            -L../ -Wl,--as-needed -ldarknet
@@ -21,12 +21,18 @@ endif
 
 vpath %.proto $(PROTOS_PATH)
 
-all: system-check client server
+all: system-check client server async_client async_server
 
-client: darknetserver.pb.o darknetserver.grpc.pb.o darknetserver_async_client.o
+async_client: darknetserver.pb.o darknetserver.grpc.pb.o async_client.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
-server: darknetserver.pb.o darknetserver.grpc.pb.o darknetserver_async_server.o
+async_server: darknetserver.pb.o darknetserver.grpc.pb.o async_server.o
+	$(CXX) $^ -I $(DARKNET_HEADER_PATH) $(LDFLAGS) -o $@
+
+client: darknetserver.pb.o darknetserver.grpc.pb.o client.o
+	$(CXX) $^ $(LDFLAGS) -o $@
+
+server: darknetserver.pb.o darknetserver.grpc.pb.o server.o
 	$(CXX) $^ -I $(DARKNET_HEADER_PATH) $(LDFLAGS) -o $@
 
 .PRECIOUS: %.grpc.pb.cc

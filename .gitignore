@@ -26,6 +26,10 @@ client
 *.sublime-project
 *.sublime-workspace
 
+#Ctags
+.tags
+.tags_sorted_by_file
+
 # OS Generated #
 .DS_Store*
 ehthumbs.db

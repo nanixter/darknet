@@ -35,12 +35,12 @@ static inline void tvsub(struct timeval *x,
 	}
 }
 
-void probe_time_start(struct timestamp *ts)
+void probe_time_start2(struct timestamp *ts)
 {
     gettimeofday(&ts->start, NULL);
 }
 
-float probe_time_end(struct timestamp *ts)
+float probe_time_end2(struct timestamp *ts)
 {
     struct timeval tv;
     gettimeofday(&ts->end, NULL);
@@ -87,19 +87,50 @@ namespace DarknetWrapper {
 
 	}; // class DetectionQueue
 
-
-	class Detector {
+	class AsyncDetector : Detector
+	{
 	public:
-
 		void Init(int argc, char** argv, DetectionQueue *requestQueue, DetectionQueue *completionQueue) {
 			// Store pointers to the workQueues
 			this->requestQueue = requestQueue;
 			this->completionQueue = completionQueue;
+			Detector::Init(argc, argv);
+		}
 
+		void Shutdown() {
+			// Set locally owned pointers to NULL;
+			this->requestQueue = nullptr;
+			this->completionQueue = nullptr;
+			Detector::Shutdown();
+		}
+
+		void doDetection() {
+			while(true) {
+				WorkRequest elem;
+				// Wait on the requestQueue
+				requestQueue->pop_front(elem);
+				Detector::doDetection(elem);
+				// Put the result back on the completionQueue.
+				completionQueue->push_back(elem);
+			}
+		}
+
+	private:
+		DetectionQueue *requestQueue;
+		DetectionQueue *completionQueue;
+
+	};
+
+	class Detector {
+	public:
+
+		void Init(int argc, char** argv) {
 			// Initialization: Load config files, labels, graph, etc.,
 			// Config the GPU and get into a thread that is ready to accept
 			// images for detection.
+			#ifdef GPU
 			cuda_set_device(0);
+			#endif
 			char *datacfg = argv[1];
 			char *cfgfile = argv[2];
 			char *weightfile = argv[3];
@@ -114,106 +145,96 @@ namespace DarknetWrapper {
 			this->numNetworkOutputs = this->size_network();
 			this->predictions = new float[numNetworkOutputs];
 			this->average = new float[numNetworkOutputs];
-
 		}
 
-		void doDetection() {
+		void Shutdown() {
+			// Free any darknet resources held. Close the GPU connection, etc...
+			delete this->predictions;
+			delete this->average;
+		}
+
+		void doDetection(WorkRequest &elem) {
 			float nms = .4;
 			layer l = net->layers[net->n-1];
 			detection *dets = nullptr;
 			int nboxes = 0;
 
-			while(true) {
-				WorkRequest elem;
-				image newImage;
-				image newImage_letterboxed;
-				// Wait on the requestQueue
-				requestQueue->pop_front(elem);
+			image newImage;
+			image newImage_letterboxed;
 
-				std::cout << "doDetection: new requeust " << elem.tag << std::endl;
-				probe_time_start(&ts_detect);
+			std::cout << "doDetection: new requeust " << elem.tag << std::endl;
+			probe_time_start2(&ts_detect);
 
-				// Convert to the right format
-				// Allocate memory for data in 'image', based on the size of 'data' in frame
-				newImage.data = new float[elem.frame.data_size()];
+			// Convert to the right format
+			// Allocate memory for data in 'image', based on the size of 'data' in frame
+			newImage.data = new float[elem.frame.data_size()];
 
-				// Copy from the frame in elem to the 'image' format that darknet uses internally...
-				this->convertFrameToImage(&(elem.frame), &newImage);
+			// Copy from the frame in elem to the 'image' format that darknet uses internally...
+			this->convertFrameToImage(&(elem.frame), &newImage);
 
-				//save_image(newImage, "recieved");
+			//save_image(newImage, "recieved");
 
-				// Convert to the RGBGR format that YOLO operates on..
-				rgbgr_image(newImage);
+			// Convert to the RGBGR format that YOLO operates on..
+			rgbgr_image(newImage);
 
-				// Add black borders (letter-boxing) around the image to ensure that the image
-				// is of the correct width and height that YOLO expects.
-				newImage_letterboxed = letterbox_image(newImage, net->w, net->h);
+			// Add black borders (letter-boxing) around the image to ensure that the image
+			// is of the correct width and height that YOLO expects.
+			newImage_letterboxed = letterbox_image(newImage, net->w, net->h);
 
-				//save_image(newImage_letterboxed, "letterboxed");
+			//save_image(newImage_letterboxed, "letterboxed");
 
-				/* Now we finally run the actual network	*/
-				probe_time_start(&ts_gpu);
-				network_predict(net, newImage_letterboxed.data);
-				this->remember_network();
-				dets = this->average_predictions(&nboxes, newImage.h, newImage.w);
+			/* Now we finally run the actual network	*/
+			probe_time_start2(&ts_gpu);
+			network_predict(net, newImage_letterboxed.data);
+			this->remember_network();
+			dets = this->average_predictions(&nboxes, newImage.h, newImage.w);
 
-				// What the hell does this do?
-				if (nms > 0) {
-					do_nms_obj(dets, nboxes, l.classes, nms);
-				}
-				std::cout << elem.tag << " GPU processing took " << probe_time_end(&ts_gpu) << " milliseconds"<< std::endl;
-				//draw_detections(newImage_letterboxed, dets, nboxes, 0.5, NULL, NULL, l.classes);
-				//save_image(newImage_letterboxed, "detected");
-
-				/* Copy detected objects to the WorkRequest */
-				for (int i = 0; i < nboxes; i++) {
-					if(dets[i].objectness == 0) continue;
-					darknetServer::DetectedObjects_DetectedObject *object = elem.detectedObjects.add_objects();
-					// std::cout << "Det " <<i <<":" << std::endl;
-					// std::cout << "BBOX: "
-					// 		<< " x: " <<dets[i].bbox.x
-					// 		<< " y: " <<dets[i].bbox.y
-					// 		<< " w: " <<dets[i].bbox.w
-					// 		<< " h: " <<dets[i].bbox.h << std::endl;
-					// std::cout << "objectness: " << dets[i].objectness << std::endl;
-					// std::cout << "classes: " << dets[i].classes << std::endl;
-					// std::cout << "sort_class: " << dets[i].sort_class << std::endl;
-					darknetServer::DetectedObjects_DetectedObject_box *bbox = object->mutable_bbox();
-					bbox->set_x(dets[i].bbox.x);
-					bbox->set_y(dets[i].bbox.y);
-					bbox->set_w(dets[i].bbox.w);
-					bbox->set_h(dets[i].bbox.h);
-					object->set_objectness(dets[i].objectness);
-					object->set_classes(dets[i].classes);
-					object->set_sort_class(dets[i].sort_class);
-					// std::cout << "Probabilities:" << std::endl;
-					// std::cout << l.classes << std::endl;
-					for (int j = 0; j < l.classes; j++) {
-						// std::cout << dets[i].prob[j];
-						object->add_prob(dets[i].prob[j]);
-					}
-					// std::cout <<std::endl;
-				}
-
-				elem.done = true;
-				// Put the result back on the completionQueue.
-				std::cout << elem.tag << " doDetection: took " << probe_time_end(&ts_detect) << " milliseconds"<< std::endl;
-				completionQueue->push_back(elem);
-
-				// Clean up
-				free_detections(dets, nboxes);
-				delete [] newImage.data;
+			// What the hell does this do?
+			if (nms > 0) {
+				do_nms_obj(dets, nboxes, l.classes, nms);
 			}
-		}
 
-		void Shutdown() {
-			// Set locally owned pointers to NULL;
-			this->requestQueue = nullptr;
-			this->completionQueue = nullptr;
+			std::cout << elem.tag << " GPU processing took " << probe_time_end2(&ts_gpu) << " milliseconds"<< std::endl;
 
-			// Free any darknet resources held. Close the GPU connection, etc...
-			delete this->predictions;
-			delete this->average;
+			//draw_detections(newImage_letterboxed, dets, nboxes, 0.5, NULL, NULL, l.classes);
+			//save_image(newImage_letterboxed, "detected");
+
+			/* Copy detected objects to the WorkRequest */
+			for (int i = 0; i < nboxes; i++) {
+				if(dets[i].objectness == 0) continue;
+				darknetServer::DetectedObjects_DetectedObject *object = elem.detectedObjects.add_objects();
+				// std::cout << "Det " <<i <<":" << std::endl;
+				// std::cout << "BBOX: "
+				// 		<< " x: " <<dets[i].bbox.x
+				// 		<< " y: " <<dets[i].bbox.y
+				// 		<< " w: " <<dets[i].bbox.w
+				// 		<< " h: " <<dets[i].bbox.h << std::endl;
+				// std::cout << "objectness: " << dets[i].objectness << std::endl;
+				// std::cout << "classes: " << dets[i].classes << std::endl;
+				// std::cout << "sort_class: " << dets[i].sort_class << std::endl;
+				darknetServer::DetectedObjects_DetectedObject_box *bbox = object->mutable_bbox();
+				bbox->set_x(dets[i].bbox.x);
+				bbox->set_y(dets[i].bbox.y);
+				bbox->set_w(dets[i].bbox.w);
+				bbox->set_h(dets[i].bbox.h);
+				object->set_objectness(dets[i].objectness);
+				object->set_classes(dets[i].classes);
+				object->set_sort_class(dets[i].sort_class);
+				// std::cout << "Probabilities:" << std::endl;
+				// std::cout << l.classes << std::endl;
+				for (int j = 0; j < l.classes; j++) {
+					// std::cout << dets[i].prob[j];
+					object->add_prob(dets[i].prob[j]);
+				}
+				// std::cout <<std::endl;
+			}
+
+			elem.done = true;
+			std::cout << elem.tag << " doDetection: took " << probe_time_end2(&ts_detect) << " milliseconds"<< std::endl;
+
+			// Clean up
+			free_detections(dets, nboxes);
+			delete [] newImage.data;
 		}
 
 	private:
@@ -270,8 +291,6 @@ namespace DarknetWrapper {
 		// All the darknet globals.
 		struct timestamp ts_detect;
 		struct timestamp ts_gpu;
-		DetectionQueue *requestQueue;
-		DetectionQueue *completionQueue;
 		float *predictions;
 		float *average;
 		char *datacfg;

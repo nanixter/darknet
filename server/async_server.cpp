@@ -25,7 +25,7 @@ using darknetServer::KeyFrame;
 using darknetServer::ImageDetection;
 using DarknetWrapper::WorkRequest;
 using DarknetWrapper::DetectionQueue;
-using DarknetWrapper::Detector;
+using DarknetWrapper::AsyncDetector;
 
 
 class ServerImpl final {
@@ -47,7 +47,7 @@ class ServerImpl final {
 		detector.Init(argc, argv, &requestQueue, &completionQueue);
 
 		// start a Thread to run doDetection
-		std::thread detectionThread(&Detector::doDetection, &detector);
+		std::thread detectionThread(&AsyncDetector::doDetection, &detector);
 
 		ServerBuilder builder;
 		// Listen on the given address without any authentication mechanism.
@@ -187,7 +187,7 @@ class ServerImpl final {
 	}
 
 	// Darknet detector
-	Detector detector;
+	AsyncDetector detector;
 	DetectionQueue requestQueue;
 	DetectionQueue completionQueue;
 
