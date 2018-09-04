@@ -10,13 +10,13 @@ namespace darknetServer {
 
 struct KeyFrame;
 
-struct box;
+struct bbox;
 
 struct DetectedObject;
 
 struct DetectedObjects;
 
-FLATBUFFERS_MANUALLY_ALIGNED_STRUCT(4) box FLATBUFFERS_FINAL_CLASS {
+FLATBUFFERS_MANUALLY_ALIGNED_STRUCT(4) bbox FLATBUFFERS_FINAL_CLASS {
  private:
   float x_;
   float y_;
@@ -24,10 +24,10 @@ FLATBUFFERS_MANUALLY_ALIGNED_STRUCT(4) box FLATBUFFERS_FINAL_CLASS {
   float h_;
 
  public:
-  box() {
-    memset(this, 0, sizeof(box));
+  bbox() {
+    memset(this, 0, sizeof(bbox));
   }
-  box(float _x, float _y, float _w, float _h)
+  bbox(float _x, float _y, float _w, float _h)
       : x_(flatbuffers::EndianScalar(_x)),
         y_(flatbuffers::EndianScalar(_y)),
         w_(flatbuffers::EndianScalar(_w)),
@@ -46,21 +46,21 @@ FLATBUFFERS_MANUALLY_ALIGNED_STRUCT(4) box FLATBUFFERS_FINAL_CLASS {
     return flatbuffers::EndianScalar(h_);
   }
 };
-FLATBUFFERS_STRUCT_END(box, 16);
+FLATBUFFERS_STRUCT_END(bbox, 16);
 
 struct KeyFrame FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   enum {
-    VT_WIDTH = 4,
-    VT_HEIGHT = 6,
+    VT_WIDTH2 = 4,
+    VT_HEIGHT2 = 6,
     VT_NUMCHANNELS = 8,
     VT_WIDTHSTEP = 10,
     VT_DATA = 12
   };
-  int32_t width() const {
-    return GetField<int32_t>(VT_WIDTH, 0);
+  int32_t width2() const {
+    return GetField<int32_t>(VT_WIDTH2, 0);
   }
-  int32_t height() const {
-    return GetField<int32_t>(VT_HEIGHT, 0);
+  int32_t height2() const {
+    return GetField<int32_t>(VT_HEIGHT2, 0);
   }
   int32_t numChannels() const {
     return GetField<int32_t>(VT_NUMCHANNELS, 0);
@@ -73,8 +73,8 @@ struct KeyFrame FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<int32_t>(verifier, VT_WIDTH) &&
-           VerifyField<int32_t>(verifier, VT_HEIGHT) &&
+           VerifyField<int32_t>(verifier, VT_WIDTH2) &&
+           VerifyField<int32_t>(verifier, VT_HEIGHT2) &&
            VerifyField<int32_t>(verifier, VT_NUMCHANNELS) &&
            VerifyField<int32_t>(verifier, VT_WIDTHSTEP) &&
            VerifyOffset(verifier, VT_DATA) &&
@@ -86,11 +86,11 @@ struct KeyFrame FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
 struct KeyFrameBuilder {
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
-  void add_width(int32_t width) {
-    fbb_.AddElement<int32_t>(KeyFrame::VT_WIDTH, width, 0);
+  void add_width2(int32_t width2) {
+    fbb_.AddElement<int32_t>(KeyFrame::VT_WIDTH2, width2, 0);
   }
-  void add_height(int32_t height) {
-    fbb_.AddElement<int32_t>(KeyFrame::VT_HEIGHT, height, 0);
+  void add_height2(int32_t height2) {
+    fbb_.AddElement<int32_t>(KeyFrame::VT_HEIGHT2, height2, 0);
   }
   void add_numChannels(int32_t numChannels) {
     fbb_.AddElement<int32_t>(KeyFrame::VT_NUMCHANNELS, numChannels, 0);
@@ -115,8 +115,8 @@ struct KeyFrameBuilder {
 
 inline flatbuffers::Offset<KeyFrame> CreateKeyFrame(
     flatbuffers::FlatBufferBuilder &_fbb,
-    int32_t width = 0,
-    int32_t height = 0,
+    int32_t width2 = 0,
+    int32_t height2 = 0,
     int32_t numChannels = 0,
     int32_t widthStep = 0,
     flatbuffers::Offset<flatbuffers::Vector<float>> data = 0) {
@@ -124,22 +124,22 @@ inline flatbuffers::Offset<KeyFrame> CreateKeyFrame(
   builder_.add_data(data);
   builder_.add_widthStep(widthStep);
   builder_.add_numChannels(numChannels);
-  builder_.add_height(height);
-  builder_.add_width(width);
+  builder_.add_height2(height2);
+  builder_.add_width2(width2);
   return builder_.Finish();
 }
 
 inline flatbuffers::Offset<KeyFrame> CreateKeyFrameDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
-    int32_t width = 0,
-    int32_t height = 0,
+    int32_t width2 = 0,
+    int32_t height2 = 0,
     int32_t numChannels = 0,
     int32_t widthStep = 0,
     const std::vector<float> *data = nullptr) {
   return darknetServer::CreateKeyFrame(
       _fbb,
-      width,
-      height,
+      width2,
+      height2,
       numChannels,
       widthStep,
       data ? _fbb.CreateVector<float>(*data) : 0);
@@ -147,14 +147,14 @@ inline flatbuffers::Offset<KeyFrame> CreateKeyFrameDirect(
 
 struct DetectedObject FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   enum {
-    VT_BBOX = 4,
+    VT_BOX = 4,
     VT_CLASSES = 6,
     VT_OBJECTNESS = 8,
     VT_SORT_CLASS = 10,
     VT_PROB = 12
   };
-  const box *bbox() const {
-    return GetStruct<const box *>(VT_BBOX);
+  const bbox *box() const {
+    return GetStruct<const bbox *>(VT_BOX);
   }
   int32_t classes() const {
     return GetField<int32_t>(VT_CLASSES, 0);
@@ -170,7 +170,7 @@ struct DetectedObject FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<box>(verifier, VT_BBOX) &&
+           VerifyField<bbox>(verifier, VT_BOX) &&
            VerifyField<int32_t>(verifier, VT_CLASSES) &&
            VerifyField<float>(verifier, VT_OBJECTNESS) &&
            VerifyField<int32_t>(verifier, VT_SORT_CLASS) &&
@@ -183,8 +183,8 @@ struct DetectedObject FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
 struct DetectedObjectBuilder {
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
-  void add_bbox(const box *bbox) {
-    fbb_.AddStruct(DetectedObject::VT_BBOX, bbox);
+  void add_box(const bbox *box) {
+    fbb_.AddStruct(DetectedObject::VT_BOX, box);
   }
   void add_classes(int32_t classes) {
     fbb_.AddElement<int32_t>(DetectedObject::VT_CLASSES, classes, 0);
@@ -212,7 +212,7 @@ struct DetectedObjectBuilder {
 
 inline flatbuffers::Offset<DetectedObject> CreateDetectedObject(
     flatbuffers::FlatBufferBuilder &_fbb,
-    const box *bbox = 0,
+    const bbox *box = 0,
     int32_t classes = 0,
     float objectness = 0.0f,
     int32_t sort_class = 0,
@@ -222,20 +222,20 @@ inline flatbuffers::Offset<DetectedObject> CreateDetectedObject(
   builder_.add_sort_class(sort_class);
   builder_.add_objectness(objectness);
   builder_.add_classes(classes);
-  builder_.add_bbox(bbox);
+  builder_.add_box(box);
   return builder_.Finish();
 }
 
 inline flatbuffers::Offset<DetectedObject> CreateDetectedObjectDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
-    const box *bbox = 0,
+    const bbox *box = 0,
     int32_t classes = 0,
     float objectness = 0.0f,
     int32_t sort_class = 0,
     const std::vector<float> *prob = nullptr) {
   return darknetServer::CreateDetectedObject(
       _fbb,
-      bbox,
+      box,
       classes,
       objectness,
       sort_class,

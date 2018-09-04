@@ -22,7 +22,9 @@ endif
 
 vpath %.proto $(PROTOS_PATH)
 
-all: system-check client server async_client async_server
+all: system-check client server async_client async_server fb_client fb_server
+
+fb: fb_client fb_server
 
 async_client: darknetserver.pb.o darknetserver.grpc.pb.o async_client.o
 	$(CXX) $^ $(LDFLAGS) -o $@
@@ -36,10 +38,10 @@ client: darknetserver.pb.o darknetserver.grpc.pb.o client.o
 server: darknetserver.pb.o darknetserver.grpc.pb.o server.o
 	$(CXX) $^ -I $(DARKNET_HEADER_PATH) $(LDFLAGS) -o $@
 
-fb_client: darknetserver.pb.o darknetserver.grpc.fb.o fb_client.o
+fb_client: darknetserver.grpc.fb.o fb_client.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
-fb_server: darknetserver.pb.o darknetserver.grpc.fb.o fb_server.o
+fb_server: darknetserver.grpc.fb.o fb_server.o
 	$(CXX) $^ -I $(DARKNET_HEADER_PATH) $(LDFLAGS) -o $@
 
 .PRECIOUS: %.grpc.pb.cc
@@ -58,6 +60,8 @@ fb_server: darknetserver.pb.o darknetserver.grpc.fb.o fb_server.o
 clean:
 	rm -f *.o *.pb.cc *.pb.h *.fb.cc *.fb.h darknetserver_generated.h async_client async_server client server fb_client fb_server
 
+clean_fb:
+	rm -f *.o *.fb.cc *.fb.h darknetserver_generated.h fb_client fb_server
 
 # The following is to test your system and ensure a smoother experience.
 # They are by no means necessary to actually compile a grpc-enabled software.

@@ -1,14 +1,14 @@
 namespace darknetServer;
 
 table KeyFrame {
-	width:int32;
-	height:int32;
+	width2:int32;
+	height2:int32;
 	numChannels:int32;
 	widthStep:int32;
 	data:[float32];
 }
 
-struct box {
+struct bbox {
 	x:float32;
 	y:float32;
 	w:float32;
@@ -16,7 +16,7 @@ struct box {
 }
 
 table DetectedObject {
-	bbox:box;
+	box:bbox;
 	classes:int32;
 	objectness:float32;
 	sort_class:int32;
