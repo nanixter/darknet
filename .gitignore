@@ -21,8 +21,6 @@ bad.list
 grpc
 libdarknet*
 weights
-server
-client
 *.sublime-project
 *.sublime-workspace
 

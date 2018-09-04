@@ -1,0 +1,33 @@
+namespace darknetServer;
+
+rpc_service ImageDetection {
+	RequestDetection(KeyFrame):(DetectedObjects)(streaming: "none");
+}
+
+table KeyFrame {
+	width:int32;
+	height:int32;
+	numChannels:int32;
+	widthStep:int32;
+	data:[float32];
+}
+
+
+table DetectedObjects {
+	table DetectedObject {
+		struct box {
+			x:float32;
+			y:float32;
+			w:float32;
+			h:float32;
+		}
+
+		bbox:box;
+		classes:int32;
+		objectness:float32;
+		sort_class:int32;
+		prob:[float32];
+	}
+
+	objects:[DetectedObject];
+}
