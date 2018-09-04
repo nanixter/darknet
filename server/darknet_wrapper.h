@@ -101,10 +101,6 @@ namespace DarknetWrapper {
 			char *cfgfile = argv[2];
 			char *weightfile = argv[3];
 
-			//test
-			if (argc > 4)
-				test_server_detection(cfgfile, weightfile, argv[4]);
-
 			this->net = load_network(cfgfile, weightfile, 0);
 			set_batch_network(net, 1);
 
