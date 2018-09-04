@@ -244,13 +244,18 @@ inline flatbuffers::Offset<DetectedObject> CreateDetectedObjectDirect(
 
 struct DetectedObjects FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   enum {
-    VT_OBJECTS = 4
+    VT_NUMOBJECTS = 4,
+    VT_OBJECTS = 6
   };
+  int32_t numObjects() const {
+    return GetField<int32_t>(VT_NUMOBJECTS, 0);
+  }
   const flatbuffers::Vector<flatbuffers::Offset<DetectedObject>> *objects() const {
     return GetPointer<const flatbuffers::Vector<flatbuffers::Offset<DetectedObject>> *>(VT_OBJECTS);
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
+           VerifyField<int32_t>(verifier, VT_NUMOBJECTS) &&
            VerifyOffset(verifier, VT_OBJECTS) &&
            verifier.VerifyVector(objects()) &&
            verifier.VerifyVectorOfTables(objects()) &&
@@ -261,6 +266,9 @@ struct DetectedObjects FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
 struct DetectedObjectsBuilder {
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
+  void add_numObjects(int32_t numObjects) {
+    fbb_.AddElement<int32_t>(DetectedObjects::VT_NUMOBJECTS, numObjects, 0);
+  }
   void add_objects(flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<DetectedObject>>> objects) {
     fbb_.AddOffset(DetectedObjects::VT_OBJECTS, objects);
   }
@@ -278,17 +286,21 @@ struct DetectedObjectsBuilder {
 
 inline flatbuffers::Offset<DetectedObjects> CreateDetectedObjects(
     flatbuffers::FlatBufferBuilder &_fbb,
+    int32_t numObjects = 0,
     flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<DetectedObject>>> objects = 0) {
   DetectedObjectsBuilder builder_(_fbb);
   builder_.add_objects(objects);
+  builder_.add_numObjects(numObjects);
   return builder_.Finish();
 }
 
 inline flatbuffers::Offset<DetectedObjects> CreateDetectedObjectsDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
+    int32_t numObjects = 0,
     const std::vector<flatbuffers::Offset<DetectedObject>> *objects = nullptr) {
   return darknetServer::CreateDetectedObjects(
       _fbb,
+      numObjects,
       objects ? _fbb.CreateVector<flatbuffers::Offset<DetectedObject>>(*objects) : 0);
 }
 

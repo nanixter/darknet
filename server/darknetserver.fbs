@@ -25,6 +25,7 @@ table DetectedObject {
 
 
 table DetectedObjects {
+	numObjects:int32;
 	objects:[DetectedObject];
 }
 
