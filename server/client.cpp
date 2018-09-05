@@ -152,7 +152,8 @@ int main(int argc, char** argv) {
 	// (use of InsecureChannelCredentials()).
 	// TODO: Replace with an authenticated channel
 	ImageDetectionClient detectionClient(grpc::CreateCustomChannel(
-			"localhost:50051", grpc::InsecureChannelCredentials(), ch_args));
+			"128.83.122.71:50051", grpc::InsecureChannelCredentials(), ch_args));
+			//"localhost:50051", grpc::InsecureChannelCredentials(), ch_args));
 
 	// Open the input video file
 	// TODO: Fork multiple processes and send multiple video streams.

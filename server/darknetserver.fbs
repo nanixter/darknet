@@ -1,8 +1,8 @@
 namespace darknetServer;
 
 table KeyFrame {
-	width2:int32;
-	height2:int32;
+	width:int32;
+	height:int32;
 	numChannels:int32;
 	widthStep:int32;
 	data:[float32];

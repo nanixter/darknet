@@ -193,8 +193,8 @@ namespace DarknetWrapper {
 
 	private:
 		void convertFrameToImage(const darknetServer::KeyFrame *frame, image *newImage) {
-			newImage->w = frame->width2();
-			newImage->h = frame->height2();
+			newImage->w = frame->width();
+			newImage->h = frame->height();
 			newImage->c = frame->numChannels();
 			//int dataSize = frame->data()->size();
 			newImage->data =  const_cast<float *>(frame->data()->data());

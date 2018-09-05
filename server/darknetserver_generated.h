@@ -50,17 +50,17 @@ FLATBUFFERS_STRUCT_END(bbox, 16);
 
 struct KeyFrame FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   enum {
-    VT_WIDTH2 = 4,
-    VT_HEIGHT2 = 6,
+    VT_WIDTH = 4,
+    VT_HEIGHT = 6,
     VT_NUMCHANNELS = 8,
     VT_WIDTHSTEP = 10,
     VT_DATA = 12
   };
-  int32_t width2() const {
-    return GetField<int32_t>(VT_WIDTH2, 0);
+  int32_t width() const {
+    return GetField<int32_t>(VT_WIDTH, 0);
   }
-  int32_t height2() const {
-    return GetField<int32_t>(VT_HEIGHT2, 0);
+  int32_t height() const {
+    return GetField<int32_t>(VT_HEIGHT, 0);
   }
   int32_t numChannels() const {
     return GetField<int32_t>(VT_NUMCHANNELS, 0);
@@ -73,8 +73,8 @@ struct KeyFrame FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<int32_t>(verifier, VT_WIDTH2) &&
-           VerifyField<int32_t>(verifier, VT_HEIGHT2) &&
+           VerifyField<int32_t>(verifier, VT_WIDTH) &&
+           VerifyField<int32_t>(verifier, VT_HEIGHT) &&
            VerifyField<int32_t>(verifier, VT_NUMCHANNELS) &&
            VerifyField<int32_t>(verifier, VT_WIDTHSTEP) &&
            VerifyOffset(verifier, VT_DATA) &&
@@ -86,11 +86,11 @@ struct KeyFrame FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
 struct KeyFrameBuilder {
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
-  void add_width2(int32_t width2) {
-    fbb_.AddElement<int32_t>(KeyFrame::VT_WIDTH2, width2, 0);
+  void add_width(int32_t width) {
+    fbb_.AddElement<int32_t>(KeyFrame::VT_WIDTH, width, 0);
   }
-  void add_height2(int32_t height2) {
-    fbb_.AddElement<int32_t>(KeyFrame::VT_HEIGHT2, height2, 0);
+  void add_height(int32_t height) {
+    fbb_.AddElement<int32_t>(KeyFrame::VT_HEIGHT, height, 0);
   }
   void add_numChannels(int32_t numChannels) {
     fbb_.AddElement<int32_t>(KeyFrame::VT_NUMCHANNELS, numChannels, 0);
@@ -115,8 +115,8 @@ struct KeyFrameBuilder {
 
 inline flatbuffers::Offset<KeyFrame> CreateKeyFrame(
     flatbuffers::FlatBufferBuilder &_fbb,
-    int32_t width2 = 0,
-    int32_t height2 = 0,
+    int32_t width = 0,
+    int32_t height = 0,
     int32_t numChannels = 0,
     int32_t widthStep = 0,
     flatbuffers::Offset<flatbuffers::Vector<float>> data = 0) {
@@ -124,22 +124,22 @@ inline flatbuffers::Offset<KeyFrame> CreateKeyFrame(
   builder_.add_data(data);
   builder_.add_widthStep(widthStep);
   builder_.add_numChannels(numChannels);
-  builder_.add_height2(height2);
-  builder_.add_width2(width2);
+  builder_.add_height(height);
+  builder_.add_width(width);
   return builder_.Finish();
 }
 
 inline flatbuffers::Offset<KeyFrame> CreateKeyFrameDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
-    int32_t width2 = 0,
-    int32_t height2 = 0,
+    int32_t width = 0,
+    int32_t height = 0,
     int32_t numChannels = 0,
     int32_t widthStep = 0,
     const std::vector<float> *data = nullptr) {
   return darknetServer::CreateKeyFrame(
       _fbb,
-      width2,
-      height2,
+      width,
+      height,
       numChannels,
       widthStep,
       data ? _fbb.CreateVector<float>(*data) : 0);

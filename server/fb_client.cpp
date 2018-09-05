@@ -124,7 +124,7 @@ class ImageDetectionClient {
 		// grab the message, so we are the owners.
 		auto frameFBMessage = messageBuilder.ReleaseMessage<KeyFrame>();
 		frameFBMessage.Verify();
-
+		
 		// RPC Call
 		status =  stub_->RequestDetection(&context, frameFBMessage, &detectedObjectsFBMessage);
 
@@ -136,7 +136,6 @@ class ImageDetectionClient {
 			std::cout << "RPC failed: " << status.error_code() <<": "
 						<<status.error_message() << std::endl;
 		}
-
 		// Print out the time it took to service the request.
 		std::cout << "This request took " << probe_time_end2(&ts_detect)
 					<< " milliseconds"<< std::endl;
@@ -159,7 +158,8 @@ int main(int argc, char** argv) {
 	// (use of InsecureChannelCredentials()).
 	// TODO: Replace with an authenticated channel
 	ImageDetectionClient detectionClient(grpc::CreateCustomChannel(
-			"localhost:50051", grpc::InsecureChannelCredentials(), ch_args));
+			"128.83.122.71:50051", grpc::InsecureChannelCredentials(), ch_args));
+			//"localhost:50051", grpc::InsecureChannelCredentials(), ch_args));
 
 	// Open the input video file
 	// TODO: Fork multiple processes and send multiple video streams.
