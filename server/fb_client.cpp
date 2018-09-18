@@ -1,6 +1,8 @@
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <memory>
 #include <string>
 #include <cstring>
@@ -168,20 +170,42 @@ cv::Mat resizeKeepAspectRatio(const cv::Mat &input, const cv::Size &dstSize, con
 
     return output;
 }
+void readFile(const std::string& filename, std::string& data)
+{
+	std::ifstream file(filename.c_str(), std::ios::in);
+
+	if(file.is_open()) {
+		std::stringstream ss;
+		ss << file.rdbuf();
+		file.close ();
+
+		data = ss.str();
+	}
+	return;
+}
 
 int main(int argc, char** argv) {
 	// Used to override default gRPC channel values.
 	grpc::ChannelArguments ch_args;
 	// Our images tend to be ~4MiB. gRPC's default MaxMessageSize is much smaller.
 	ch_args.SetMaxReceiveMessageSize(INT_MAX);
+	
+	std::string key;
+	std::string cert;
+	std::string root;
+
+	readFile("client.crt", cert);
+	readFile("client.key", key);
+	readFile("ca.crt", root);
+
+	grpc::SslCredentialsOptions SslCredOpts = {root, key, cert};
 
 	// Instantiate the client. It requires a channel, used to invoke the RPCs
 	// This channel models a connection to an endpoint (in this case,
 	// localhost at port 50051). We indicate that the channel isn't authenticated
 	// (use of InsecureChannelCredentials()).
-	// TODO: Replace with an authenticated channel
 	ImageDetectionClient detectionClient(grpc::CreateCustomChannel(
-			"128.83.122.71:50051", grpc::InsecureChannelCredentials(), ch_args));
+			"zemaitis:50051", grpc::SslCredentials(SslCredOpts), ch_args));
 			//"localhost:50051", grpc::InsecureChannelCredentials(), ch_args));
 
 	// Open the input video file

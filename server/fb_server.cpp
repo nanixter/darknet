@@ -1,4 +1,6 @@
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <memory>
 #include <string>
 #include <cstring>
@@ -74,6 +76,21 @@ class ServiceImpl final : public ImageDetection::Service {
 	flatbuffers::grpc::MessageBuilder messageBuilder;
 };
 
+
+void readFile(const std::string& filename, std::string& data)
+{
+	std::ifstream file(filename.c_str(), std::ifstream::in);
+
+	if(file.is_open()) {
+		std::stringstream ss;
+		ss << file.rdbuf();
+		file.close ();
+
+		data = ss.str();
+	}
+	return;
+}
+
 int main(int argc, char** argv) {
 
 	if(argc < 4){
@@ -82,13 +99,27 @@ int main(int argc, char** argv) {
 	}
 
 	ServiceImpl service(argc, argv);
-	std::string server_address("128.83.122.71:50051");
-	//std::string server_address("localhost:50051");
+	//std::string server_address("128.83.122.71:50051");
+	std::string server_address("zemaitis:50051");
 
 	ServerBuilder builder;
+	std::string key;
+	std::string cert;
+	std::string root;
 
-	// Listen on the given address without any authentication mechanism.
-	builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+	readFile("server.crt", cert);
+	readFile("server.key", key);
+	readFile("ca.crt", root);
+
+	grpc::SslServerCredentialsOptions::PemKeyCertPair keycert = {key, cert};
+
+	grpc::SslServerCredentialsOptions sslOps;
+	sslOps.pem_root_certs = root;
+	sslOps.pem_key_cert_pairs.push_back (keycert);
+
+	// Listen on the given address with TLS authentication.
+	builder.AddListeningPort(server_address, grpc::SslServerCredentials( sslOps ));
+	// builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
 	builder.SetMaxReceiveMessageSize(INT_MAX);
 
 	// Register "service_" as the instance through which we'll communicate with
