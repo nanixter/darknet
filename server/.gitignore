@@ -6,3 +6,6 @@ fb_client
 fb_server
 perf*
 *.o
+*.crt
+*.csr
+*.key
