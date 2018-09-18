@@ -23,6 +23,7 @@ libdarknet*
 weights
 *.sublime-project
 *.sublime-workspace
+*.tar.gz
 
 #Ctags
 .tags
