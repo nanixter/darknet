@@ -1,3 +1,4 @@
+#include "opencv2/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
 #include <iostream>
 #include <memory>
@@ -146,6 +147,28 @@ class ImageDetectionClient {
 	std::unique_ptr<ImageDetection::Stub> stub_;
 };
 
+cv::Mat resizeKeepAspectRatio(const cv::Mat &input, const cv::Size &dstSize, const cv::Scalar &bgcolor)
+{
+    cv::Mat output;
+
+    double h1 = dstSize.width * (input.rows/(double)input.cols);
+    double w2 = dstSize.height * (input.cols/(double)input.rows);
+    if( h1 <= dstSize.height) {
+        cv::resize( input, output, cv::Size(dstSize.width, h1));
+    } else {
+        cv::resize( input, output, cv::Size(w2, dstSize.height));
+    }
+
+    int top = (dstSize.height-output.rows) / 2;
+    int down = (dstSize.height-output.rows+1) / 2;
+    int left = (dstSize.width - output.cols) / 2;
+    int right = (dstSize.width - output.cols+1) / 2;
+
+    cv::copyMakeBorder(output, output, top, down, left, right, cv::BORDER_CONSTANT, bgcolor );
+
+    return output;
+}
+
 int main(int argc, char** argv) {
 	// Used to override default gRPC channel values.
 	grpc::ChannelArguments ch_args;
@@ -182,12 +205,18 @@ int main(int argc, char** argv) {
 	// Decode and obtain KeyFrames
 	if (capture.isOpened()) {
 		cv::Mat capturedFrame;
+		struct timestamp ts_perframe;
 		while(capture.read(capturedFrame)) {
+			probe_time_start2(&ts_perframe);
+			// Resize image to 410x410
+			cv::Mat resizedFrame = resizeKeepAspectRatio(capturedFrame, cv::Size(410, 410), cv::Scalar(0,0,0));
 			// Convert the image from cv::Mat to the image format that darknet expects
-			Image image = getImageFromMat(&capturedFrame);
+			Image image = getImageFromMat(&resizedFrame);
+			// Image image = getImageFromMat(&capturedFrame);
 
 			// The actual RPC call!
 			detectionClient.sendImage(&image);
+			std::cout << "Frame took " << probe_time_end2(&ts_perframe) << " milliseconds"<< std::endl;
 
 			// Rate-limit ourselves.
 			// For testing purposes only.
