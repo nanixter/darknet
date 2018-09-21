@@ -69,8 +69,6 @@ void printImage(Image &image){
 	std::cout << "numChannels: " << image.numChannels <<std::endl;
 	std::cout << "widthStep: " << image.widthStep <<std::endl;
 	std::cout <<"Image Size:" << image.width*image.height*image.numChannels <<std::endl;
-	// for (int i = 0; i < (image.width * image.height * image.numChannels); i++ )
-	// 	std::cout << image.data[i];
 }
 
 Image getImageFromMat(cv::Mat *m) {
@@ -98,27 +96,28 @@ class ImageDetectionClient {
 
 	// Assembles the client's payload and sends it to the server.
 	void AsyncSendImage(Image *image) {
-		// Data we are sending to the server.
-		KeyFrame frame;
-		frame.set_width(image->width);
-		frame.set_height(image->height);
-		frame.set_numchannels(image->numChannels);
-		for (int i = 0; i < (image->height * image->width * image->numChannels); i++)
-			frame.add_data(image->data[i]);
+		// Start timer
+		probe_time_start2(&call->ts_detect);
 
-		//usleep(1000);
-		// Call object to store rpc data
+		// Call object to store RPC data
 		AsyncClientCall* call = new AsyncClientCall;
 
-		//call->startTime = rdtsc();
-		probe_time_start2(&call->ts_detect);
+		// Use the messageBuilder to construct a message from the image passed to us.
+		auto requestOffset = darknetServer::CreateKeyFrame(this->messageBuilder,
+													image->width, image->height,
+													image->numChannels, image->widthStep,
+													messageBuilder.CreateVector<float>(image->data, image->height*image->width*image->numChannels));
+		messageBuilder.Finish(requestOffset);
+		// grab the message, so we are the owners.
+		auto frameFBMessage = messageBuilder.ReleaseMessage<KeyFrame>();
+		frameFBMessage.Verify();
 
 		// stub_->PrepareAsyncSayHello() creates an RPC object, returning
 		// an instance to store in "call" but does not actually start the RPC
 		// Because we are using the asynchronous API, we need to hold on to
 		// the "call" instance in order to get updates on the ongoing RPC.
 		call->async_reader =
-			stub_->PrepareAsyncRequestDetection(&call->context, frame, &cq_);
+			stub_->PrepareAsyncRequestDetection(&call->context, frameFBMessage, &cq_);
 
 		// StartCall initiates the RPC call
 		// Tag: the memory address of the call object.
@@ -152,21 +151,9 @@ class ImageDetectionClient {
 
 			if (call->status.ok()) {
 				// print out what we received...
-				std::cout << call <<" " << call->detectedObjects.objects_size() << " objects detected." <<std::endl;
-				//for (int i = 0; i < call->detectedObjects.objects_size(); i++) {
-				//	auto object = call->detectedObjects.objects(i);
-					//std::cout   << "Object of class " << object.classes()
-					//			<< " detected at :" << std::endl;
-					//std::cout   << "x: " << object.bbox().x() << ", "
-					//			<< "y: " << object.bbox().y() << ", "
-					//			<< "w: " << object.bbox().w() << ", "
-					//			<< "h: " << object.bbox().h() << ", ";
-					//std::cout << "Probability: ";
-					//for (auto j = 0; j < object.prob_size(); j++) {
-					//	std::cout << object.prob(j) << " ";
-					//}
-					//std::cout << std::endl;
-				//}
+				const DetectedObjects *detectedObjects = call->detectedObjectsFBMessage.GetRoot();
+				std::cout << " " << detectedObjects->numObjects() << " objects detected."
+						  <<std::endl;
 			} else {
 				std::cout << "RPC failed: " << call->status.error_code() <<": " <<call->status.error_message() << std::endl;
 			}
@@ -182,11 +169,9 @@ class ImageDetectionClient {
 	// struct for keeping state and data information
 	struct AsyncClientCall {
 		// Container for the data we expect from the server.
-		DetectedObjects detectedObjects;
+		flatbuffers::grpc::Message<DetectedObjects> detectedObjectsFBMessage;
 
 		// Timestamps
-		uint64_t startTime;
-		uint64_t endTime;
 		struct timestamp ts_detect;
 
 		// Context for the client. It could be used to convey extra information to
@@ -196,11 +181,13 @@ class ImageDetectionClient {
 		// Storage for the status of the RPC upon completion.
 		Status status;
 
-		std::unique_ptr<grpc::ClientAsyncResponseReader<DetectedObjects>> async_reader;
+		std::unique_ptr<grpc::ClientAsyncResponseReader<flatbuffers::grpc::Message<DetectedObjects>>> async_reader;
 	};
 
-	// Out of the passed in Channel comes the stub, stored here, our view of the
-	// server's exposed services.
+	// Gotta use this builder object to build the messages.
+	flatbuffers::grpc::MessageBuilder messageBuilder;
+
+	// Our view of the server's exposed services.
 	std::unique_ptr<ImageDetection::Stub> stub_;
 
 	// TODO: add deadlines to the tasks.
@@ -209,25 +196,69 @@ class ImageDetectionClient {
 	CompletionQueue cq_;
 };
 
-int main(int argc, char** argv) {
+cv::Mat resizeKeepAspectRatio(const cv::Mat &input, const cv::Size &dstSize, const cv::Scalar &bgcolor)
+{
+    cv::Mat output;
 
-	// Instantiate the client. It requires a channel, out of which the actual RPCs
-	// are created. This channel models a connection to an endpoint (in this case,
+    double h1 = dstSize.width * (input.rows/(double)input.cols);
+    double w2 = dstSize.height * (input.cols/(double)input.rows);
+    if( h1 <= dstSize.height) {
+        cv::resize( input, output, cv::Size(dstSize.width, h1));
+    } else {
+        cv::resize( input, output, cv::Size(w2, dstSize.height));
+    }
+
+    int top = (dstSize.height-output.rows) / 2;
+    int down = (dstSize.height-output.rows+1) / 2;
+    int left = (dstSize.width - output.cols) / 2;
+    int right = (dstSize.width - output.cols+1) / 2;
+
+    cv::copyMakeBorder(output, output, top, down, left, right, cv::BORDER_CONSTANT, bgcolor );
+
+    return output;
+}
+void readFile(const std::string& filename, std::string& data)
+{
+	std::ifstream file(filename.c_str(), std::ios::in);
+
+	if(file.is_open()) {
+		std::stringstream ss;
+		ss << file.rdbuf();
+		file.close ();
+
+		data = ss.str();
+	}
+	return;
+}
+
+int main(int argc, char** argv) {
+	// Used to override default gRPC channel values.
+	grpc::ChannelArguments ch_args;
+	// Our images tend to be ~4MiB. gRPC's default MaxMessageSize is much smaller.
+	ch_args.SetMaxReceiveMessageSize(INT_MAX);
+
+	std::string key;
+	std::string cert;
+	std::string root;
+
+	readFile("client.crt", cert);
+	readFile("client.key", key);
+	readFile("ca.crt", root);
+
+	grpc::SslCredentialsOptions SslCredOpts = {root, key, cert};
+
+	// Instantiate the client. It requires a channel, used to invoke the RPCs
+	// This channel models a connection to an endpoint (in this case,
 	// localhost at port 50051). We indicate that the channel isn't authenticated
 	// (use of InsecureChannelCredentials()).
-	// TODO: Replace with an authenticated channel
-	grpc::ChannelArguments ch_args;
-	ch_args.SetMaxReceiveMessageSize(-1);
 	ImageDetectionClient detectionClient(grpc::CreateCustomChannel(
-			"localhost:50051", grpc::InsecureChannelCredentials(), ch_args));
-			//"128.83.122.71:50051", grpc::InsecureChannelCredentials(), ch_args));
+			"zemaitis:50051", grpc::SslCredentials(SslCredOpts), ch_args));
+			//"localhost:50051", grpc::InsecureChannelCredentials(), ch_args));
 
-	// Spawn reader thread that loops indefinitely
+	// Spawn completion thread that loops indefinitely
 	std::thread completionThread = std::thread(&ImageDetectionClient::AsyncCompleteRpc,
 		&detectionClient);
 
-	// Do any associated setup (metadata etc.)
-	// TODO: Do we support multiple file formats?
 
 	// Open the input video file
 	// TODO: Fork multiple processes and send multiple video streams.
@@ -242,26 +273,31 @@ int main(int argc, char** argv) {
 		return -1;
 	}
 	printf("video file: %s\n", filename);
-	cv::VideoCapture capture(filename);
+	std::cout << "Press control-c to quit at any point" << std::endl;
 
+	// Open the video file and read video frames.
+	// TODO: We may want to move this over the server, and stream a video instead...
+	cv::VideoCapture capture(filename);
 	// Decode and obtain KeyFrames
 	if (capture.isOpened()) {
 		cv::Mat capturedFrame;
+
 		while(capture.read(capturedFrame)) {
+			// Resize image to 410x410
+			cv::Mat resizedFrame = resizeKeepAspectRatio(capturedFrame, cv::Size(416, 416), cv::Scalar(0,0,0));
 			// Convert the image from cv::Mat to the image format that darknet expects
-			Image image = getImageFromMat(&capturedFrame);
-			//printImage(image);
+			Image image = getImageFromMat(&resizedFrame);
+
 			// The actual RPC call!
 			detectionClient.AsyncSendImage(&image);
+			// Rate-limit ourselves.
+			// For testing purposes only.
 			sleep(1);
 		}
 	} else {
 		std::cout << "Couldn't open " << filename <<std::endl;
 		return -1;
 	}
-
-	std::cout << "Press control-c to quit" << std::endl;
-	completionThread.join();  //blocks forever
 
 	return 0;
 }

@@ -1,4 +1,6 @@
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <memory>
 #include <string>
 #include <cstring>
@@ -9,11 +11,10 @@
 #include <grpcpp/grpcpp.h>
 #include <grpc/support/log.h>
 #include <thread>
+#include <sys/time.h>
 
 #define FLATBUFFERS_DEBUG_VERIFICATION_FAILURE
 #include "darknetserver.grpc.fb.h"
-
-#include "darknet_wrapper.h"
 
 using grpc::Server;
 using grpc::ServerAsyncResponseWriter;
@@ -22,8 +23,13 @@ using grpc::ServerContext;
 using grpc::ServerCompletionQueue;
 using grpc::Status;
 using darknetServer::DetectedObjects;
+using darknetServer::DetectedObject;
 using darknetServer::KeyFrame;
+using darknetServer::bbox;
 using darknetServer::ImageDetection;
+
+#include "darknet_wrapper.h"
+
 using DarknetWrapper::WorkRequest;
 using DarknetWrapper::DetectionQueue;
 using DarknetWrapper::AsyncDetector;
@@ -40,7 +46,7 @@ class ServerImpl final {
 
 	// There is no shutdown handling in this code.
 	void Run(int argc, char** argv) {
-		std::string server_address("localhost:50051");
+		std::string server_address("zemaitis:50051");
 		//std::string server_address("128.83.122.71:50051");
 
 		// Initialize detector - pass it the request and completion queues
@@ -51,30 +57,64 @@ class ServerImpl final {
 		std::thread detectionThread(&AsyncDetector::doDetection, &detector);
 
 		ServerBuilder builder;
-		// Listen on the given address without any authentication mechanism.
-		builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+		std::string key;
+		std::string cert;
+		std::string root;
+
+		this->readFile("server.crt", cert);
+		this->readFile("server.key", key);
+		this->readFile("ca.crt", root);
+
+		grpc::SslServerCredentialsOptions::PemKeyCertPair keycert = {key, cert};
+
+		grpc::SslServerCredentialsOptions sslOps;
+		sslOps.pem_root_certs = root;
+		sslOps.pem_key_cert_pairs.push_back (keycert);
+
+		// Listen on the given address with TLS authentication.
+		builder.AddListeningPort(server_address, grpc::SslServerCredentials( sslOps ));
 		builder.SetMaxReceiveMessageSize(INT_MAX);
+
 		// Register "service_" as the instance through which we'll communicate with
 		// clients. In this case it corresponds to an *asynchronous* service.
 		builder.RegisterService(&service);
+
 		// Get hold of the completion queue used for the asynchronous communication
 		// with the gRPC runtime.
 		cq_ = builder.AddCompletionQueue();
+
 		// Finally assemble the server.
 		server_ = builder.BuildAndStart();
+
 		std::cout << "Server listening on " << server_address << std::endl;
 
 		// Start the thread that handles the second half of the processing.
 		std::thread laterHalfThread(&ServerImpl::doLaterHalf, this);
+
 		// The server's main loop.
 		doFirstHalf();
 
-		// Wait for the other threads to
+		// Wait for the other threads to finish
+		// What's the point of this. doFirstHalf never returns anyways...
 		detectionThread.join();
 		laterHalfThread.join();
 	}
 
  private:
+ 	void readFile(const std::string& filename, std::string& data)
+	{
+		std::ifstream file(filename.c_str(), std::ifstream::in);
+
+		if(file.is_open()) {
+			std::stringstream ss;
+			ss << file.rdbuf();
+			file.close ();
+
+			data = ss.str();
+		}
+		return;
+	}
+
 	// Class encompasing the state and logic needed to serve a request.
 	class CallData {
 	 public:
@@ -97,7 +137,6 @@ class ServerImpl final {
 				// start processing RequestDetection requests. In this request, "this" acts as
 				// the tag uniquely identifying the request (so that different CallData
 				// instances can serve different requests concurrently).
-				//std::cout << "New CallData " << this << " spawned" << std::endl;
 				service_->RequestRequestDetection(&ctx_, &frame, &asyncResponder, cq_, cq_, this);
 			} else if (status_ == READY) {
 				// Spawn a new CallData instance to serve new clients while we process
@@ -109,9 +148,10 @@ class ServerImpl final {
 				WorkRequest work;
 				work.done = false;
 				work.tag = this;
-				work.frame = &(this->frame);
-				work.detectedObjects = &(this->objects);
-				//std::cout << "Recieved request " << this << " Pushing onto requestQ" << std::endl;
+				work.frame = requestMessage->GetRoot();
+				work.dets = nullptr;
+				work.nboxes = 0;
+
 				requestQueue->push_back(work);
 				status_ = PROCESSING;
 			} else {
@@ -122,12 +162,35 @@ class ServerImpl final {
 		}
 
 		void completeRequest(WorkRequest &work) {
-				GPR_ASSERT(status_ == PROCESSING);
-				GPR_ASSERT(work.done == true);
-				//std::cout << "Request " << this << " completed." << std::endl;
-				// GPU processing is done! Time to pass the results back to the client.
-				status_ = FINISH;
-				asyncResponder.Finish((this->objects), Status::OK, this);
+			GPR_ASSERT(status_ == PROCESSING);
+			GPR_ASSERT(work.done == true);
+			GPR_ASSERT(work.dets != nullptr);
+
+			std::vector<flatbuffers::Offset<DetectedObject>> objects;
+			int numObjects = 0;
+			for (int i = 0; i < work.nboxes; i++) {
+				if(dets[i].objectness == 0) continue;
+				bbox box(dets[i].bbox.x, dets[i].bbox.y, dets[i].bbox.w, dets[i].bbox.h);
+				std::vector<float> prob;
+				for (int j = 0; j < l.classes; j++) {
+					prob.push_back(dets[i].prob[j]);
+				}
+				auto objectOffset = darknetServer::CreateDetectedObjectDirect(messageBuilder, &box, dets[i].classes, dets[i].objectness, dets[i].sort_class, &prob);
+				objects.push_back(objectOffset);
+				numObjects++;
+			}
+
+			flatbuffers::Offset<DetectedObjects> detectedObjectsOffset = darknetServer::CreateDetectedObjectsDirect(messageBuilder, numObjects, &objects);
+
+			messageBuilder.Finish(detectedObjectsOffset);
+			auto responseMessage = messageBuilder.ReleaseMessage<DetectedObjects>();
+			GPR_ASSERT(responseMessage->Verify());
+
+			// Clean up
+			free_detections(work.dets, work.nboxes);
+
+			status_ = FINISH;
+			asyncResponder.Finish(&responseMessage, Status::OK, this);
 		}
 
 	 private:
@@ -144,13 +207,10 @@ class ServerImpl final {
 		DetectionQueue *requestQueue;
 
 		// What we get from the client.
-		KeyFrame frame;
-
-		// What we send back to the client.
-		DetectedObjects objects;
+		flatbuffers::grpc::Message<KeyFrame> frame;
 
 		// The means to get back to the client.
-		ServerAsyncResponseWriter<DetectedObjects> asyncResponder;
+		ServerAsyncResponseWriter<flatbuffers::grpc::Message<DetectedObjects>> asyncResponder;
 
 		// Let's implement a tiny state machine with the following states.
 		enum CallStatus { CREATE, READY, PROCESSING, FINISH };
@@ -169,9 +229,7 @@ class ServerImpl final {
 			// memory address of a CallData instance.
 			// The return value of Next should always be checked. This return value
 			// tells us whether there is any kind of event or cq_ is shutting down.
-			//std::cout << __LINE__ << "sleep on grpc q" <<std::endl;
 			GPR_ASSERT(cq_->Next(&tag, &ok));
-			//std::cout << __LINE__ << "got req. Call schedule" <<std::endl;
 			GPR_ASSERT(ok);
 			static_cast<CallData*>(tag)->scheduleRequest();
 		}
@@ -180,9 +238,7 @@ class ServerImpl final {
 	void doLaterHalf() {
 		while(true) {
 			WorkRequest work;
-			//std::cout << __LINE__ << "doLaterHalf: sleep on queue" <<std::endl;
 			completionQueue.pop_front(work);
-			//std::cout << __LINE__ << "doLaterHalf: got completion notice" <<std::endl;
 			static_cast<CallData*>(work.tag)->completeRequest(work);
 		}
 	}

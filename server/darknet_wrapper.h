@@ -52,8 +52,8 @@ namespace DarknetWrapper {
 	{
 		bool done;
 		const darknetServer::KeyFrame *frame;
-		flatbuffers::grpc::MessageBuilder *messageBuilder;
-		flatbuffers::grpc::Message<DetectedObjects>* responseMessage;
+		detection *dets;
+		int nboxes;
 		void *tag;
 	} WorkRequest;
 
@@ -112,13 +112,12 @@ namespace DarknetWrapper {
 			// Free any darknet resources held. Close the GPU connection, etc...
 			delete this->predictions;
 			delete this->average;
+			free_network(this->net);
 		}
 
 		void doDetection(WorkRequest &elem) {
 			float nms = .4;
 			layer l = net->layers[net->n-1];
-			detection *dets = nullptr;
-			int nboxes = 0;
 
 			image newImage;
 			image newImage_letterboxed;
@@ -148,45 +147,20 @@ namespace DarknetWrapper {
 			probe_time_start2(&ts_gpu);
 			network_predict(net, newImage_letterboxed.data);
 			this->remember_network();
-			dets = this->average_predictions(&nboxes, newImage.h, newImage.w);
+			elem.dets = this->average_predictions(&(elem.nboxes), newImage.h, newImage.w);
 
 			// What the hell does this do?
 			if (nms > 0) {
-				do_nms_obj(dets, nboxes, l.classes, nms);
+				do_nms_obj(elem.dets, elem.nboxes, l.classes, nms);
 			}
 
 			std::cout << elem.tag << " GPU processing took " << probe_time_end2(&ts_gpu) << " milliseconds"<< std::endl;
 
-			//draw_detections(newImage_letterboxed, dets, nboxes, 0.5, NULL, NULL, l.classes);
+			//draw_detections(newImage_letterboxed, elem.dets, elem.nboxes, 0.5, NULL, NULL, l.classes);
 			//save_image(newImage_letterboxed, "detected");
-
-			/* Copy detected objects to the WorkRequest */
-			std::vector<flatbuffers::Offset<DetectedObject>> objects;
-			int numObjects = 0;
-			for (int i = 0; i < nboxes; i++) {
-				if(dets[i].objectness == 0) continue;
-				bbox box(dets[i].bbox.x, dets[i].bbox.y, dets[i].bbox.w, dets[i].bbox.h);
-				std::vector<float> prob;
-				for (int j = 0; j < l.classes; j++) {
-					prob.push_back(dets[i].prob[j]);
-				}
-				auto objectOffset = darknetServer::CreateDetectedObjectDirect(*(elem.messageBuilder), &box, dets[i].classes, dets[i].objectness, dets[i].sort_class, &prob);
-				objects.push_back(objectOffset);
-				numObjects++;
-			}
-
-			flatbuffers::Offset<DetectedObjects> detectedObjectsOffset = darknetServer::CreateDetectedObjectsDirect(*(elem.messageBuilder), numObjects, &objects);
-
-			(elem.messageBuilder)->Finish(detectedObjectsOffset);
-			*(elem.responseMessage) = (elem.messageBuilder)->ReleaseMessage<DetectedObjects>();
-			assert((elem.responseMessage)->Verify());
-
 			elem.done = true;
-			std::cout << elem.tag << " doDetection: took " << probe_time_end2(&ts_detect) << " milliseconds"<< std::endl;
 
-			// Clean up
-			free_detections(dets, nboxes);
-			//delete [] newImage.data;
+			std::cout << elem.tag << " doDetection: took " << probe_time_end2(&ts_detect) << " milliseconds"<< std::endl;
 		}
 
 	private:

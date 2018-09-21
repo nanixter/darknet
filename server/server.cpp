@@ -56,13 +56,38 @@ class ServiceImpl final : public ImageDetection::Service {
 		work.done = false;
 		work.tag = this;
 		work.frame = requestMessage->GetRoot();
-		work.messageBuilder = &messageBuilder;
-		work.responseMessage = responseMessage;
+		work.dets = nullptr;
+		work.nboxes = 0;
 
 		// The actual processing.
 		detector.doDetection(work);
 
+		// Copy detected objects to the Request
 		GPR_ASSERT(work.done == true);
+		GPR_ASSERT(work.dets != nullptr);
+
+		std::vector<flatbuffers::Offset<DetectedObject>> objects;
+		int numObjects = 0;
+		for (int i = 0; i < work.nboxes; i++) {
+			if(dets[i].objectness == 0) continue;
+			bbox box(dets[i].bbox.x, dets[i].bbox.y, dets[i].bbox.w, dets[i].bbox.h);
+			std::vector<float> prob;
+			for (int j = 0; j < l.classes; j++) {
+				prob.push_back(dets[i].prob[j]);
+			}
+			auto objectOffset = darknetServer::CreateDetectedObjectDirect(messageBuilder, &box, dets[i].classes, dets[i].objectness, dets[i].sort_class, &prob);
+			objects.push_back(objectOffset);
+			numObjects++;
+		}
+
+		flatbuffers::Offset<DetectedObjects> detectedObjectsOffset = darknetServer::CreateDetectedObjectsDirect(messageBuilder, numObjects, &objects);
+
+		messageBuilder.Finish(detectedObjectsOffset);
+		responseMessage = messageBuilder.ReleaseMessage<DetectedObjects>();
+		assert(responseMessage->Verify());
+
+		// Clean up
+		free_detections(work.dets, work.nboxes);
 
 		std::cout << work.tag << "Server took " << probe_time_end2(&ts_server) << " milliseconds"<< std::endl;
 		return Status::OK;
