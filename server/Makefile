@@ -3,7 +3,7 @@ GPU=1
 
 CXX = g++
 DARKNET_HEADER_PATH = ../include/
-CPPFLAGS += `pkg-config --cflags grpc` -g
+CPPFLAGS += `pkg-config --cflags grpc` -g -O4
 CXXFLAGS += -std=c++11 -I $(DARKNET_HEADER_PATH)
 LDFLAGS += -L/usr/local/lib `pkg-config --libs grpc++ grpc opencv`\
            -Wl,--no-as-needed -lgrpc++_reflection -Wl,--as-needed -ldl -lpthread\
@@ -15,7 +15,7 @@ CXXFLAGS+= -DGPU -I/usr/local/cuda/include/
 LDFLAGS+= -L/usr/local/cuda/lib64 -Wl,--as-needed -lcuda -lcudart -lcublas -lcurand -lcudnn
 endif
 
-all: certs sync #async
+all: sync #async
 
 certs:
 	./gen_cert.sh
