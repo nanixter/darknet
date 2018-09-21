@@ -360,6 +360,7 @@ int resize_network(network *net, int w, int h)
 #ifdef GPU
     cuda_set_device(net->gpu_index);
     cuda_free(net->workspace);
+    net->workspace_size = 0;
 #endif
     int i;
     //if(w == net->w && h == net->h) return 0;
@@ -424,14 +425,17 @@ int resize_network(network *net, int w, int h)
         net->truth_gpu = cuda_make_array(net->truth, net->truths*net->batch);
         if(workspace_size){
             net->workspace = cuda_make_array(0, (workspace_size-1)/sizeof(float)+1);
+            net->workspace_size = (workspace_size-1)/sizeof(float)+1;
         }
     }else {
         free(net->workspace);
         net->workspace = calloc(1, workspace_size);
+        net->workspace_size = workspace_size;
     }
 #else
     free(net->workspace);
     net->workspace = calloc(1, workspace_size);
+    net->workspace_size = workspace_size;
 #endif
     //fprintf(stderr, " Done!\n");
     return 0;
@@ -578,9 +582,11 @@ void free_detections(detection *dets, int n)
 
 float *network_predict_image(network *net, image im)
 {
-    image imr = letterbox_image(im, net->w, net->h);
+    bool resize = im.w != net->w || im.h != net->h;
+    image imr = resize ? letterbox_image(im, net->w, net->h) : im;
     set_batch_network(net, 1);
     float *p = network_predict(net, imr.data);
+    if(resize)
     free_image(imr);
     return p;
 }
@@ -726,6 +732,18 @@ void free_network(network *net)
     if(net->input_gpu) cuda_free(net->input_gpu);
     if(net->truth_gpu) cuda_free(net->truth_gpu);
 #endif
+    if(net->workspace_size){
+#ifdef GPU
+        if(net->gpu_index >= 0){
+            cuda_free(net->workspace);
+        } else {
+            free(net->workspace);
+        }
+#else
+        free(net->workspace);
+#endif
+        net->workspace_size = 0;
+    }
     free(net);
 }
 
