@@ -57,7 +57,6 @@ namespace DarknetWrapper {
 		void *tag;
 	} WorkRequest;
 
-	/*
 	class DetectionQueue
 	{
 	public:
@@ -86,7 +85,6 @@ namespace DarknetWrapper {
 		std::condition_variable cv;
 
 	}; // class DetectionQueue
-	*/
 
 	class Detector {
 	public:
@@ -258,39 +256,38 @@ namespace DarknetWrapper {
 
 	}; // class Detector
 
-	// class AsyncDetector : Detector
-	// {
-	//   public:
-	// 	void Init(int argc, char** argv, DetectionQueue *requestQueue, DetectionQueue *completionQueue) {
-	// 		// Store pointers to the workQueues
-	// 		this->requestQueue = requestQueue;
-	// 		this->completionQueue = completionQueue;
-	// 		Detector::Init(argc, argv);
-	// 	}
+	class AsyncDetector : Detector
+	{
+	  public:
+		void Init(int argc, char** argv, DetectionQueue *requestQueue, DetectionQueue *completionQueue) {
+			// Store pointers to the workQueues
+			this->requestQueue = requestQueue;
+			this->completionQueue = completionQueue;
+			Detector::Init(argc, argv);
+		}
 
-	// 	void Shutdown() {
-	// 		// Set locally owned pointers to NULL;
-	// 		this->requestQueue = nullptr;
-	// 		this->completionQueue = nullptr;
-	// 		Detector::Shutdown();
-	// 	}
+		void Shutdown() {
+			// Set locally owned pointers to NULL;
+			this->requestQueue = nullptr;
+			this->completionQueue = nullptr;
+			Detector::Shutdown();
+		}
 
-	// 	void doDetection() {
-	// 		while(true) {
-	// 			WorkRequest elem;
-	// 			// Wait on the requestQueue
-	// 			requestQueue->pop_front(elem);
-	// 			Detector::doDetection(elem);
-	// 			// Put the result back on the completionQueue.
-	// 			completionQueue->push_back(elem);
-	// 		}
-	// 	}
+		void doDetection() {
+			while(true) {
+				WorkRequest elem;
+				// Wait on the requestQueue
+				requestQueue->pop_front(elem);
+				Detector::doDetection(elem);
+				// Put the result back on the completionQueue.
+				completionQueue->push_back(elem);
+			}
+		}
 
-	//   private:
-	// 	DetectionQueue *requestQueue;
-	// 	DetectionQueue *completionQueue;
-
-	// };
+	  private:
+		DetectionQueue *requestQueue;
+		DetectionQueue *completionQueue;
+	};
 
 } // namespace DarknetWrapper
 
