@@ -1,5 +1,8 @@
+#include "opencv2/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <memory>
 #include <string>
 #include <cstring>
@@ -96,11 +99,11 @@ class ImageDetectionClient {
 
 	// Assembles the client's payload and sends it to the server.
 	void AsyncSendImage(Image *image) {
-		// Start timer
-		probe_time_start2(&call->ts_detect);
-
 		// Call object to store RPC data
 		AsyncClientCall* call = new AsyncClientCall;
+		
+		// Start timer
+		probe_time_start2(&call->ts_detect);
 
 		// Use the messageBuilder to construct a message from the image passed to us.
 		auto requestOffset = darknetServer::CreateKeyFrame(this->messageBuilder,
@@ -126,7 +129,7 @@ class ImageDetectionClient {
 		// Request that, upon completion of the RPC, "reply" be updated with the
 		// server's response; "status" with the indication of whether the operation
 		// was successful. Tag the request with the memory address of the call object.
-		call->async_reader->Finish(&call->detectedObjects, &call->status, (void*)call);
+		call->async_reader->Finish(&call->detectedObjectsFBMessage, &call->status, (void*)call);
 
 	}
 

@@ -137,7 +137,7 @@ class ServerImpl final {
 				// start processing RequestDetection requests. In this request, "this" acts as
 				// the tag uniquely identifying the request (so that different CallData
 				// instances can serve different requests concurrently).
-				service_->RequestRequestDetection(&ctx_, &frame, &asyncResponder, cq_, cq_, this);
+				service_->RequestRequestDetection(&ctx_, &requestMessage, &asyncResponder, cq_, cq_, this);
 			} else if (status_ == READY) {
 				// Spawn a new CallData instance to serve new clients while we process
 				// the one for this CallData. The instance will deallocate itself as
@@ -148,7 +148,7 @@ class ServerImpl final {
 				WorkRequest work;
 				work.done = false;
 				work.tag = this;
-				work.frame = requestMessage->GetRoot();
+				work.frame = requestMessage.GetRoot();
 				work.dets = nullptr;
 				work.nboxes = 0;
 
@@ -168,11 +168,12 @@ class ServerImpl final {
 
 			std::vector<flatbuffers::Offset<DetectedObject>> objects;
 			int numObjects = 0;
+			detection *dets = work.dets;
 			for (int i = 0; i < work.nboxes; i++) {
 				if(dets[i].objectness == 0) continue;
 				bbox box(dets[i].bbox.x, dets[i].bbox.y, dets[i].bbox.w, dets[i].bbox.h);
 				std::vector<float> prob;
-				for (int j = 0; j < l.classes; j++) {
+				for (int j = 0; j < work.classes; j++) {
 					prob.push_back(dets[i].prob[j]);
 				}
 				auto objectOffset = darknetServer::CreateDetectedObjectDirect(messageBuilder, &box, dets[i].classes, dets[i].objectness, dets[i].sort_class, &prob);
@@ -183,14 +184,14 @@ class ServerImpl final {
 			flatbuffers::Offset<DetectedObjects> detectedObjectsOffset = darknetServer::CreateDetectedObjectsDirect(messageBuilder, numObjects, &objects);
 
 			messageBuilder.Finish(detectedObjectsOffset);
-			auto responseMessage = messageBuilder.ReleaseMessage<DetectedObjects>();
-			GPR_ASSERT(responseMessage->Verify());
+			this->responseMessage = messageBuilder.ReleaseMessage<DetectedObjects>();
+			GPR_ASSERT(this->responseMessage.Verify());
 
 			// Clean up
 			free_detections(work.dets, work.nboxes);
 
 			status_ = FINISH;
-			asyncResponder.Finish(&responseMessage, Status::OK, this);
+			asyncResponder.Finish(this->responseMessage, Status::OK, this);
 		}
 
 	 private:
@@ -206,8 +207,13 @@ class ServerImpl final {
 
 		DetectionQueue *requestQueue;
 
+		// Used to make Flatbuffer messages...
+		flatbuffers::grpc::MessageBuilder messageBuilder;
+
 		// What we get from the client.
-		flatbuffers::grpc::Message<KeyFrame> frame;
+		flatbuffers::grpc::Message<KeyFrame> requestMessage;
+
+		flatbuffers::grpc::Message<DetectedObjects> responseMessage;
 
 		// The means to get back to the client.
 		ServerAsyncResponseWriter<flatbuffers::grpc::Message<DetectedObjects>> asyncResponder;

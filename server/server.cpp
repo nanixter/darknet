@@ -58,6 +58,7 @@ class ServiceImpl final : public ImageDetection::Service {
 		work.frame = requestMessage->GetRoot();
 		work.dets = nullptr;
 		work.nboxes = 0;
+		work.classes = 0;
 
 		// The actual processing.
 		detector.doDetection(work);
@@ -69,13 +70,13 @@ class ServiceImpl final : public ImageDetection::Service {
 		std::vector<flatbuffers::Offset<DetectedObject>> objects;
 		int numObjects = 0;
 		for (int i = 0; i < work.nboxes; i++) {
-			if(dets[i].objectness == 0) continue;
-			bbox box(dets[i].bbox.x, dets[i].bbox.y, dets[i].bbox.w, dets[i].bbox.h);
+			if(work.dets[i].objectness == 0) continue;
+			bbox box(work.dets[i].bbox.x, work.dets[i].bbox.y, work.dets[i].bbox.w, work.dets[i].bbox.h);
 			std::vector<float> prob;
-			for (int j = 0; j < l.classes; j++) {
-				prob.push_back(dets[i].prob[j]);
+			for (int j = 0; j < work.classes; j++) {
+				prob.push_back(work.dets[i].prob[j]);
 			}
-			auto objectOffset = darknetServer::CreateDetectedObjectDirect(messageBuilder, &box, dets[i].classes, dets[i].objectness, dets[i].sort_class, &prob);
+			auto objectOffset = darknetServer::CreateDetectedObjectDirect(messageBuilder, &box, work.dets[i].classes, work.dets[i].objectness, work.dets[i].sort_class, &prob);
 			objects.push_back(objectOffset);
 			numObjects++;
 		}
@@ -83,7 +84,7 @@ class ServiceImpl final : public ImageDetection::Service {
 		flatbuffers::Offset<DetectedObjects> detectedObjectsOffset = darknetServer::CreateDetectedObjectsDirect(messageBuilder, numObjects, &objects);
 
 		messageBuilder.Finish(detectedObjectsOffset);
-		responseMessage = messageBuilder.ReleaseMessage<DetectedObjects>();
+		*responseMessage = messageBuilder.ReleaseMessage<DetectedObjects>();
 		assert(responseMessage->Verify());
 
 		// Clean up
@@ -95,7 +96,7 @@ class ServiceImpl final : public ImageDetection::Service {
 
  private:
 	struct timestamp ts_server;
-
+	int classes;
 	// Darknet detector
 	Detector detector;
 	flatbuffers::grpc::MessageBuilder messageBuilder;

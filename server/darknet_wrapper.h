@@ -54,6 +54,7 @@ namespace DarknetWrapper {
 		const darknetServer::KeyFrame *frame;
 		detection *dets;
 		int nboxes;
+		int classes;
 		void *tag;
 	} WorkRequest;
 
@@ -158,6 +159,7 @@ namespace DarknetWrapper {
 
 			//draw_detections(newImage_letterboxed, elem.dets, elem.nboxes, 0.5, NULL, NULL, l.classes);
 			//save_image(newImage_letterboxed, "detected");
+			elem.classes = l.classes;
 			elem.done = true;
 
 			std::cout << elem.tag << " doDetection: took " << probe_time_end2(&ts_detect) << " milliseconds"<< std::endl;
