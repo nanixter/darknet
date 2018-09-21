@@ -9,3 +9,6 @@ perf*
 *.crt
 *.csr
 *.key
+*.grpc.fb.cc
+*.grpc.fb.h
+darknetserver_generated.h

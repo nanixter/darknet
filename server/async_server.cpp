@@ -10,7 +10,8 @@
 #include <grpc/support/log.h>
 #include <thread>
 
-#include "darknetserver.grpc.pb.h"
+#define FLATBUFFERS_DEBUG_VERIFICATION_FAILURE
+#include "darknetserver.grpc.fb.h"
 
 #include "darknet_wrapper.h"
 

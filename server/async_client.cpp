@@ -13,7 +13,8 @@
 #include <thread>
 #include <sys/time.h>
 
-#include "darknetserver.grpc.pb.h"
+#define FLATBUFFERS_DEBUG_VERIFICATION_FAILURE
+#include "darknetserver.grpc.fb.h"
 
 using grpc::Channel;
 using grpc::ClientAsyncResponseReader;
@@ -62,21 +63,14 @@ typedef struct {
 	float *data;
 } Image;
 
-uint64_t rdtsc() {
-	unsigned int lo,hi;
-	__asm__ __volatile__ ("mfence\t\nrdtsc" : "=a" (lo), "=d" (hi));
-	return ((uint64_t)hi << 32) | lo;
-}
-
-
 void printImage(Image &image){
 	std::cout << "width: " << image.width;
 	std::cout << " height: " << image.height <<std::endl;
 	std::cout << "numChannels: " << image.numChannels <<std::endl;
 	std::cout << "widthStep: " << image.widthStep <<std::endl;
-	std::cout << "Data: " << std::endl;
-	for (int i = 0; i < (image.width * image.height * image.numChannels); i++ )
-		std::cout << image.data[i];
+	std::cout <<"Image Size:" << image.width*image.height*image.numChannels <<std::endl;
+	// for (int i = 0; i < (image.width * image.height * image.numChannels); i++ )
+	// 	std::cout << image.data[i];
 }
 
 Image getImageFromMat(cv::Mat *m) {
@@ -90,7 +84,7 @@ Image getImageFromMat(cv::Mat *m) {
 	for(int i = 0; i < image.height; ++i){
 		for(int k= 0; k < image.numChannels; ++k){
 			for(int j = 0; j < image.width; ++j){
-				image.data[k*image.width*image.height + i*image.width + j] = m->data[i*image.widthStep + j*image.numChannels + k]/255.;
+				image.data[(k*image.width*image.height + i*image.width + j)] = m->data[i*image.widthStep + j*image.numChannels + k]/255.0;
 			}
 		}
 	}

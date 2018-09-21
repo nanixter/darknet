@@ -10,8 +10,6 @@
 #include <cstring>
 #include <sys/time.h>
 
-#include "darknetserver.pb.h"
-
 extern "C" {
 	#undef __cplusplus
 	#include "darknet.h"
@@ -54,10 +52,12 @@ namespace DarknetWrapper {
 	{
 		bool done;
 		const darknetServer::KeyFrame *frame;
-		darknetServer::DetectedObjects *detectedObjects;
+		flatbuffers::grpc::MessageBuilder *messageBuilder;
+		flatbuffers::grpc::Message<DetectedObjects>* responseMessage;
 		void *tag;
 	} WorkRequest;
 
+	/*
 	class DetectionQueue
 	{
 	public:
@@ -86,6 +86,7 @@ namespace DarknetWrapper {
 		std::condition_variable cv;
 
 	}; // class DetectionQueue
+	*/
 
 	class Detector {
 	public:
@@ -129,7 +130,7 @@ namespace DarknetWrapper {
 
 			// Convert to the right format
 			// Allocate memory for data in 'image', based on the size of 'data' in frame
-			newImage.data = new float[elem.frame->data_size()];
+			newImage.data = new float[elem.frame->data()->size()];
 
 			// Copy from the frame in elem to the 'image' format that darknet uses internally...
 			this->convertFrameToImage(elem.frame, &newImage);
@@ -162,51 +163,44 @@ namespace DarknetWrapper {
 			//save_image(newImage_letterboxed, "detected");
 
 			/* Copy detected objects to the WorkRequest */
+			std::vector<flatbuffers::Offset<DetectedObject>> objects;
+			int numObjects = 0;
 			for (int i = 0; i < nboxes; i++) {
 				if(dets[i].objectness == 0) continue;
-				darknetServer::DetectedObjects_DetectedObject *object = elem.detectedObjects->add_objects();
-				// std::cout << "Det " <<i <<":" << std::endl;
-				// std::cout << "BBOX: "
-				// 		<< " x: " <<dets[i].bbox.x
-				// 		<< " y: " <<dets[i].bbox.y
-				// 		<< " w: " <<dets[i].bbox.w
-				// 		<< " h: " <<dets[i].bbox.h << std::endl;
-				// std::cout << "objectness: " << dets[i].objectness << std::endl;
-				// std::cout << "classes: " << dets[i].classes << std::endl;
-				// std::cout << "sort_class: " << dets[i].sort_class << std::endl;
-				darknetServer::DetectedObjects_DetectedObject_box *bbox = object->mutable_bbox();
-				bbox->set_x(dets[i].bbox.x);
-				bbox->set_y(dets[i].bbox.y);
-				bbox->set_w(dets[i].bbox.w);
-				bbox->set_h(dets[i].bbox.h);
-				object->set_objectness(dets[i].objectness);
-				object->set_classes(dets[i].classes);
-				object->set_sort_class(dets[i].sort_class);
-				// std::cout << "Probabilities:" << std::endl;
-				// std::cout << l.classes << std::endl;
+				bbox box(dets[i].bbox.x, dets[i].bbox.y, dets[i].bbox.w, dets[i].bbox.h);
+				std::vector<float> prob;
 				for (int j = 0; j < l.classes; j++) {
-					// std::cout << dets[i].prob[j];
-					object->add_prob(dets[i].prob[j]);
+					prob.push_back(dets[i].prob[j]);
 				}
-				// std::cout <<std::endl;
+				auto objectOffset = darknetServer::CreateDetectedObjectDirect(*(elem.messageBuilder), &box, dets[i].classes, dets[i].objectness, dets[i].sort_class, &prob);
+				objects.push_back(objectOffset);
+				numObjects++;
 			}
+
+			flatbuffers::Offset<DetectedObjects> detectedObjectsOffset = darknetServer::CreateDetectedObjectsDirect(*(elem.messageBuilder), numObjects, &objects);
+
+			(elem.messageBuilder)->Finish(detectedObjectsOffset);
+			*(elem.responseMessage) = (elem.messageBuilder)->ReleaseMessage<DetectedObjects>();
+			assert((elem.responseMessage)->Verify());
 
 			elem.done = true;
 			std::cout << elem.tag << " doDetection: took " << probe_time_end2(&ts_detect) << " milliseconds"<< std::endl;
 
 			// Clean up
 			free_detections(dets, nboxes);
-			delete [] newImage.data;
+			//delete [] newImage.data;
 		}
 
 	private:
 		void convertFrameToImage(const darknetServer::KeyFrame *frame, image *newImage) {
 			newImage->w = frame->width();
 			newImage->h = frame->height();
-			newImage->c = frame->numchannels();
-			int dataSize = frame->data_size();
-			for (int i = 0; i < dataSize; i++)
-				newImage->data[i] = frame->data(i);
+			newImage->c = frame->numChannels();
+			//int dataSize = frame->data()->size();
+			newImage->data =  const_cast<float *>(frame->data()->data());
+			//auto dataVector = frame->data();
+			//for (int i = 0; i < dataSize; i+=sizeof(float))
+				//newImage->data[i] = dataVector->Get(i);
 		}
 
 		// Helper functions stolen from demo.c
@@ -264,39 +258,39 @@ namespace DarknetWrapper {
 
 	}; // class Detector
 
-	class AsyncDetector : Detector
-	{
-	  public:
-		void Init(int argc, char** argv, DetectionQueue *requestQueue, DetectionQueue *completionQueue) {
-			// Store pointers to the workQueues
-			this->requestQueue = requestQueue;
-			this->completionQueue = completionQueue;
-			Detector::Init(argc, argv);
-		}
+	// class AsyncDetector : Detector
+	// {
+	//   public:
+	// 	void Init(int argc, char** argv, DetectionQueue *requestQueue, DetectionQueue *completionQueue) {
+	// 		// Store pointers to the workQueues
+	// 		this->requestQueue = requestQueue;
+	// 		this->completionQueue = completionQueue;
+	// 		Detector::Init(argc, argv);
+	// 	}
 
-		void Shutdown() {
-			// Set locally owned pointers to NULL;
-			this->requestQueue = nullptr;
-			this->completionQueue = nullptr;
-			Detector::Shutdown();
-		}
+	// 	void Shutdown() {
+	// 		// Set locally owned pointers to NULL;
+	// 		this->requestQueue = nullptr;
+	// 		this->completionQueue = nullptr;
+	// 		Detector::Shutdown();
+	// 	}
 
-		void doDetection() {
-			while(true) {
-				WorkRequest elem;
-				// Wait on the requestQueue
-				requestQueue->pop_front(elem);
-				Detector::doDetection(elem);
-				// Put the result back on the completionQueue.
-				completionQueue->push_back(elem);
-			}
-		}
+	// 	void doDetection() {
+	// 		while(true) {
+	// 			WorkRequest elem;
+	// 			// Wait on the requestQueue
+	// 			requestQueue->pop_front(elem);
+	// 			Detector::doDetection(elem);
+	// 			// Put the result back on the completionQueue.
+	// 			completionQueue->push_back(elem);
+	// 		}
+	// 	}
 
-	  private:
-		DetectionQueue *requestQueue;
-		DetectionQueue *completionQueue;
+	//   private:
+	// 	DetectionQueue *requestQueue;
+	// 	DetectionQueue *completionQueue;
 
-	};
+	// };
 
 } // namespace DarknetWrapper
 

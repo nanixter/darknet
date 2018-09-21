@@ -1,4 +1,6 @@
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <memory>
 #include <string>
 #include <cstring>
@@ -11,9 +13,7 @@
 #include <thread>
 #include <sys/time.h>
 
-#include "darknetserver.grpc.pb.h"
-
-#include "darknet_wrapper.h"
+#include "darknetserver.grpc.fb.h"
 
 using grpc::Server;
 using grpc::ServerAsyncResponseWriter;
@@ -22,10 +22,15 @@ using grpc::ServerContext;
 using grpc::ServerCompletionQueue;
 using grpc::Status;
 using darknetServer::DetectedObjects;
+using darknetServer::DetectedObject;
 using darknetServer::KeyFrame;
+using darknetServer::bbox;
 using darknetServer::ImageDetection;
+
+#include "darknet_wrapper.h"
+
 using DarknetWrapper::WorkRequest;
-using DarknetWrapper::DetectionQueue;
+// using DarknetWrapper::DetectionQueue;
 using DarknetWrapper::Detector;
 
 
@@ -40,8 +45,9 @@ class ServiceImpl final : public ImageDetection::Service {
 		detector.Init(argc, argv);
 	}
 
-	Status RequestDetection(ServerContext* context,
-		const KeyFrame* frame, DetectedObjects* objects) {
+	Status RequestDetection(::grpc::ServerContext* context,
+						const flatbuffers::grpc::Message<KeyFrame>* requestMessage,
+						flatbuffers::grpc::Message<DetectedObjects>* responseMessage) {
 		// Start timer
 		probe_time_start2(&ts_server);
 
@@ -49,8 +55,9 @@ class ServiceImpl final : public ImageDetection::Service {
 		WorkRequest work;
 		work.done = false;
 		work.tag = this;
-		work.frame = frame;
-		work.detectedObjects = objects;
+		work.frame = requestMessage->GetRoot();
+		work.messageBuilder = &messageBuilder;
+		work.responseMessage = responseMessage;
 
 		// The actual processing.
 		detector.doDetection(work);
@@ -66,7 +73,23 @@ class ServiceImpl final : public ImageDetection::Service {
 
 	// Darknet detector
 	Detector detector;
+	flatbuffers::grpc::MessageBuilder messageBuilder;
 };
+
+
+void readFile(const std::string& filename, std::string& data)
+{
+	std::ifstream file(filename.c_str(), std::ifstream::in);
+
+	if(file.is_open()) {
+		std::stringstream ss;
+		ss << file.rdbuf();
+		file.close ();
+
+		data = ss.str();
+	}
+	return;
+}
 
 int main(int argc, char** argv) {
 
@@ -76,13 +99,27 @@ int main(int argc, char** argv) {
 	}
 
 	ServiceImpl service(argc, argv);
-	std::string server_address("128.83.122.71:50051");
-	//std::string server_address("localhost:50051");
+	//std::string server_address("128.83.122.71:50051");
+	std::string server_address("zemaitis:50051");
 
 	ServerBuilder builder;
+	std::string key;
+	std::string cert;
+	std::string root;
 
-	// Listen on the given address without any authentication mechanism.
-	builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+	readFile("server.crt", cert);
+	readFile("server.key", key);
+	readFile("ca.crt", root);
+
+	grpc::SslServerCredentialsOptions::PemKeyCertPair keycert = {key, cert};
+
+	grpc::SslServerCredentialsOptions sslOps;
+	sslOps.pem_root_certs = root;
+	sslOps.pem_key_cert_pairs.push_back (keycert);
+
+	// Listen on the given address with TLS authentication.
+	builder.AddListeningPort(server_address, grpc::SslServerCredentials( sslOps ));
+	// builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
 	builder.SetMaxReceiveMessageSize(INT_MAX);
 
 	// Register "service_" as the instance through which we'll communicate with
