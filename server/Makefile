@@ -9,7 +9,6 @@ LDFLAGS += -L/usr/local/lib `pkg-config --libs protobuf grpc++ grpc opencv`\
            -Wl,--no-as-needed -lgrpc++_reflection -Wl,--as-needed -ldl -lpthread\
            -L../ -Wl,--as-needed -ldarknet
 PROTOC = protoc
-FLATC = flatc
 GRPC_CPP_PLUGIN = grpc_cpp_plugin
 GRPC_CPP_PLUGIN_PATH ?= `which $(GRPC_CPP_PLUGIN)`
 
@@ -22,9 +21,7 @@ endif
 
 vpath %.proto $(PROTOS_PATH)
 
-all: system-check client server async_client async_server fb_client fb_server
-
-fb: fb_client fb_server
+all: system-check client server async_client async_server
 
 async_client: darknetserver.pb.o darknetserver.grpc.pb.o async_client.o
 	$(CXX) $^ $(LDFLAGS) -o $@
@@ -38,12 +35,6 @@ client: darknetserver.pb.o darknetserver.grpc.pb.o client.o
 server: darknetserver.pb.o darknetserver.grpc.pb.o server.o
 	$(CXX) $^ -I $(DARKNET_HEADER_PATH) $(LDFLAGS) -o $@
 
-fb_client: darknetserver.grpc.fb.o fb_client.o
-	$(CXX) $^ $(LDFLAGS) -o $@
-
-fb_server: darknetserver.grpc.fb.o fb_server.o
-	$(CXX) $^ -I $(DARKNET_HEADER_PATH) $(LDFLAGS) -o $@
-
 .PRECIOUS: %.grpc.pb.cc
 %.grpc.pb.cc: %.proto
 	$(PROTOC) -I $(PROTOS_PATH) --grpc_out=. --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN_PATH) $<
@@ -52,16 +43,8 @@ fb_server: darknetserver.grpc.fb.o fb_server.o
 %.pb.cc: %.proto
 	$(PROTOC) -I $(PROTOS_PATH) --cpp_out=. $<
 
-.PRECIOUS: %.grpc.fb.cc darknetserver_generated.h
-%.grpc.fb.cc: %.fbs
-	$(FLATC) --grpc --cpp $<
-
-
 clean:
-	rm -f *.o *.pb.cc *.pb.h *.fb.cc *.fb.h darknetserver_generated.h async_client async_server client server fb_client fb_server
-
-clean_fb:
-	rm -f *.o *.fb.cc *.fb.h darknetserver_generated.h fb_client fb_server
+	rm -f *.o *.pb.cc *.pb.h async_client async_server client server
 
 # The following is to test your system and ensure a smoother experience.
 # They are by no means necessary to actually compile a grpc-enabled software.
