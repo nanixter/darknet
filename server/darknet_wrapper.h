@@ -77,7 +77,7 @@ namespace DarknetWrapper {
 		}
 
 		// pops 1 element
-		void pop_front(WorkRequest &elems) {
+		void pop_front(WorkRequest &elem) {
 			std::unique_lock<std::mutex> lock(this->mutex);
 			if(this->queue.empty())
 				cv.wait(lock, [this](){ return !this->queue.empty(); });
@@ -200,8 +200,8 @@ namespace DarknetWrapper {
 			elem.done = true;
 
 			// Free up allocated memory
-			delete newImage.data;
-			free(newImage_letterboxed.data);
+			// delete newImage.data;
+			// free(newImage_letterboxed.data);
 
 			std::cout << elem.tag << " doDetection: took " << probe_time_end2(&ts_detect) << " milliseconds"<< std::endl;
 		}
@@ -216,7 +216,7 @@ namespace DarknetWrapper {
 				return;
 			}
 
-			std::cout << "doDetection: new batch requeust " << std::endl;
+			std::cout << "doDetection: new batch requeust. Batch Size = " << numImages << std::endl;
 			probe_time_start2(&ts_detect);
 
 			// Save the address of the l.output for YOLO layers so we can restore it later.
@@ -250,18 +250,18 @@ namespace DarknetWrapper {
 				newImage[elemNum].w = newImage_letterboxed.w;
 				newImage[elemNum].h = newImage_letterboxed.h;
 				newImage[elemNum].c = newImage_letterboxed.c;
-				delete newImage[elemNum].data;
+				//delete newImage[elemNum].data;
 				newImage[elemNum].data = newImage_letterboxed.data;
-				bufferSize += net->h*net->w*newImage[elemNum].c
+				bufferSize += net->h*net->w*newImage[elemNum].c;
 				elemNum++;
 			}
 
 			// Copy all the images into 1 buffer.
-			float *dataToProcess = (float*)calloc(bufferSize,sizeof(float));
+			float *dataToProcess = new float[bufferSize*sizeof(float)];
 			for (int i = 0 ; i < numImages; i++) {
 				int imgSize = net->h*net->w*newImage[i].c;
-				std::memcpy(dataToProcess+i*sizeOfImage, newImage[i].data, imgSize*sizeof(float));
-				free(newImage[i].data);
+				std::memcpy(dataToProcess+i*imgSize, newImage[i].data, imgSize*sizeof(float));
+				//free(newImage[i].data);
 			}
 
 			 // Now we finally run the actual network
@@ -271,7 +271,7 @@ namespace DarknetWrapper {
 
 			// Copy the detected boxes into the appropriate WorkRequest
 			for (int i = 0 ; i < numImages; i++) {
-				elems[i].dets = get_network_boxes(this->net, newImage.w, newImage.h,
+				elems[i].dets = get_network_boxes(this->net, newImage[i].w, newImage[i].h,
 													0.5, 0.5, 0, 1, &(elems[i].nboxes));
 				// What the hell does this do?
 				if (nms > 0) {
@@ -285,10 +285,10 @@ namespace DarknetWrapper {
 
 			}
 			restoreOutputAddr();
+			delete dataToProcess;
 
-			std::cout << elem.tag << " GPU processing took " << probe_time_end2(&ts_gpu) << " milliseconds"<< std::endl;
-
-			std::cout << elem.tag << " doDetection: took " << probe_time_end2(&ts_detect) << " milliseconds"<< std::endl;
+			std::cout << "Batch GPU processing took " << probe_time_end2(&ts_gpu) << " milliseconds"<< std::endl;
+			std::cout << " doDetection: took " << probe_time_end2(&ts_detect) << " milliseconds"<< std::endl;
 		}
 
 	private:
@@ -388,7 +388,7 @@ namespace DarknetWrapper {
 
 		void doDetection() {
 			std::vector<WorkRequest> elems;
-			elem.reserve(10);
+			elems.reserve(10);
 			while(true) {
 				int numImages = 10;
 

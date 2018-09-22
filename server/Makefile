@@ -15,7 +15,7 @@ CXXFLAGS+= -DGPU -I/usr/local/cuda/include/
 LDFLAGS+= -L/usr/local/cuda/lib64 -Wl,--as-needed -lcuda -lcudart -lcublas -lcurand -lcudnn
 endif
 
-all: sync #async
+all: sync async
 
 certs:
 	./gen_cert.sh
