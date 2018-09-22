@@ -164,7 +164,7 @@ namespace DarknetWrapper {
 			/* Now we finally run the actual network	*/
 			probe_time_start2(&ts_gpu);
 
-/*			// This block is used to test NoTransfer and NoGPUCompute  
+/*			// This block is used to test NoTransfer and NoGPUCompute
 			bool transferData = false;
 			if (gpuBufferInit == false) {
 				transferData = true;
@@ -180,8 +180,7 @@ namespace DarknetWrapper {
 //			elem.nboxes = this->nboxes;
 */
 			network_predict(net, newImage_letterboxed.data);
-			this->remember_network();
-			elem.dets = this->average_predictions(&(elem.nboxes), newImage.h, newImage.w);
+			elem.dets = get_network_boxes(this->net, newImage.w, newImage.h, 0.5, 0.5, 0, 1, &(elem.nboxes));
 
 			// What the hell does this do?
 			if (nms > 0) {
@@ -203,11 +202,7 @@ namespace DarknetWrapper {
 			newImage->w = frame->width();
 			newImage->h = frame->height();
 			newImage->c = frame->numChannels();
-			//int dataSize = frame->data()->size();
 			newImage->data =  const_cast<float *>(frame->data()->data());
-			//auto dataVector = frame->data();
-			//for (int i = 0; i < dataSize; i+=sizeof(float))
-				//newImage->data[i] = dataVector->Get(i);
 		}
 
 		// Helper functions stolen from demo.c
@@ -221,34 +216,6 @@ namespace DarknetWrapper {
 				}
 			}
 			return count;
-		}
-		void remember_network()
-		{
-			int count = 0;
-			for(int i = 0; i < this->net->n; ++i){
-				layer l = this->net->layers[i];
-				if(l.type == YOLO || l.type == REGION || l.type == DETECTION){
-					std::memcpy(predictions + count, this->net->layers[i].output, sizeof(float) * l.outputs);
-					count += l.outputs;
-				}
-			}
-		}
-
-		detection *average_predictions(int *nboxes, int height, int width)
-		{
-			int i, j;
-			int count = 0;
-			fill_cpu(this->numNetworkOutputs, 0, average, 1);
-			axpy_cpu(this->numNetworkOutputs, 1.0, predictions, 1, average, 1);
-
-			for(i = 0; i < this->net->n; ++i){
-				layer l = this->net->layers[i];
-				if(l.type == YOLO || l.type == REGION || l.type == DETECTION){
-					std::memcpy(l.output, average + count, sizeof(float) * l.outputs);
-					count += l.outputs;
-				}
-			}
-			return get_network_boxes(this->net, width, height, 0.5, 0.5, 0, 1, nboxes);
 		}
 
 		// All the darknet globals.
