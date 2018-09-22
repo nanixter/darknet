@@ -68,6 +68,14 @@ namespace DarknetWrapper {
 			this->cv.notify_one();
 		}
 
+		void push_back(std::vector<WorkRequest> elems) {
+			std::lock_guard<std::mutex> lock(this->mutex);
+			for (auto elemIterator = elems.begin(); elemIterator != elems.end(); elemIterator++) {
+				this->queue.push(*elemIterator);
+			}
+			this->cv.notify_one();
+		}
+
 		// pops 1 element
 		void pop_front(WorkRequest &elems) {
 			std::unique_lock<std::mutex> lock(this->mutex);
@@ -82,7 +90,7 @@ namespace DarknetWrapper {
 		}
 
 		// Pops upto N elements
-		void pop_front(std::vector<WorkRequest> &elems, int numElems) {
+		void pop_front(std::vector<WorkRequest> &elems, int &numElems) {
 			std::unique_lock<std::mutex> lock(this->mutex);
 			if(this->queue.empty())
 				cv.wait(lock, [this](){ return !this->queue.empty(); });
@@ -90,10 +98,11 @@ namespace DarknetWrapper {
 			// Once the cv wakes us up....
 			int numPopped = 0;
 			while( !this->queue.empty() && (numPopped < numElems) ) {
-				elems.emplace_back(this->queue.front());
+				elems.insert(elems.end(), this->queue.front());
 				this->queue.pop();
 				numPopped++;
 			}
+			numElems = numPopped;
 		}
 
 	private:
@@ -120,7 +129,7 @@ namespace DarknetWrapper {
 			this->net = load_network(cfgfile, weightfile, 0);
 			this->gpuBufferInit = false;
 
-			this->numNetworkOutputs = this->size_network();
+			this->numNetworkOutputs = this->sizeNetwork();
 			this->predictions = new float[numNetworkOutputs];
 			this->average = new float[numNetworkOutputs];
 		}
@@ -133,15 +142,15 @@ namespace DarknetWrapper {
 		}
 
 		void doDetection(WorkRequest &elem) {
+			std::cout << "doDetection: new requeust " << elem.tag << std::endl;
+			probe_time_start2(&ts_detect);
+
 			float nms = .4;
 			set_batch_network(net, 1);
 			layer l = net->layers[net->n-1];
 
 			image newImage;
 			image newImage_letterboxed;
-
-			std::cout << "doDetection: new requeust " << elem.tag << std::endl;
-			probe_time_start2(&ts_detect);
 
 			// Convert to the right format
 			// Allocate memory for data in 'image', based on the size of 'data' in frame
@@ -158,8 +167,6 @@ namespace DarknetWrapper {
 			// Add black borders (letter-boxing) around the image to ensure that the image
 			// is of the correct width and height that YOLO expects.
 			newImage_letterboxed = letterbox_image(newImage, net->w, net->h);
-
-			//save_image(newImage_letterboxed, "letterboxed");
 
 			/* Now we finally run the actual network	*/
 			probe_time_start2(&ts_gpu);
@@ -189,10 +196,97 @@ namespace DarknetWrapper {
 
 			std::cout << elem.tag << " GPU processing took " << probe_time_end2(&ts_gpu) << " milliseconds"<< std::endl;
 
-			//draw_detections(newImage_letterboxed, elem.dets, elem.nboxes, 0.5, NULL, NULL, l.classes);
-			//save_image(newImage_letterboxed, "detected");
 			elem.classes = l.classes;
 			elem.done = true;
+
+			// Free up allocated memory
+			delete newImage.data;
+			free(newImage_letterboxed.data);
+
+			std::cout << elem.tag << " doDetection: took " << probe_time_end2(&ts_detect) << " milliseconds"<< std::endl;
+		}
+
+		void doDetection(std::vector<WorkRequest> &elems, int numImages) {
+			// For N=1, and N=2, just fall back to the 1 image at a time step.
+			if (numImages == 1) {
+				return doDetection(elems[0]);
+			} else if (numImages == 2) {
+				doDetection(elems[0]);
+				doDetection(elems[1]);
+				return;
+			}
+
+			std::cout << "doDetection: new batch requeust " << std::endl;
+			probe_time_start2(&ts_detect);
+
+			// Save the address of the l.output for YOLO layers so we can restore it later.
+			// What a dirty hack...
+			this->saveBaseOutput();
+
+			float nms = .4;
+			set_batch_network(net, numImages);
+			layer l = net->layers[net->n-1];
+
+			image newImage[numImages];
+			int bufferSize = 0;
+			int elemNum = 0;
+
+			for (auto elemIterator = elems.begin(); elemIterator != elems.end(); elemIterator++) {
+				auto elem = *elemIterator;
+
+				// Convert to the right format
+				// Allocate memory for data in 'image', based on the size of 'data' in frame
+				newImage[elemNum].data = new float[elem.frame->data()->size()];
+
+				// Copy from the frame in elem to the 'image' format that darknet uses internally...
+				this->convertFrameToImage(elem.frame, &newImage[elemNum]);
+
+				// Convert to the RGBGR format that YOLO operates on..
+				rgbgr_image(newImage[elemNum]);
+
+				// Add black borders (letter-boxing) around the image to ensure that the image
+				// is of the correct width and height that YOLO expects.
+				image newImage_letterboxed = letterbox_image(newImage[elemNum], net->w, net->h);
+				newImage[elemNum].w = newImage_letterboxed.w;
+				newImage[elemNum].h = newImage_letterboxed.h;
+				newImage[elemNum].c = newImage_letterboxed.c;
+				delete newImage[elemNum].data;
+				newImage[elemNum].data = newImage_letterboxed.data;
+				bufferSize += net->h*net->w*newImage[elemNum].c
+				elemNum++;
+			}
+
+			// Copy all the images into 1 buffer.
+			float *dataToProcess = (float*)calloc(bufferSize,sizeof(float));
+			for (int i = 0 ; i < numImages; i++) {
+				int imgSize = net->h*net->w*newImage[i].c;
+				std::memcpy(dataToProcess+i*sizeOfImage, newImage[i].data, imgSize*sizeof(float));
+				free(newImage[i].data);
+			}
+
+			 // Now we finally run the actual network
+			probe_time_start2(&ts_gpu);
+
+			network_predict(net, dataToProcess);
+
+			// Copy the detected boxes into the appropriate WorkRequest
+			for (int i = 0 ; i < numImages; i++) {
+				elems[i].dets = get_network_boxes(this->net, newImage.w, newImage.h,
+													0.5, 0.5, 0, 1, &(elems[i].nboxes));
+				// What the hell does this do?
+				if (nms > 0) {
+					do_nms_obj(elems[i].dets, elems[i].nboxes, l.classes, nms);
+				}
+				// Darknet batching is kinda broken.
+				// Gotta do this nonsense to set the l.output to the right address
+				shiftOutput();
+				elems[i].classes = l.classes;
+				elems[i].done = true;
+
+			}
+			restoreOutputAddr();
+
+			std::cout << elem.tag << " GPU processing took " << probe_time_end2(&ts_gpu) << " milliseconds"<< std::endl;
 
 			std::cout << elem.tag << " doDetection: took " << probe_time_end2(&ts_detect) << " milliseconds"<< std::endl;
 		}
@@ -205,8 +299,50 @@ namespace DarknetWrapper {
 			newImage->data =  const_cast<float *>(frame->data()->data());
 		}
 
+		// Helper functions from https://gist.github.com/ElPatou/706a6ff36b2dce1f492007e87bcd2a0c
+		void saveBaseOutput() {
+			int num = 0;
+			for(int i = 0; i < net->n; ++i) {
+				layer *l = &(net->layers[i]);
+				if (l->type == YOLO) {
+					num++;
+				}
+			}
+
+			baseOutput = (float **)calloc(num, sizeof(float **));
+
+			int k = 0;
+			for(int i = 0; i < net->n; ++i) {
+				layer *l = &(net->layers[i]);
+				if (l->type == YOLO) {
+					baseOutput[k] = l->output;
+					k++;
+				}
+			}
+		}
+
+		void restoreOutputAddr() {
+			int k = 0;
+			for(int i = 0; i < net->n; ++i) {
+				layer *l = &(net->layers[i]);
+				if (l->type == YOLO) {
+					l->output = baseOutput[k];
+					k++;
+				}
+			}
+		}
+
+		void shiftOutput() {
+			for(int i = 0; i < net->n; ++i) {
+				layer *l = &(net->layers[i]);
+				if (l->type == YOLO) {
+					l->output += l->outputs;
+				}
+			}
+		}
+
 		// Helper functions stolen from demo.c
-		int size_network()
+		int sizeNetwork()
 		{
 			int count = 0;
 			for(int i = 0; i < this->net->n; ++i){
@@ -229,6 +365,8 @@ namespace DarknetWrapper {
 		network *net;
 		int numNetworkOutputs;
 
+		float **baseOutput;
+
 	}; // class Detector
 
 	class AsyncDetector : Detector
@@ -250,14 +388,20 @@ namespace DarknetWrapper {
 
 		void doDetection() {
 			std::vector<WorkRequest> elems;
-			elem.reserver(10);
+			elem.reserve(10);
 			while(true) {
+				int numImages = 10;
+
 				// Wait on the requestQueue
-				requestQueue->pop_front(elems, 10);
-				Detector::doDetection(elems);
+				requestQueue->pop_front(elems, numImages);
+
+				// Do the detection
+				Detector::doDetection(elems, numImages);
+
 				// Put the result back on the completionQueue.
-				for (auto elemIterator = elems.begin(); elemIterator != elems.end(); ++elemIterator)
-					completionQueue->push_back(*elemIterator);
+				completionQueue->push_back(elems);
+
+				// Clear the vector so we can use it again.
 				elems.clear();
 			}
 		}

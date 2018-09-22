@@ -101,7 +101,7 @@ class ImageDetectionClient {
 	void AsyncSendImage(Image *image) {
 		// Call object to store RPC data
 		AsyncClientCall* call = new AsyncClientCall;
-		
+
 		// Start timer
 		probe_time_start2(&call->ts_detect);
 
