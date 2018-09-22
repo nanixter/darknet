@@ -497,6 +497,18 @@ void top_predictions(network *net, int k, int *index)
     top_k(net->output, net->outputs, k, index);
 }
 
+float *network_predict2(network *net, float *input, bool transfer)
+{
+    network orig = *net;
+    net->input = input;
+    net->truth = 0;
+    net->train = 0;
+    net->delta = 0;
+	forward_network_gpu2(net, transfer);
+    float *out = net->output;
+    *net = orig;
+    return out;
+}
 
 float *network_predict(network *net, float *input)
 {
@@ -776,6 +788,36 @@ float *network_output(network *net)
 }
 
 #ifdef GPU
+
+void forward_network_gpu2(network *netp, bool transfer)
+{
+    network net = *netp;
+    cuda_set_device(net.gpu_index);
+	if(transfer) {
+    	cuda_push_array(net.input_gpu, net.input, net.inputs*net.batch);
+	    if(net.truth){
+    	    cuda_push_array(net.truth_gpu, net.truth, net.truths*net.batch);
+	    }
+	}
+
+    int i;
+    for(i = 0; i < net.n; ++i){
+        net.index = i;
+        layer l = net.layers[i];
+        if(l.delta_gpu){
+            fill_gpu(l.outputs * l.batch, 0, l.delta_gpu, 1);
+        }
+        l.forward_gpu(l, net);
+        net.input_gpu = l.output_gpu;
+        net.input = l.output;
+        if(l.truth) {
+            net.truth_gpu = l.output_gpu;
+            net.truth = l.output;
+        }
+    }
+    pull_network_output(netp);
+    calc_network_cost(netp);
+}
 
 void forward_network_gpu(network *netp)
 {

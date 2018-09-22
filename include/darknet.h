@@ -642,6 +642,7 @@ float cuda_mag_array(float *x_gpu, size_t n);
 void cuda_push_array(float *x_gpu, float *x, size_t n);
 
 void forward_network_gpu(network *net);
+void forward_network_gpu2(network *net, bool transfer);
 void backward_network_gpu(network *net);
 void update_network_gpu(network *net);
 
@@ -743,6 +744,7 @@ matrix network_predict_data(network *net, data test);
 image **load_alphabet();
 image get_network_image(network *net);
 float *network_predict(network *net, float *input);
+float *network_predict2(network *net, float *input, bool transfer);
 
 int network_width(network *net);
 int network_height(network *net);

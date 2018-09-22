@@ -68,15 +68,31 @@ namespace DarknetWrapper {
 			this->cv.notify_one();
 		}
 
-		// TODO: Make this a counting cv instead so that we can batch images!
-		void pop_front(WorkRequest &elem) {
+		// pops 1 element
+		void pop_front(WorkRequest &elems) {
 			std::unique_lock<std::mutex> lock(this->mutex);
-			cv.wait(lock, [this](){ return !this->queue.empty(); });
+			if(this->queue.empty())
+				cv.wait(lock, [this](){ return !this->queue.empty(); });
 
 			// Once the cv wakes us up....
 			if(!this->queue.empty()) {
-				elem = this->queue.front();
+				elem = (this->queue.front());
 				this->queue.pop();
+			}
+		}
+
+		// Pops upto N elements
+		void pop_front(std::vector<WorkRequest> &elems, int numElems) {
+			std::unique_lock<std::mutex> lock(this->mutex);
+			if(this->queue.empty())
+				cv.wait(lock, [this](){ return !this->queue.empty(); });
+
+			// Once the cv wakes us up....
+			int numPopped = 0;
+			while( !this->queue.empty() && (numPopped < numElems) ) {
+				elems.emplace_back(this->queue.front());
+				this->queue.pop();
+				numPopped++;
 			}
 		}
 
@@ -102,7 +118,7 @@ namespace DarknetWrapper {
 			char *weightfile = argv[3];
 
 			this->net = load_network(cfgfile, weightfile, 0);
-			set_batch_network(net, 1);
+			this->gpuBufferInit = false;
 
 			this->numNetworkOutputs = this->size_network();
 			this->predictions = new float[numNetworkOutputs];
@@ -118,6 +134,7 @@ namespace DarknetWrapper {
 
 		void doDetection(WorkRequest &elem) {
 			float nms = .4;
+			set_batch_network(net, 1);
 			layer l = net->layers[net->n-1];
 
 			image newImage;
@@ -146,6 +163,22 @@ namespace DarknetWrapper {
 
 			/* Now we finally run the actual network	*/
 			probe_time_start2(&ts_gpu);
+
+/*			// This block is used to test NoTransfer and NoGPUCompute  
+			bool transferData = false;
+			if (gpuBufferInit == false) {
+				transferData = true;
+				gpuBufferInit = true;
+//				network_predict2(net, newImage_letterboxed.data, transferData);
+//				this->remember_network();
+//				this->dets = this->average_predictions(&(this->nboxes), newImage.h, newImage.w);
+			}
+			network_predict2(net, newImage_letterboxed.data, transferData);
+			this->remember_network();
+			elem.dets = this->average_predictions(&(elem.nboxes), newImage.h, newImage.w);
+//			elem.dets = this->dets;
+//			elem.nboxes = this->nboxes;
+*/
 			network_predict(net, newImage_letterboxed.data);
 			this->remember_network();
 			elem.dets = this->average_predictions(&(elem.nboxes), newImage.h, newImage.w);
@@ -223,10 +256,9 @@ namespace DarknetWrapper {
 		struct timestamp ts_gpu;
 		float *predictions;
 		float *average;
-		char *datacfg;
-		char *cfgfile;
-		char *weightfile;
-
+		bool gpuBufferInit;
+		detection *dets;
+		int nboxes;
 		network *net;
 		int numNetworkOutputs;
 
@@ -250,13 +282,16 @@ namespace DarknetWrapper {
 		}
 
 		void doDetection() {
+			std::vector<WorkRequest> elems;
+			elem.reserver(10);
 			while(true) {
-				WorkRequest elem;
 				// Wait on the requestQueue
-				requestQueue->pop_front(elem);
-				Detector::doDetection(elem);
+				requestQueue->pop_front(elems, 10);
+				Detector::doDetection(elems);
 				// Put the result back on the completionQueue.
-				completionQueue->push_back(elem);
+				for (auto elemIterator = elems.begin(); elemIterator != elems.end(); ++elemIterator)
+					completionQueue->push_back(*elemIterator);
+				elems.clear();
 			}
 		}
 
