@@ -245,7 +245,7 @@ int main(int argc, char** argv) {
 
 			// Rate-limit ourselves.
 			// For testing purposes only.
-			sleep(1);
+			//sleep(0.1);
 		}
 	} else {
 		std::cout << "Couldn't open " << filename <<std::endl;
