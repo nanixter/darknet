@@ -126,7 +126,7 @@ int main(int argc, char** argv) {
 
 	ServiceImpl service(argc, argv);
 	//std::string server_address("128.83.122.71:50051");
-	std::string server_address("zemaitis:50051");
+	std::string server_address("server-instance:50051");
 
 	ServerBuilder builder;
 	std::string key;
