@@ -206,7 +206,7 @@ int main(int argc, char** argv) {
 	// localhost at port 50051). We indicate that the channel isn't authenticated
 	// (use of InsecureChannelCredentials()).
 	ImageDetectionClient detectionClient(grpc::CreateCustomChannel(
-			"zemaitis:50051", grpc::SslCredentials(SslCredOpts), ch_args));
+			"server-instance:50051", grpc::SslCredentials(SslCredOpts), ch_args));
 			//"localhost:50051", grpc::InsecureChannelCredentials(), ch_args));
 
 	// Open the input video file
