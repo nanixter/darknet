@@ -139,6 +139,7 @@ class ServerImpl final {
 				// instances can serve different requests concurrently).
 				service_->RequestRequestDetection(&ctx_, &requestMessage, &asyncResponder, cq_, cq_, this);
 			} else if (status_ == READY) {
+				probe_time_start2(&ts_server);
 				// Spawn a new CallData instance to serve new clients while we process
 				// the one for this CallData. The instance will deallocate itself as
 				// part of its FINISH state.
@@ -191,10 +192,14 @@ class ServerImpl final {
 			free_detections(work.dets, work.nboxes);
 
 			status_ = FINISH;
+			std::cout << "Total server time for this frame: " << probe_time_end2(&ts_server) << " milliseconds"<< std::endl;
 			asyncResponder.Finish(this->responseMessage, Status::OK, this);
 		}
 
 	 private:
+		//Total query time from the time we recieve the packet.
+		struct timestamp ts_server;
+
 		// The means of communication with the gRPC runtime for an asynchronous
 		// server.
 		ImageDetection::AsyncService* service_;

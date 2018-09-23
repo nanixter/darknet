@@ -295,7 +295,7 @@ int main(int argc, char** argv) {
 			detectionClient.AsyncSendImage(&image);
 			// Rate-limit ourselves.
 			// For testing purposes only.
-			sleep(1);
+			usleep(17000);
 		}
 	} else {
 		std::cout << "Couldn't open " << filename <<std::endl;

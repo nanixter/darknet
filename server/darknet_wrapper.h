@@ -388,9 +388,9 @@ namespace DarknetWrapper {
 
 		void doDetection() {
 			std::vector<WorkRequest> elems;
-			elems.reserve(10);
+			elems.reserve(4);
 			while(true) {
-				int numImages = 10;
+				int numImages = 4;
 
 				// Wait on the requestQueue
 				requestQueue->pop_front(elems, numImages);

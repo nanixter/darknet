@@ -173,6 +173,7 @@ void cudnn_convolutional_setup(layer *l)
             CUDNN_CONVOLUTION_BWD_FILTER_SPECIFY_WORKSPACE_LIMIT,
             2000000000,
             &l->bf_algo);
+	l->workspace_size = get_workspace_size(*l);
 }
 #endif
 #endif
