@@ -121,10 +121,11 @@ class ServerImpl final {
 		// Take in the "service" instance (in this case representing an asynchronous
 		// server) and the completion queue "cq" used for asynchronous communication
 		// with the gRPC runtime.
-		CallData(ImageDetection::AsyncService* service, ServerCompletionQueue* cq, DetectionQueue *requestQ)
+		CallData(ImageDetection::AsyncService* service, ServerCompletionQueue* cq, DetectionQueue *requestQ, AsyncDetector *detector)
 				: service_(service), cq_(cq), asyncResponder(&ctx_), status_(CREATE) {
 			// Invoke the serving logic right away.
 			this->requestQueue = requestQ;
+			this->detector = detector;
 			scheduleRequest();
 		}
 
@@ -143,13 +144,13 @@ class ServerImpl final {
 				// Spawn a new CallData instance to serve new clients while we process
 				// the one for this CallData. The instance will deallocate itself as
 				// part of its FINISH state.
-				new CallData(service_, cq_, requestQueue);
+				new CallData(service_, cq_, requestQueue, detector);
 
 				// The actual processing.
 				WorkRequest work;
 				work.done = false;
 				work.tag = this;
-				work.frame = requestMessage.GetRoot();
+				work.img = detector->convertImage(requestMessage.GetRoot());
 				work.dets = nullptr;
 				work.nboxes = 0;
 
@@ -211,6 +212,7 @@ class ServerImpl final {
 		ServerContext ctx_;
 
 		DetectionQueue *requestQueue;
+		AsyncDetector *detector;
 
 		// Used to make Flatbuffer messages...
 		flatbuffers::grpc::MessageBuilder messageBuilder;
@@ -231,7 +233,7 @@ class ServerImpl final {
 	// This can be run in multiple threads if needed.
 	void doFirstHalf() {
 		// Spawn a new CallData instance to serve new clients.
-		new CallData(&service, cq_.get(), &requestQueue);
+		new CallData(&service, cq_.get(), &requestQueue, &detector);
 		void* tag;  // uniquely identifies a request.
 		bool ok;
 		while (true) {

@@ -51,7 +51,7 @@ namespace DarknetWrapper {
 	typedef struct
 	{
 		bool done;
-		const darknetServer::KeyFrame *frame;
+		image img;
 		detection *dets;
 		int nboxes;
 		int classes;
@@ -141,23 +141,15 @@ namespace DarknetWrapper {
 			free_network(this->net);
 		}
 
-		void doDetection(WorkRequest &elem) {
-			std::cout << "doDetection: new requeust " << elem.tag << std::endl;
-			probe_time_start2(&ts_detect);
-
-			float nms = .4;
-			set_batch_network(net, 1);
-			layer l = net->layers[net->n-1];
-
+		image convertImage(const darknetServer::KeyFrame *frame) {
 			image newImage;
-			image newImage_letterboxed;
 
 			// Convert to the right format
 			// Allocate memory for data in 'image', based on the size of 'data' in frame
-			newImage.data = new float[elem.frame->data()->size()];
+			newImage.data = new float[frame->data()->size()];
 
 			// Copy from the frame in elem to the 'image' format that darknet uses internally...
-			this->convertFrameToImage(elem.frame, &newImage);
+			this->convertFrameToImage(frame, &newImage);
 
 			//save_image(newImage, "recieved");
 
@@ -166,7 +158,13 @@ namespace DarknetWrapper {
 
 			// Add black borders (letter-boxing) around the image to ensure that the image
 			// is of the correct width and height that YOLO expects.
-			newImage_letterboxed = letterbox_image(newImage, net->w, net->h);
+			return letterbox_image(newImage, net->w, net->h);
+		}
+
+		void doDetection(WorkRequest &elem) {
+			float nms = .4;
+			set_batch_network(net, 1);
+			layer l = net->layers[net->n-1];
 
 			/* Now we finally run the actual network	*/
 			probe_time_start2(&ts_gpu);
@@ -186,37 +184,23 @@ namespace DarknetWrapper {
 //			elem.dets = this->dets;
 //			elem.nboxes = this->nboxes;
 */
-			network_predict(net, newImage_letterboxed.data);
-			elem.dets = get_network_boxes(this->net, newImage.w, newImage.h, 0.5, 0.5, 0, 1, &(elem.nboxes));
+			network_predict(net, elem.img.data);
+			elem.dets = get_network_boxes(this->net, elem.img.w, elem.img.h, 0.5, 0.5, 0, 1, &(elem.nboxes));
 
 			// What the hell does this do?
 			if (nms > 0) {
 				do_nms_obj(elem.dets, elem.nboxes, l.classes, nms);
 			}
 
-			std::cout << elem.tag << " GPU processing took " << probe_time_end2(&ts_gpu) << " milliseconds"<< std::endl;
-
 			elem.classes = l.classes;
 			elem.done = true;
 
-			// Free up allocated memory
-			// delete newImage.data;
-			// free(newImage_letterboxed.data);
-
-			std::cout << elem.tag << " doDetection: took " << probe_time_end2(&ts_detect) << " milliseconds"<< std::endl;
+			std::cout << elem.tag << " GPU processing took " << probe_time_end2(&ts_gpu) << " milliseconds"<< std::endl;
 		}
 
 		void doDetection(std::vector<WorkRequest> &elems, int numImages) {
-			// For N=1, and N=2, just fall back to the 1 image at a time step.
-			if (numImages == 1) {
-				return doDetection(elems[0]);
-			} else if (numImages == 2) {
-				doDetection(elems[0]);
-				doDetection(elems[1]);
-				return;
-			}
 
-			std::cout << "doDetection: new batch requeust. Batch Size = " << numImages << std::endl;
+			std::cout << "doDetection: new batch request. Batch Size = " << numImages << std::endl;
 			probe_time_start2(&ts_detect);
 
 			// Save the address of the l.output for YOLO layers so we can restore it later.
@@ -227,41 +211,17 @@ namespace DarknetWrapper {
 			set_batch_network(net, numImages);
 			layer l = net->layers[net->n-1];
 
-			image newImage[numImages];
 			int bufferSize = 0;
-			int elemNum = 0;
 
-			for (auto elemIterator = elems.begin(); elemIterator != elems.end(); elemIterator++) {
-				auto elem = *elemIterator;
-
-				// Convert to the right format
-				// Allocate memory for data in 'image', based on the size of 'data' in frame
-				newImage[elemNum].data = new float[elem.frame->data()->size()];
-
-				// Copy from the frame in elem to the 'image' format that darknet uses internally...
-				this->convertFrameToImage(elem.frame, &newImage[elemNum]);
-
-				// Convert to the RGBGR format that YOLO operates on..
-				rgbgr_image(newImage[elemNum]);
-
-				// Add black borders (letter-boxing) around the image to ensure that the image
-				// is of the correct width and height that YOLO expects.
-				image newImage_letterboxed = letterbox_image(newImage[elemNum], net->w, net->h);
-				newImage[elemNum].w = newImage_letterboxed.w;
-				newImage[elemNum].h = newImage_letterboxed.h;
-				newImage[elemNum].c = newImage_letterboxed.c;
-				//delete newImage[elemNum].data;
-				newImage[elemNum].data = newImage_letterboxed.data;
-				bufferSize += net->h*net->w*newImage[elemNum].c;
-				elemNum++;
-			}
+			for (int elemNum = 0; elemNum < numImages; elemNum++)
+				bufferSize += net->h*net->w*elems[elemNum].img.c;
 
 			// Copy all the images into 1 buffer.
 			float *dataToProcess = new float[bufferSize*sizeof(float)];
-			for (int i = 0 ; i < numImages; i++) {
-				int imgSize = net->h*net->w*newImage[i].c;
-				std::memcpy(dataToProcess+i*imgSize, newImage[i].data, imgSize*sizeof(float));
-				//free(newImage[i].data);
+			for (int elemNum = 0 ; elemNum < numImages; elemNum++) {
+				int imgSize = net->h*net->w*elems[elemNum].img.c;
+				std::memcpy(dataToProcess+elemNum*imgSize, elems[elemNum].img.data,
+							imgSize*sizeof(float));
 			}
 
 			 // Now we finally run the actual network
@@ -270,18 +230,17 @@ namespace DarknetWrapper {
 			network_predict(net, dataToProcess);
 
 			// Copy the detected boxes into the appropriate WorkRequest
-			for (int i = 0 ; i < numImages; i++) {
-				elems[i].dets = get_network_boxes(this->net, newImage[i].w, newImage[i].h,
-													0.5, 0.5, 0, 1, &(elems[i].nboxes));
+			for (int elemNum = 0 ; elemNum < numImages; elemNum++) {
+				elems[elemNum].dets = get_network_boxes(this->net, elems[elemNum].img.w, elems[elemNum].img.h,0.5, 0.5, 0, 1, &(elems[elemNum].nboxes));
 				// What the hell does this do?
 				if (nms > 0) {
-					do_nms_obj(elems[i].dets, elems[i].nboxes, l.classes, nms);
+					do_nms_obj(elems[elemNum].dets, elems[elemNum].nboxes, l.classes, nms);
 				}
 				// Darknet batching is kinda broken.
 				// Gotta do this nonsense to set the l.output to the right address
 				shiftOutput();
-				elems[i].classes = l.classes;
-				elems[i].done = true;
+				elems[elemNum].classes = l.classes;
+				elems[elemNum].done = true;
 
 			}
 			restoreOutputAddr();
@@ -396,7 +355,15 @@ namespace DarknetWrapper {
 				requestQueue->pop_front(elems, numImages);
 
 				// Do the detection
-				Detector::doDetection(elems, numImages);
+				// For N=1, and N=2, just fall back to the 1 image at a time step.
+				if (numImages == 1) {
+					Detector::doDetection(elems[0]);
+				} else if (numImages == 2) {
+					Detector::doDetection(elems[0]);
+					Detector::doDetection(elems[1]);
+				} else{
+					Detector::doDetection(elems, numImages);
+				}
 
 				// Put the result back on the completionQueue.
 				completionQueue->push_back(elems);

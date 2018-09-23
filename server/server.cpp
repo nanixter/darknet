@@ -55,7 +55,7 @@ class ServiceImpl final : public ImageDetection::Service {
 		WorkRequest work;
 		work.done = false;
 		work.tag = this;
-		work.frame = requestMessage->GetRoot();
+		work.img = detector.convertImage(requestMessage->GetRoot());
 		work.dets = nullptr;
 		work.nboxes = 0;
 		work.classes = 0;
