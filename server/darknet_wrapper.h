@@ -345,6 +345,10 @@ namespace DarknetWrapper {
 			Detector::Shutdown();
 		}
 
+		image convertImage(const darknetServer::KeyFrame *frame) {
+			return Detector::convertImage(frame);
+		}
+
 		void doDetection() {
 			std::vector<WorkRequest> elems;
 			elems.reserve(4);
