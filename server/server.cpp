@@ -42,7 +42,7 @@ class ServiceImpl final : public ImageDetection::Service {
 
 	// TODO: Catch terminate signals and actually do clean up.
 	explicit ServiceImpl(int argc, char** argv) {
-		detector.Init(argc, argv);
+		detector.Init(argc, argv, 0);
 	}
 
 	Status RequestDetection(::grpc::ServerContext* context,

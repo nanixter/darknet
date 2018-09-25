@@ -115,12 +115,12 @@ namespace DarknetWrapper {
 	class Detector {
 	public:
 
-		void Init(int argc, char** argv) {
+		void Init(int argc, char** argv, int gpuNo) {
 			// Initialization: Load config files, labels, graph, etc.,
 			// Config the GPU and get into a thread that is ready to accept
 			// images for detection.
 			#ifdef GPU
-			cuda_set_device(0);
+			cuda_set_device(gpuNo);
 			#endif
 			char *datacfg = argv[1];
 			char *cfgfile = argv[2];
@@ -331,11 +331,11 @@ namespace DarknetWrapper {
 	class AsyncDetector : Detector
 	{
 	  public:
-		void Init(int argc, char** argv, DetectionQueue *requestQueue, DetectionQueue *completionQueue) {
+		void Init(int argc, char** argv, DetectionQueue *requestQueue, DetectionQueue *completionQueue, int gpuNo) {
 			// Store pointers to the workQueues
 			this->requestQueue = requestQueue;
 			this->completionQueue = completionQueue;
-			Detector::Init(argc, argv);
+			Detector::Init(argc, argv, gpuNo);
 		}
 
 		void Shutdown() {

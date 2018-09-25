@@ -12,6 +12,7 @@
 #include <grpc/support/log.h>
 #include <thread>
 #include <sys/time.h>
+#include <pthread.h>
 
 #define FLATBUFFERS_DEBUG_VERIFICATION_FAILURE
 #include "darknetserver.grpc.fb.h"
@@ -34,11 +35,11 @@ using DarknetWrapper::WorkRequest;
 using DarknetWrapper::DetectionQueue;
 using DarknetWrapper::AsyncDetector;
 
-
 class ServerImpl final {
- public:
+  public:
 	~ServerImpl() {
-		detector.Shutdown();
+		for (int i = 0; i <4; i++)
+			detector[i].Shutdown();
 		server_->Shutdown();
 		// Always shutdown the completion queue after the server.
 		cq_->Shutdown();
@@ -49,12 +50,24 @@ class ServerImpl final {
 		std::string server_address("zemaitis:50051");
 		//std::string server_address("128.83.122.71:50051");
 
+		std::vector<std::thread> detectionThreads(4);
+		int cpuMapping[4] = {0,1,12,13};
 		// Initialize detector - pass it the request and completion queues
 		// Initialization must be done before launching the detection thread.
-		detector.Init(argc, argv, &requestQueue, &completionQueue);
-
-		// start a Thread to run doDetection
-		std::thread detectionThread(&AsyncDetector::doDetection, &detector);
+		for (int i = 0; i < 4; i++) {
+			detector[i].Init(argc, argv, &requestQueue[i], &completionQueue[i], i);
+			// start a Thread per GPU to run doDetection
+			detectionThreads[i] = std::thread(&AsyncDetector::doDetection, &detector[i]);
+			// Create a cpu_set_t object representing a set of CPUs. Clear it and mark
+			// only CPU i as set.
+			cpu_set_t cpuset;
+			CPU_ZERO(&cpuset);
+			// 0 -> 0; 1 -> 24; 2 -> 12; 3 -> 36;
+			CPU_SET(cpuMapping[i], &cpuset);
+			int rc = pthread_setaffinity_np(detectionThreads[i].native_handle(), sizeof(cpu_set_t), &cpuset);
+			if (rc != 0) 
+				std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+		}
 
 		ServerBuilder builder;
 		std::string key;
@@ -88,16 +101,51 @@ class ServerImpl final {
 
 		std::cout << "Server listening on " << server_address << std::endl;
 
-		// Start the thread that handles the second half of the processing.
-		std::thread laterHalfThread(&ServerImpl::doLaterHalf, this);
+		// Start the threads that handle the second half of the processing.
+		std::vector<std::thread> laterHalfThreads(8);
+		int cpuNums_bottom[8] = {2,3,4,5,14,15,16,17};
+		for (int i = 0; i < 8; i++) {
+			// Thread: 0 1 2 3 4 5 6 7
+			// GPU:    0 0 1 1 2 2 3 3
+			laterHalfThreads[i] = std::thread(&ServerImpl::doLaterHalf, this, i/2);
+			// Create a cpu_set_t object representing a set of CPUs. Clear it and mark
+			// only CPU i as set.
+			cpu_set_t cpuset;
+			CPU_ZERO(&cpuset);
+			CPU_SET(cpuNums_bottom[i], &cpuset);
+			int rc = pthread_setaffinity_np(laterHalfThreads[i].native_handle(), sizeof(cpu_set_t), &cpuset);
+			if (rc != 0) 
+				std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+		}
+		
+		// Start the threads that handle the first half of the processing.
+		std::vector<std::thread> frontHalfThreads(8);
+		int cpuNums_front[8] = {7,8,9,10,19,20,21,22};
+		for (int i = 0; i < 8; i++) {
+			// Thread: 0 1 2 3 4 5 6 7
+			// GPU:    0 0 1 1 2 2 3 3
+			frontHalfThreads[i] = std::thread(&ServerImpl::doFirstHalf, this, i/2);
+			// Create a cpu_set_t object representing a set of CPUs. Clear it and mark
+			// only CPU i as set.
+			cpu_set_t cpuset;
+			CPU_ZERO(&cpuset);
+			CPU_SET(cpuNums_front[i], &cpuset);
+			int rc = pthread_setaffinity_np(frontHalfThreads[i].native_handle(), sizeof(cpu_set_t), &cpuset);
+			if (rc != 0) 
+				std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+		}
 
 		// The server's main loop.
-		doFirstHalf();
+		//doFirstHalf();
 
 		// Wait for the other threads to finish
 		// What's the point of this. doFirstHalf never returns anyways...
-		detectionThread.join();
-		laterHalfThread.join();
+		for (auto &thread: frontHalfThreads)
+			thread.join();
+		for (auto &thread: laterHalfThreads)
+			thread.join();
+		for (auto& thread: detectionThreads)
+			thread.join();
 	}
 
  private:
@@ -231,9 +279,9 @@ class ServerImpl final {
 	};
 
 	// This can be run in multiple threads if needed.
-	void doFirstHalf() {
+	void doFirstHalf(int gpuNum) {
 		// Spawn a new CallData instance to serve new clients.
-		new CallData(&service, cq_.get(), &requestQueue, &detector);
+		new CallData(&service, cq_.get(), &requestQueue[gpuNum], &detector[gpuNum]);
 		void* tag;  // uniquely identifies a request.
 		bool ok;
 		while (true) {
@@ -244,22 +292,24 @@ class ServerImpl final {
 			// tells us whether there is any kind of event or cq_ is shutting down.
 			GPR_ASSERT(cq_->Next(&tag, &ok));
 			GPR_ASSERT(ok);
+			std::cout <<"Thread " << std::this_thread::get_id() << " received an image. Scheduling to GPU " << gpuNum << std::endl;
 			static_cast<CallData*>(tag)->scheduleRequest();
 		}
 	}
 
-	void doLaterHalf() {
+	void doLaterHalf(int gpuNum) {
 		while(true) {
 			WorkRequest work;
-			completionQueue.pop_front(work);
+			completionQueue[gpuNum].pop_front(work);
+			std::cout <<"Thread " << std::this_thread::get_id() << " doing laterHalf. From GPU " <<gpuNum << std::endl;
 			static_cast<CallData*>(work.tag)->completeRequest(work);
 		}
 	}
 
 	// Darknet detector
-	AsyncDetector detector;
-	DetectionQueue requestQueue;
-	DetectionQueue completionQueue;
+	AsyncDetector detector[4];
+	DetectionQueue requestQueue[4];
+	DetectionQueue completionQueue[4];
 
 	std::unique_ptr<ServerCompletionQueue> cq_;
 	ImageDetection::AsyncService service;
