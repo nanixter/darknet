@@ -51,6 +51,7 @@ namespace DarknetWrapper {
 	typedef struct
 	{
 		bool done;
+		bool cancelled;
 		image img;
 		detection *dets;
 		int nboxes;
@@ -62,13 +63,13 @@ namespace DarknetWrapper {
 	{
 	public:
 
-		void push_back(WorkRequest elem) {
+		void push_back(WorkRequest &elem) {
 			std::lock_guard<std::mutex> lock(this->mutex);
 			this->queue.push(elem);
 			this->cv.notify_one();
 		}
 
-		void push_back(std::vector<WorkRequest> elems) {
+		void push_back(std::vector<WorkRequest> &elems) {
 			std::lock_guard<std::mutex> lock(this->mutex);
 			for (auto elemIterator = elems.begin(); elemIterator != elems.end(); elemIterator++) {
 				this->queue.push(*elemIterator);
@@ -184,6 +185,10 @@ namespace DarknetWrapper {
 //			elem.dets = this->dets;
 //			elem.nboxes = this->nboxes;
 */
+			// If the rug got pulled out from underneath us...
+			if (elem.cancelled == true)
+				return;
+
 			network_predict(net, elem.img.data);
 			elem.dets = get_network_boxes(this->net, elem.img.w, elem.img.h, 0.5, 0.5, 0, 1, &(elem.nboxes));
 
@@ -223,6 +228,17 @@ namespace DarknetWrapper {
 				std::memcpy(dataToProcess+elemNum*imgSize, elems[elemNum].img.data,
 							imgSize*sizeof(float));
 			}
+
+			// If at least one of the images is not cancelled, go through with it...
+			bool process = false;
+			for (int elemNum = 0 ; elemNum < numImages; elemNum++) {
+				if (elems[elemNum].cancelled == false) {
+					process = true;
+				}
+			}
+
+			if (!process)
+				return;
 
 			 // Now we finally run the actual network
 			probe_time_start2(&ts_gpu);

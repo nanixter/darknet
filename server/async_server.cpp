@@ -23,6 +23,7 @@ using grpc::ServerBuilder;
 using grpc::ServerContext;
 using grpc::ServerCompletionQueue;
 using grpc::Status;
+using grpc::StatusCode;
 using darknetServer::DetectedObjects;
 using darknetServer::DetectedObject;
 using darknetServer::KeyFrame;
@@ -65,7 +66,7 @@ class ServerImpl final {
 			// 0 -> 0; 1 -> 24; 2 -> 12; 3 -> 36;
 			CPU_SET(cpuMapping[i], &cpuset);
 			int rc = pthread_setaffinity_np(detectionThreads[i].native_handle(), sizeof(cpu_set_t), &cpuset);
-			if (rc != 0) 
+			if (rc != 0)
 				std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
 		}
 
@@ -114,10 +115,10 @@ class ServerImpl final {
 			CPU_ZERO(&cpuset);
 			CPU_SET(cpuNums_bottom[i], &cpuset);
 			int rc = pthread_setaffinity_np(laterHalfThreads[i].native_handle(), sizeof(cpu_set_t), &cpuset);
-			if (rc != 0) 
+			if (rc != 0)
 				std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
 		}
-		
+
 		// Start the threads that handle the first half of the processing.
 		std::vector<std::thread> frontHalfThreads(8);
 		int cpuNums_front[8] = {7,8,9,10,19,20,21,22};
@@ -131,7 +132,7 @@ class ServerImpl final {
 			CPU_ZERO(&cpuset);
 			CPU_SET(cpuNums_front[i], &cpuset);
 			int rc = pthread_setaffinity_np(frontHalfThreads[i].native_handle(), sizeof(cpu_set_t), &cpuset);
-			if (rc != 0) 
+			if (rc != 0)
 				std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
 		}
 
@@ -178,10 +179,15 @@ class ServerImpl final {
 		}
 
 		void scheduleRequest() {
+			// Check if the request got cancelled from underneath us. :D
+			//if (ctx_.IsCancelled()){
+			//	work.cancelled = true;
+			//	status_ = CANCELLED;
+			//}
 			if (status_ == CREATE) {
 				// Make this instance progress to the PROCESS state.
 				status_ = READY;
-
+				//ctx_.AsyncNotifyWhenDone(this);
 				// As part of the initial CREATE state, we *request* that the system
 				// start processing RequestDetection requests. In this request, "this" acts as
 				// the tag uniquely identifying the request (so that different CallData
@@ -195,8 +201,8 @@ class ServerImpl final {
 				new CallData(service_, cq_, requestQueue, detector);
 
 				// The actual processing.
-				WorkRequest work;
 				work.done = false;
+				work.cancelled = false;
 				work.tag = this;
 				work.img = detector->convertImage(requestMessage.GetRoot());
 				work.dets = nullptr;
@@ -204,45 +210,55 @@ class ServerImpl final {
 
 				requestQueue->push_back(work);
 				status_ = PROCESSING;
-			} else {
-				GPR_ASSERT(status_ == FINISH);
+			} else if (status_ == FINISH) {
 				// Once in the FINISH state, deallocate ourselves (CallData).
 				delete this;
+			} else {
+				// How'd we get here?
+				std::cout << "scheduleRequest: Invalid Status_" <<std::endl;
+				GPR_ASSERT(0);
 			}
 		}
 
 		void completeRequest(WorkRequest &work) {
-			GPR_ASSERT(status_ == PROCESSING);
-			GPR_ASSERT(work.done == true);
-			GPR_ASSERT(work.dets != nullptr);
+			if (status_ == PROCESSING) {
+				GPR_ASSERT(work.done == true);
+				GPR_ASSERT(work.dets != nullptr);
 
-			std::vector<flatbuffers::Offset<DetectedObject>> objects;
-			int numObjects = 0;
-			detection *dets = work.dets;
-			for (int i = 0; i < work.nboxes; i++) {
-				if(dets[i].objectness == 0) continue;
-				bbox box(dets[i].bbox.x, dets[i].bbox.y, dets[i].bbox.w, dets[i].bbox.h);
-				std::vector<float> prob;
-				for (int j = 0; j < work.classes; j++) {
-					prob.push_back(dets[i].prob[j]);
+				std::vector<flatbuffers::Offset<DetectedObject>> objects;
+				int numObjects = 0;
+				detection *dets = work.dets;
+				for (int i = 0; i < work.nboxes; i++) {
+					if(dets[i].objectness == 0) continue;
+					bbox box(dets[i].bbox.x, dets[i].bbox.y, dets[i].bbox.w, dets[i].bbox.h);
+					std::vector<float> prob;
+					for (int j = 0; j < work.classes; j++) {
+						prob.push_back(dets[i].prob[j]);
+					}
+					auto objectOffset = darknetServer::CreateDetectedObjectDirect(messageBuilder, &box, dets[i].classes, dets[i].objectness, dets[i].sort_class, &prob);
+					objects.push_back(objectOffset);
+					numObjects++;
 				}
-				auto objectOffset = darknetServer::CreateDetectedObjectDirect(messageBuilder, &box, dets[i].classes, dets[i].objectness, dets[i].sort_class, &prob);
-				objects.push_back(objectOffset);
-				numObjects++;
+
+				flatbuffers::Offset<DetectedObjects> detectedObjectsOffset = darknetServer::CreateDetectedObjectsDirect(messageBuilder, numObjects, &objects);
+
+				messageBuilder.Finish(detectedObjectsOffset);
+				this->responseMessage = messageBuilder.ReleaseMessage<DetectedObjects>();
+				GPR_ASSERT(this->responseMessage.Verify());
+
+				// Clean up
+				free_detections(work.dets, work.nboxes);
+				status_ = FINISH;
+				std::cout << "Total server time for this frame: " << probe_time_end2(&ts_server) << " milliseconds"<< std::endl;
+				asyncResponder.Finish(this->responseMessage, Status::OK, this);
+			} else if (status_ == CANCELLED) {
+				status_ = FINISH;
+				asyncResponder.FinishWithError(Status(StatusCode::DEADLINE_EXCEEDED, "Deadline exceeded or client cancelled?"), this);
+			} else {
+				// How'd we get here?
+				std::cout << "CompleteRequest: Invalid Status_" <<std::endl;
+				GPR_ASSERT(0);
 			}
-
-			flatbuffers::Offset<DetectedObjects> detectedObjectsOffset = darknetServer::CreateDetectedObjectsDirect(messageBuilder, numObjects, &objects);
-
-			messageBuilder.Finish(detectedObjectsOffset);
-			this->responseMessage = messageBuilder.ReleaseMessage<DetectedObjects>();
-			GPR_ASSERT(this->responseMessage.Verify());
-
-			// Clean up
-			free_detections(work.dets, work.nboxes);
-
-			status_ = FINISH;
-			std::cout << "Total server time for this frame: " << probe_time_end2(&ts_server) << " milliseconds"<< std::endl;
-			asyncResponder.Finish(this->responseMessage, Status::OK, this);
 		}
 
 	 private:
@@ -259,6 +275,8 @@ class ServerImpl final {
 		// client.
 		ServerContext ctx_;
 
+		WorkRequest work;
+
 		DetectionQueue *requestQueue;
 		AsyncDetector *detector;
 
@@ -274,7 +292,7 @@ class ServerImpl final {
 		ServerAsyncResponseWriter<flatbuffers::grpc::Message<DetectedObjects>> asyncResponder;
 
 		// Let's implement a tiny state machine with the following states.
-		enum CallStatus { CREATE, READY, PROCESSING, FINISH };
+		enum CallStatus { CREATE, READY, PROCESSING, CANCELLED, FINISH };
 		CallStatus status_;  // The current serving state.
 	};
 
@@ -292,7 +310,6 @@ class ServerImpl final {
 			// tells us whether there is any kind of event or cq_ is shutting down.
 			GPR_ASSERT(cq_->Next(&tag, &ok));
 			GPR_ASSERT(ok);
-			std::cout <<"Thread " << std::this_thread::get_id() << " received an image. Scheduling to GPU " << gpuNum << std::endl;
 			static_cast<CallData*>(tag)->scheduleRequest();
 		}
 	}
@@ -301,7 +318,6 @@ class ServerImpl final {
 		while(true) {
 			WorkRequest work;
 			completionQueue[gpuNum].pop_front(work);
-			std::cout <<"Thread " << std::this_thread::get_id() << " doing laterHalf. From GPU " <<gpuNum << std::endl;
 			static_cast<CallData*>(work.tag)->completeRequest(work);
 		}
 	}
