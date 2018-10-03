@@ -28,6 +28,12 @@ using darknetServer::DetectedObjects;
 using darknetServer::KeyFrame;
 using darknetServer::ImageDetection;
 
+#include "darknet_wrapper.h"
+
+using DarknetWrapper::WorkRequest;
+using DarknetWrapper::Detector;
+
+/*
 struct timestamp {
     struct timeval start;
     struct timeval end;
@@ -57,7 +63,7 @@ float probe_time_end2(struct timestamp *ts)
 	tvsub(&ts->end, &ts->start, &tv);
 	return (tv.tv_sec * 1000.0 + (float) tv.tv_usec / 1000.0);
 }
-
+*/
 typedef struct {
 	int width;
 	int height;
@@ -186,6 +192,26 @@ void readFile(const std::string& filename, std::string& data)
 }
 
 int main(int argc, char** argv) {
+	// Open the input video file
+	// TODO: Fork multiple processes and send multiple video streams.
+	char *filename;
+	bool local = false;
+	for(int i = 0; i < argc-1; ++i){
+		if(0==strcmp(argv[i], "-f")){
+			filename = argv[i+1];
+		} else if (0==strcmp(argv[i], "-L")) {
+			local = true;
+		}
+	}
+	if (NULL == filename) {
+		std::cout << "Usage:" << std::endl << argv[0] << " -f <vid_file>" << std::endl;
+		return -1;
+	}
+	printf("video file: %s\n", filename);
+	local = true;
+	std::cout << "local = " << local <<std::endl;
+	std::cout << "Press control-c to quit at any point" << std::endl;
+
 	// Used to override default gRPC channel values.
 	grpc::ChannelArguments ch_args;
 	// Our images tend to be ~4MiB. gRPC's default MaxMessageSize is much smaller.
@@ -206,24 +232,9 @@ int main(int argc, char** argv) {
 	// localhost at port 50051). We indicate that the channel isn't authenticated
 	// (use of InsecureChannelCredentials()).
 	ImageDetectionClient detectionClient(grpc::CreateCustomChannel(
-			"zemaitis:50051", grpc::SslCredentials(SslCredOpts), ch_args));
-			//"localhost:50051", grpc::InsecureChannelCredentials(), ch_args));
-
-	// Open the input video file
-	// TODO: Fork multiple processes and send multiple video streams.
-	char *filename;
-	for(int i = 0; i < argc-1; ++i){
-		if(0==strcmp(argv[i], "-f")){
-			filename = argv[i+1];
-		}
-	}
-	if (NULL == filename) {
-		std::cout << "Usage:" << std::endl << argv[0] << " -f <vid_file>" << std::endl;
-		return -1;
-	}
-	printf("video file: %s\n", filename);
-	std::cout << "Press control-c to quit at any point" << std::endl;
-
+		"zemaitis:50051", grpc::SslCredentials(SslCredOpts), ch_args));
+		//"localhost:50051", grpc::InsecureChannelCredentials(), ch_args));
+	
 	// Open the video file and read video frames.
 	// TODO: We may want to move this over the server, and stream a video instead...
 	cv::VideoCapture capture(filename);
@@ -231,21 +242,54 @@ int main(int argc, char** argv) {
 	if (capture.isOpened()) {
 		cv::Mat capturedFrame;
 		struct timestamp ts_perframe;
-		while(capture.read(capturedFrame)) {
-			probe_time_start2(&ts_perframe);
-			// Resize image to 410x410
-			cv::Mat resizedFrame = resizeKeepAspectRatio(capturedFrame, cv::Size(416, 416), cv::Scalar(0,0,0));
-			// Convert the image from cv::Mat to the image format that darknet expects
-			Image image = getImageFromMat(&resizedFrame);
-			// Image image = getImageFromMat(&capturedFrame);
+		if(local) {
+			Detector detector;
+			detector.Init(argc, argv, 0);
+			while(capture.read(capturedFrame)) {
+				probe_time_start2(&ts_perframe);
+				// Resize image to 410x410
+				cv::Mat resizedFrame = resizeKeepAspectRatio(capturedFrame, cv::Size(416, 416), cv::Scalar(0,0,0));
+				// Convert the image from cv::Mat to the image format that darknet expects
+				Image image2 = getImageFromMat(&resizedFrame);
 
-			// The actual RPC call!
-			detectionClient.sendImage(&image);
-			std::cout << "Frame took " << probe_time_end2(&ts_perframe) << " milliseconds"<< std::endl;
+				// Do detection locally
+				WorkRequest work;
+				work.done = false;
+				work.tag = &work;
+				work.dets = nullptr;
+				work.nboxes = 0;
+				work.classes = 0;
+				work.cancelled = false;
 
-			// Rate-limit ourselves.
-			// For testing purposes only.
-			//sleep(0.1);
+				image newImage;
+				newImage.w = image2.width;
+				newImage.h = image2.height;
+				newImage.c = image2.numChannels;
+				newImage.data = image2.data;
+				work.img = detector.convertImage(&newImage);
+
+				// The actual processing.
+				detector.doDetection(work);
+
+				// Copy detected objects to the Request
+				GPR_ASSERT(work.done == true);
+				GPR_ASSERT(work.dets != nullptr);
+				free_detections(work.dets, work.nboxes);
+				usleep(10000);
+				std::cout << "Frame took " << probe_time_end2(&ts_perframe) << " milliseconds"<< std::endl;
+			}
+		} else {
+			while(capture.read(capturedFrame)) {
+				probe_time_start2(&ts_perframe);
+				// Resize image to 410x410
+				cv::Mat resizedFrame = resizeKeepAspectRatio(capturedFrame, cv::Size(416, 416), cv::Scalar(0,0,0));
+				// Convert the image from cv::Mat to the image format that darknet expects
+				Image image = getImageFromMat(&resizedFrame);
+
+				// The actual RPC call!
+				detectionClient.sendImage(&image);
+				std::cout << "Frame took " << probe_time_end2(&ts_perframe) << " milliseconds"<< std::endl;
+			}
 		}
 	} else {
 		std::cout << "Couldn't open " << filename <<std::endl;

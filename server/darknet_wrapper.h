@@ -142,6 +142,15 @@ namespace DarknetWrapper {
 			free_network(this->net);
 		}
 
+		image convertImage(image *newImage) {
+			// Convert to the RGBGR format that YOLO operates on..
+			rgbgr_image(*newImage);
+
+			// Add black borders (letter-boxing) around the image to ensure that the image
+			// is of the correct width and height that YOLO expects.
+			return letterbox_image(*newImage, net->w, net->h);
+		}
+
 		image convertImage(const darknetServer::KeyFrame *frame) {
 			image newImage;
 
