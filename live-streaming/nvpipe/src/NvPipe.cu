@@ -912,6 +912,7 @@ private:
     NvPipe_Codec codec;
     uint32_t width = 0;
     uint32_t height = 0;
+    bool copyToHost = false;
 
     std::unique_ptr<NvDecoder> decoder;
     int64_t n = 0;

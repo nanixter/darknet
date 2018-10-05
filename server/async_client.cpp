@@ -89,10 +89,10 @@ Image getImageFromMat(cv::Mat *m)
 	image.widthStep = (int)m->step;
 	image.data = new float[image.height*image.width*image.numChannels]();
 
-	for(int i = 0; i < image.height; ++i){
-		for(int k= 0; k < image.numChannels; ++k){
-			for(int j = 0; j < image.width; ++j){
-				image.data[(k*image.width*image.height + i*image.width + j)] = m->data[i*image.widthStep + j*image.numChannels + k]/255.0;
+	for(int h = 0; h < image.height; ++h){
+		for(int c= 0; c < image.numChannels; ++c){
+			for(int w = 0; w < image.width; ++w){
+				image.data[(c*image.width*image.height + h*image.width + w)] = m->data[h*image.widthStep + w*image.numChannels + c]/255.0;
 			}
 		}
 	}

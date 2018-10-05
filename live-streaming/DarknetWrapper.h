@@ -59,8 +59,7 @@ namespace DarknetWrapper {
 		void *tag;
 	} WorkRequest;
 
-	class DetectionQueue
-	{
+	class DetectionQueue {
 	public:
 
 		void push_back(WorkRequest &elem) {

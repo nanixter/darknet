@@ -56,7 +56,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 # NvPipe shared library
 list(APPEND NVPIPE_SOURCES
     src/NvPipe.cu
-    src/NvCodec/Utils/ColorSpace.cu
+    NvCodec/Utils/ColorSpace.cu
     )
 list(APPEND NVPIPE_LIBRARIES
     ${CMAKE_DL_LIBS}
@@ -66,14 +66,14 @@ list(APPEND NVPIPE_LIBRARIES
 
 if (NVPIPE_WITH_ENCODER)
     list(APPEND NVPIPE_SOURCES
-        src/NvCodec/NvEncoder/NvEncoder.cpp
-        src/NvCodec/NvEncoder/NvEncoderCuda.cpp
+        NvCodec/NvEncoder/NvEncoder.cpp
+        NvCodec/NvEncoder/NvEncoderCuda.cpp
         )
 endif()
 
 if (NVPIPE_WITH_DECODER)
     list(APPEND NVPIPE_SOURCES
-        src/NvCodec/NvDecoder/NvDecoder.cpp
+        NvCodec/NvDecoder/NvDecoder.cpp
         )
     list(APPEND NVPIPE_LIBRARIES
         nvcuvid
@@ -88,7 +88,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
     $<INSTALL_INTERFACE:$<INSTALL_PREFIX>/include>
     )
 target_include_directories(${PROJECT_NAME} PRIVATE
-    $<BUILD_INTERFACE:src/NvCodec ${CUDA_INCLUDE_DIRS}>
+    $<BUILD_INTERFACE:NvCodec ${CUDA_INCLUDE_DIRS}>
     )
 target_link_libraries(${PROJECT_NAME} ${NVPIPE_LIBRARIES})
 
