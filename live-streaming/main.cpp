@@ -13,10 +13,13 @@
 #include <cuda_runtime_api.h>
 
 // Custom C++ Wrapper around Darknet.
-#include "DarknetWrapper.h"
+//#include "DarknetWrapper.h"
 
 // Simple wrapper around NVDEC and NVENC distributed by NVIDIA
 #include <NvPipe.h>
+
+#include "NvCodec/Utils/Logger.h"
+simplelogger::Logger *logger = simplelogger::LoggerFactory::CreateConsoleLogger();
 
 // Utils from NVIDIA to DEMUX and MUX video streams
 #include "NvCodec/Utils/FFmpegDemuxer.h"
@@ -51,15 +54,15 @@ int main(int argc, char* argv[])
 
 	// NvPipe only supports H264 and HEVC, though
 
-	const NvPipe_Codec codec;
+	NvPipe_Codec codec;
 	uint32_t width = demuxer.GetWidth();
 	uint32_t height = demuxer.GetHeight();
 	uint32_t bitDepth = demuxer.GetBitDepth();
+	AVRational inTimeBase = demuxer.GetTimeBase();
 	switch(demuxer.GetVideoCodec())	{
 		case AV_CODEC_ID_H264:
 			codec = NVPIPE_H264;
 			break;
-		case AV_CODEC_ID_HEVC:
 		case AV_CODEC_ID_H265:
 			codec = NVPIPE_HEVC;
 			break;
@@ -83,14 +86,18 @@ int main(int argc, char* argv[])
 		std::cerr << "Failed to create encoder: " << NvPipe_GetError(NULL) << std::endl;
 
 	// Create the output stream writer wrapper
-	FFmpegStreamer muxer(AV_CODEC_ID_H264, width, height, targetFPS, "./scaled.mp4")
+	FFmpegStreamer muxer(AV_CODEC_ID_H264, width, height, targetFPS, inTimeBase, "./scaled.mp4");
 
 	uint8_t *compressedFrame = nullptr;
 	int compressedFrameSize = 0;
+	int pts = 0;
+
+	// NvPipe is a shitty API. Expects us to allocate a buffer for it to output to.. WTF...	
+	uint8_t *compressedOutFrame = new uint8_t[20000];
 
 	Timer timer;
 	// In a loop, grab compressed frames from the demuxer.
-	while(demuxer.Demux(&compressedFrame, &compressedFrameSize)) {
+	while(demuxer.Demux(&compressedFrame, &compressedFrameSize, &pts)) {
 		timer.reset();
 		// Allocate GPU memory and copy the compressed Frame to it
 		void* compressedFrameDevice;
@@ -106,14 +113,13 @@ int main(int argc, char* argv[])
 			std::cerr << "Decode error: " << NvPipe_GetError(decoder) << std::endl;
 
 		// Encode the processed Frame
-		uint64_t size = NvPipe_Encode(encoder, decompressedFrameDevice, width * 4, compressedFrameDevice, compressedFrameSize, width, height, false);
+		uint64_t size = NvPipe_Encode(encoder, decompressedFrameDevice, width * 4, compressedOutFrame, 20000, width, height, false);
 		if (0 == size)
 			std::cerr << "Encode error: " << NvPipe_GetError(encoder) << std::endl;
 
-		cudaMemcpy(compressedFrame, compressedFrameDevice, size, cudaMemcpyDeviceToHost);
 		// MUX the frame
-		muxer.Stream(compressedFrame, size, demuxer.GetPTS());
-		std::cout << "Frame took " << timer.getElapsedMilliseconds() << "ms." <<std::endl ;
+		std::cout <<"Calling Stream. packet Pts = " << pts <<std::endl;
+		muxer.Stream(compressedOutFrame, size, pts/30.0);
 		cudaFree(compressedFrameDevice);
 		cudaFree(decompressedFrameDevice);
 	}

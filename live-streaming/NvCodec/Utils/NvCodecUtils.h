@@ -16,7 +16,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
-#include "Logger.h"
+#include "./Logger.h"
 #include <thread>
 
 extern simplelogger::Logger *logger;

@@ -638,7 +638,7 @@ private:
             }
             else
             {
-                throw Exception("Encode output buffer overflow");
+                throw Exception("Encode output buffer overflow. Min size (could be greater. Failed when trying to copy to this size)= "+std::to_string(size+ p.size()));
             }
         }
 

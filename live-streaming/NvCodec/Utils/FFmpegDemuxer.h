@@ -16,6 +16,7 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 }
 #include "NvCodecUtils.h"
+#include "../NvDecoder/cuviddec.h"
 
 class FFmpegDemuxer {
 private:
@@ -147,19 +148,19 @@ public:
     int GetWidth() {
         return nWidth;
     }
-    int64_t GetPTS() {
-        return pkt.pts;
-    }
     int GetHeight() {
         return nHeight;
     }
     int GetBitDepth() {
         return nBitDepth;
     }
+	AVRational GetTimeBase() {
+		return fmtc->streams[iVideoStream]->time_base; 
+	}
     int GetFrameSize() {
         return nBitDepth == 8 ? nWidth * nHeight * 3 / 2: nWidth * nHeight * 3;
     }
-    bool Demux(uint8_t **ppVideo, int *pnVideoBytes) {
+    bool Demux(uint8_t **ppVideo, int *pnVideoBytes, int *pts) {
         if (!fmtc) {
             return false;
         }
@@ -186,9 +187,11 @@ public:
             ck(av_bsf_receive_packet(bsfc, &pktFiltered));
             *ppVideo = pktFiltered.data;
             *pnVideoBytes = pktFiltered.size;
+			*pts = pktFiltered.pts;
         } else {
             *ppVideo = pkt.data;
             *pnVideoBytes = pkt.size;
+			*pts = pkt.pts;
         }
 
         return true;

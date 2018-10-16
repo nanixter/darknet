@@ -41,7 +41,7 @@ endif()
 find_package(CUDA REQUIRED)
 
 set (CMAKE_CXX_STANDARD 11)
-list(APPEND CUDA_NVCC_FLAGS "-std=c++11")
+list(APPEND CUDA_NVCC_FLAGS "-std=c++11 -g ")
 
 # Options
 option(NVPIPE_WITH_ENCODER "Enables the NvPipe encoding interface." ON)
@@ -52,6 +52,8 @@ option(NVPIPE_BUILD_EXAMPLES "Builds the NvPipe example applications (requires b
 # Header
 configure_file(src/NvPipe.h.in include/NvPipe.h @ONLY)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
+link_directories(/usr/lib/nvidia-396)
+
 
 # NvPipe shared library
 list(APPEND NVPIPE_SOURCES
