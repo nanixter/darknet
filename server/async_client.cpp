@@ -141,7 +141,7 @@ class ImageDetectionClient {
 			: stub_(ImageDetection::NewStub(channel)) {}
 
 	// Assembles the client's payload and sends it to the server.
-	void AsyncSendImage(Image *image, std::function<void(void)> callback, flatbuffers::grpc::MessageBuilder *messageBuilder)
+	void AsyncSendImage(Image *image, std::function<void(float)> callback, flatbuffers::grpc::MessageBuilder *messageBuilder)
 	{
 		// Call object to store RPC data
 		AsyncClientCall* call = new AsyncClientCall;
@@ -200,16 +200,17 @@ class ImageDetectionClient {
 			if (call->status.ok()) {
 				// print out what we received...
 				const DetectedObjects *detectedObjects = call->detectedObjectsFBMessage.GetRoot();
-				std::cout << " " << detectedObjects->numObjects() << " objects detected."
-						  <<std::endl;
+				//std::cout << " " << detectedObjects->numObjects() << " objects detected."
+						  //<<std::endl;
 			} else {
 				std::cout << "RPC failed: " << call->status.error_code() <<": " <<call->status.error_message() << std::endl;
 			}
 
+			float RTT = probe_time_end2(&call->ts_detect);
+			//std::cout << "This request took " << RTT<< " milliseconds"<< std::endl;
+			
 			// Inform the client thread that this request is complete
-			call->completionCallback();
-
-			std::cout << "This request took " << probe_time_end2(&call->ts_detect) << " milliseconds"<< std::endl;
+			call->completionCallback(RTT);
 
 			// Once we're done, deallocate the call object.
 			delete call;
@@ -230,7 +231,7 @@ class ImageDetectionClient {
 		// the server and/or tweak certain RPC behaviors.
 		ClientContext context;
 
-		std::function<void(void)> completionCallback;
+		std::function<void(float)> completionCallback;
 
 		// Storage for the status of the RPC upon completion.
 		Status status;
@@ -318,7 +319,7 @@ class RequestThread {
 			if (outstandingRequests.load(std::memory_order_acquire) > maxOutstandingPerThread) {
 				numDropped++;
 			} else {
-				detectionClient->AsyncSendImage(&image, std::bind(&RequestThread::decrementOutstanding, this), &messageBuilder);
+				detectionClient->AsyncSendImage(&image, std::bind(&RequestThread::decrementOutstanding, this, std::placeholders::_1), &messageBuilder);
 				outstandingRequests.fetch_add(1, std::memory_order_release);
 			}
 			currentFrame++;
@@ -326,14 +327,21 @@ class RequestThread {
 		}
 	}
 
-	void decrementOutstanding()
+	void decrementOutstanding(float RTT)
 	{
 		outstandingRequests.fetch_sub(1, std::memory_order_release);
+		if(RTT > 120)
+			numTimeOut++;
 	}
 
 	std::uint64_t getCurrentFrame()
 	{
 		return currentFrame;
+	}
+
+	std::uint64_t getNumTimeOut()
+	{
+		return numTimeOut;
 	}
 
 	std::uint64_t getNumDropped()
@@ -350,6 +358,7 @@ class RequestThread {
 	// Variables we operate on
 	std::uint64_t currentFrame;
 	std::uint64_t numDropped;
+	std::uint64_t numTimeOut;
 	std::atomic<unsigned int> outstandingRequests;
 
 	// Objects (or pointers to)
@@ -473,7 +482,7 @@ int main(int argc, char** argv)
 
 		// Now try to clean up.
 		while(true) {
-			// Try to remove any processed frames every time we insert 100 frames.
+			// Try to remove any completed Frames.
 			std::uint64_t minProcessedFrameNum = requestThreads[0].getCurrentFrame()-1;
 			for (int i = 1; i < numThreads; i++) {
 				minProcessedFrameNum = std::min(requestThreads[i].getCurrentFrame()-1, minProcessedFrameNum);
@@ -487,6 +496,7 @@ int main(int argc, char** argv)
 			std::cout << "LastFrameDequeued = " << lastFrameDequeued <<std::endl;
 			for (int i = 0; i < numThreads; i++) {
 				std::cout << "Thread " << i << " dropped " << requestThreads[i].getNumDropped() << " frames so far." <<std::endl;
+				std::cout << "Thread " << i << " timed out " << requestThreads[i].getNumTimeOut() << " frames so far." <<std::endl;
 			}
 
 			// Rate-limit so that we don't consume too much CPU...
