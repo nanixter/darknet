@@ -357,7 +357,7 @@ void forward_yolo_layer_gpu(const layer l, network net)
         }
     }
     if(!net.train || l.onlyforward){
-        cuda_pull_array(l.output_gpu, l.output, l.batch*l.outputs);
+        //cuda_pull_array(l.output_gpu, l.output, l.batch*l.outputs);
         return;
     }
 
