@@ -579,20 +579,22 @@ private:
             initializeParams.frameRateDen = 1;
             initializeParams.enablePTD = 1;
 
-            encodeConfig.gopLength = NVENC_INFINITE_GOPLENGTH; // No B-frames
+            encodeConfig.gopLength = 4;//NVENC_INFINITE_GOPLENGTH; // No B-frames
             encodeConfig.frameIntervalP = 1;
 
-            if (this->codec == NVPIPE_H264)
-                encodeConfig.encodeCodecConfig.h264Config.idrPeriod = NVENC_INFINITE_GOPLENGTH;
-            else if (this->codec == NVPIPE_HEVC)
-                encodeConfig.encodeCodecConfig.hevcConfig.idrPeriod = NVENC_INFINITE_GOPLENGTH;
+            if (this->codec == NVPIPE_H264) {
+                encodeConfig.encodeCodecConfig.h264Config.idrPeriod = 4;//NVENC_INFINITE_GOPLENGTH;
+				encodeConfig.profileGUID = NV_ENC_H264_PROFILE_HIGH_GUID;
+			} else if (this->codec == NVPIPE_HEVC) {
+                encodeConfig.encodeCodecConfig.hevcConfig.idrPeriod = 4;//NVENC_INFINITE_GOPLENGTH;
+			}
 
             if (this->compression == NVPIPE_LOSSY)
             {
                 encodeConfig.rcParams.averageBitRate = this->bitrate;
                 encodeConfig.rcParams.rateControlMode = NV_ENC_PARAMS_RC_CBR_LOWDELAY_HQ;
                 encodeConfig.rcParams.vbvBufferSize = encodeConfig.rcParams.averageBitRate * initializeParams.frameRateDen / initializeParams.frameRateNum; // bitrate / framerate = one frame
-                encodeConfig.rcParams.maxBitRate = encodeConfig.rcParams.averageBitRate;
+                encodeConfig.rcParams.maxBitRate = 6*1000*1000;//encodeConfig.rcParams.averageBitRate;
                 encodeConfig.rcParams.vbvInitialDelay = encodeConfig.rcParams.vbvBufferSize;
             }
 

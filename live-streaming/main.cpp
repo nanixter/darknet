@@ -8,6 +8,7 @@
 #include <vector>
 #include <cstdio>
 #include <thread>
+#include <cmath>
 #include <sys/time.h>
 
 #include <cuda_runtime_api.h>
@@ -59,6 +60,8 @@ int main(int argc, char* argv[])
 	uint32_t height = demuxer.GetHeight();
 	uint32_t bitDepth = demuxer.GetBitDepth();
 	AVRational inTimeBase = demuxer.GetTimeBase();
+
+	std::cout << "Timebase numerator/denominator = " <<inTimeBase.num << "/" << inTimeBase.den <<std::endl;
 	switch(demuxer.GetVideoCodec())	{
 		case AV_CODEC_ID_H264:
 			codec = NVPIPE_H264;
@@ -90,14 +93,15 @@ int main(int argc, char* argv[])
 
 	uint8_t *compressedFrame = nullptr;
 	int compressedFrameSize = 0;
+	int dts = 0;
 	int pts = 0;
 
 	// NvPipe is a shitty API. Expects us to allocate a buffer for it to output to.. WTF...	
-	uint8_t *compressedOutFrame = new uint8_t[20000];
+	uint8_t *compressedOutFrame = new uint8_t[200000];
 
 	Timer timer;
 	// In a loop, grab compressed frames from the demuxer.
-	while(demuxer.Demux(&compressedFrame, &compressedFrameSize, &pts)) {
+	while(demuxer.Demux(&compressedFrame, &compressedFrameSize, &dts)) {
 		timer.reset();
 		// Allocate GPU memory and copy the compressed Frame to it
 		void* compressedFrameDevice;
@@ -113,13 +117,15 @@ int main(int argc, char* argv[])
 			std::cerr << "Decode error: " << NvPipe_GetError(decoder) << std::endl;
 
 		// Encode the processed Frame
-		uint64_t size = NvPipe_Encode(encoder, decompressedFrameDevice, width * 4, compressedOutFrame, 20000, width, height, false);
+		uint64_t size = NvPipe_Encode(encoder, decompressedFrameDevice, width * 4, compressedOutFrame, 200000, width, height, false);
 		if (0 == size)
 			std::cerr << "Encode error: " << NvPipe_GetError(encoder) << std::endl;
 
 		// MUX the frame
-		std::cout <<"Calling Stream. packet Pts = " << pts <<std::endl;
-		muxer.Stream(compressedOutFrame, size, pts/30.0);
+		int dts2 = ceil(static_cast<float>(dts)*targetFPS/inTimeBase.den*1.0);
+		//std::cout <<"Calling Stream. packet Pts = " << dts2 <<std::endl;
+		muxer.Stream(compressedOutFrame, size, dts2);
+		//muxer.Stream(compressedOutFrame, size, (inTimeBase.num*dts*targetFPS)/inTimeBase.den);
 		cudaFree(compressedFrameDevice);
 		cudaFree(decompressedFrameDevice);
 	}

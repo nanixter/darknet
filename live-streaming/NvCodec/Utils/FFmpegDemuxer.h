@@ -160,7 +160,7 @@ public:
     int GetFrameSize() {
         return nBitDepth == 8 ? nWidth * nHeight * 3 / 2: nWidth * nHeight * 3;
     }
-    bool Demux(uint8_t **ppVideo, int *pnVideoBytes, int *pts) {
+    bool Demux(uint8_t **ppVideo, int *pnVideoBytes, int *dts) {
         if (!fmtc) {
             return false;
         }
@@ -187,11 +187,11 @@ public:
             ck(av_bsf_receive_packet(bsfc, &pktFiltered));
             *ppVideo = pktFiltered.data;
             *pnVideoBytes = pktFiltered.size;
-			*pts = pktFiltered.pts;
+			*dts = pktFiltered.dts;
         } else {
             *ppVideo = pkt.data;
             *pnVideoBytes = pkt.size;
-			*pts = pkt.pts;
+			*dts = pkt.dts;
         }
 
         return true;

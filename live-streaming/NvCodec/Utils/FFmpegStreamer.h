@@ -77,6 +77,7 @@ public:
             LOG(ERROR) << "FFMPEG: avformat_write_header error!";
             return;
         }
+		LOG(INFO) << "FFMPEGStreamer time-base:"<<vs->time_base.num << " " << vs->time_base.den <<std::endl;
     }
     ~FFmpegStreamer() {
         if (oc) {
@@ -91,7 +92,7 @@ public:
         av_init_packet(&pkt);
 		pkt.pts = av_rescale_q(nPts++, AVRational {1, nFps}, vs->time_base);
         //pkt.pts = av_rescale_q(nPts++, TimeBase, vs->time_base);
-		LOG(INFO) << "Adding pkt pts = " << pkt.pts << std::endl;
+		//LOG(INFO) << "Adding pkt pts = " << pkt.pts << std::endl;
         // No B-frames
         pkt.dts = pkt.pts;
         pkt.stream_index = vs->index;
