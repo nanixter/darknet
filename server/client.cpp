@@ -29,8 +29,8 @@ using darknetServer::KeyFrame;
 using darknetServer::ImageDetection;
 
 struct timestamp {
-    struct timeval start;
-    struct timeval end;
+	struct timeval start;
+	struct timeval end;
 };
 
 static inline void tvsub(struct timeval *x,
@@ -47,13 +47,13 @@ static inline void tvsub(struct timeval *x,
 
 void probe_time_start2(struct timestamp *ts)
 {
-    gettimeofday(&ts->start, NULL);
+	gettimeofday(&ts->start, NULL);
 }
 
 float probe_time_end2(struct timestamp *ts)
 {
-    struct timeval tv;
-    gettimeofday(&ts->end, NULL);
+	struct timeval tv;
+	gettimeofday(&ts->end, NULL);
 	tvsub(&ts->end, &ts->start, &tv);
 	return (tv.tv_sec * 1000.0 + (float) tv.tv_usec / 1000.0);
 }
@@ -152,24 +152,24 @@ class ImageDetectionClient {
 
 cv::Mat resizeKeepAspectRatio(const cv::Mat &input, const cv::Size &dstSize, const cv::Scalar &bgcolor)
 {
-    cv::Mat output;
+	cv::Mat output;
 
-    double h1 = dstSize.width * (input.rows/(double)input.cols);
-    double w2 = dstSize.height * (input.cols/(double)input.rows);
-    if( h1 <= dstSize.height) {
-        cv::resize( input, output, cv::Size(dstSize.width, h1));
-    } else {
-        cv::resize( input, output, cv::Size(w2, dstSize.height));
-    }
+	double h1 = dstSize.width * (input.rows/(double)input.cols);
+	double w2 = dstSize.height * (input.cols/(double)input.rows);
+	if( h1 <= dstSize.height) {
+		cv::resize( input, output, cv::Size(dstSize.width, h1));
+	} else {
+		cv::resize( input, output, cv::Size(w2, dstSize.height));
+	}
 
-    int top = (dstSize.height-output.rows) / 2;
-    int down = (dstSize.height-output.rows+1) / 2;
-    int left = (dstSize.width - output.cols) / 2;
-    int right = (dstSize.width - output.cols+1) / 2;
+	int top = (dstSize.height-output.rows) / 2;
+	int down = (dstSize.height-output.rows+1) / 2;
+	int left = (dstSize.width - output.cols) / 2;
+	int right = (dstSize.width - output.cols+1) / 2;
 
-    cv::copyMakeBorder(output, output, top, down, left, right, cv::BORDER_CONSTANT, bgcolor );
+	cv::copyMakeBorder(output, output, top, down, left, right, cv::BORDER_CONSTANT, bgcolor );
 
-    return output;
+	return output;
 }
 void readFile(const std::string& filename, std::string& data)
 {
@@ -233,7 +233,7 @@ int main(int argc, char** argv) {
 		struct timestamp ts_perframe;
 		while(capture.read(capturedFrame)) {
 			probe_time_start2(&ts_perframe);
-			// Resize image to 410x410
+			// Resize image to 416x416
 			cv::Mat resizedFrame = resizeKeepAspectRatio(capturedFrame, cv::Size(416, 416), cv::Scalar(0,0,0));
 			// Convert the image from cv::Mat to the image format that darknet expects
 			Image image = getImageFromMat(&resizedFrame);
