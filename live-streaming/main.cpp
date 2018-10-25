@@ -18,6 +18,8 @@
 #include <npps.h>
 #include <nppversion.h>
 
+#include <assert.h>
+
 
 // Custom C++ Wrapper around Darknet.
 //#include "DarknetWrapper.h"
@@ -109,15 +111,16 @@ int main(int argc, char* argv[])
 	uint8_t *compressedOutFrame = new uint8_t[200000];
 
 	Timer timer;
+	uint64_t frameNum = 0;
 	// In a loop, grab compressed frames from the demuxer.
 	while(demuxer.Demux(&compressedFrame, &compressedFrameSize, &dts)) {
 		timer.reset();
 		// Allocate GPU memory and copy the compressed Frame to it
-		void* compressedFrameDevice = nullptr;
+		void *compressedFrameDevice = nullptr;
 		cudaMalloc(&compressedFrameDevice, compressedFrameSize);
 		cudaMemcpy(compressedFrameDevice, compressedFrame, compressedFrameSize, cudaMemcpyHostToDevice);
 
-		void* decompressedFrameDevice = nullptr;
+		void *decompressedFrameDevice = nullptr;
 		cudaMalloc(&decompressedFrameDevice, width*height*4);
 
 		// Decode the frame
@@ -144,46 +147,46 @@ int main(int argc, char* argv[])
 
 		NppiInterpolationMode interploationMode = NPPI_INTER_CUBIC;
 
-		void scaledFrameNoPad = nullptr;
+		void *scaledFrameNoPad = nullptr;
 		cudaMalloc(&scaledFrameNoPad,
 			dstImageSizeNoPad.width*dstImageSizeNoPad.height*4);
 
-		NppStatus status = nppiResize_8u_C4R(static_cast<const Npp8u *>decompressedFrameDevice,
+		NppStatus status = nppiResize_8u_C4R(static_cast<const Npp8u *>(decompressedFrameDevice),
 											width*4,
 											srcImageSize,
 											srcImageROI,
-											static_cast<const Npp8u *>scaledFrameNoPad,
+											static_cast<Npp8u *>(scaledFrameNoPad),
 											dstImageSizeNoPad.width*4,
 											dstImageSizeNoPad,
 											dstImageROI,
 											interploationMode);
 
 		if (status != NPP_SUCCESS)
-			std::cout << "NPPResize Status = " << _cudaGetErrorEnum(status)
-					<< "("<< status << ")" << std::endl;
-		NPP_ASSERT(status == NPP_SUCCESS);
+			std::cout << "NPPResize Status = " << status << std::endl;
+		assert(status == NPP_SUCCESS);
 
 		// Pad the image with black border if needed
 		int top = (dstImageSize.height - dstImageSizeNoPad.height) / 2;
 		int left = (dstImageSize.width - dstImageSizeNoPad.width) / 2;
 
-		void scaledFramePadded = nullptr;
+		void *scaledFramePadded = nullptr;
 		cudaMalloc(&scaledFramePadded, dstImageSize.width*dstImageSize.height*4);
 
-		status = nppiCopyConstBorder_8u_C4R(static_cast<const Npp8u *>scaledFrameNoPad,
+		const Npp8u bordercolor[4] = {0,0,0,0};
+
+		status = nppiCopyConstBorder_8u_C4R(static_cast<const Npp8u *>(scaledFrameNoPad),
 											dstImageSizeNoPad.width*4,
 											dstImageSizeNoPad,
-											static_cast<const Npp8u *>scaledFramePadded,
+											static_cast<Npp8u *>(scaledFramePadded),
 											dstImageSize.width*4,
 											dstImageSize,
 											top,
 											left,
-											{0,0,0,0});
+											bordercolor);
 
 		if (status != NPP_SUCCESS)
-			std::cout << "NPP_PadBorder Status = " << _cudaGetErrorEnum(status)
-					<< "("<< status << ")" << std::endl;
-		NPP_ASSERT(status == NPP_SUCCESS);
+			std::cout << "NPPCopyConstBorder Status = " << status << std::endl;
+		assert(status == NPP_SUCCESS);
 		cudaFree(scaledFrameNoPad);
 
 		// Pass image pointer to Darknet for detection
@@ -200,7 +203,7 @@ int main(int argc, char* argv[])
 		cudaFree(compressedFrameDevice);
 		cudaFree(decompressedFrameDevice);
 
-		std::cout << "Processing frame " << i << " took " << timer.getElapsedMicroSeconds() << " us." << std::endl;
+		std::cout << "Processing frame " << frameNum++ << " took " << timer.getElapsedMicroseconds() << " us." << std::endl;
 	}
 
 	NvPipe_Destroy(encoder);
