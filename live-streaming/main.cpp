@@ -12,6 +12,12 @@
 #include <sys/time.h>
 
 #include <cuda_runtime_api.h>
+#include <curand.h>
+#include <npp.h>
+#include <nppi.h>
+#include <npps.h>
+#include <nppversion.h>
+
 
 // Custom C++ Wrapper around Darknet.
 //#include "DarknetWrapper.h"
@@ -87,16 +93,19 @@ int main(int argc, char* argv[])
 	NvPipe* encoder = NvPipe_CreateEncoder(NVPIPE_RGBA32, codec, NVPIPE_LOSSY, bitrateMbps * 1000 * 1000, targetFPS);
 	if (!encoder)
 		std::cerr << "Failed to create encoder: " << NvPipe_GetError(NULL) << std::endl;
+	uint32_t outWidth = 416;
+	uint32_t outHeight = 416;
 
 	// Create the output stream writer wrapper
-	FFmpegStreamer muxer(AV_CODEC_ID_H264, width, height, targetFPS, inTimeBase, "./scaled.mp4");
+	FFmpegStreamer muxer(AV_CODEC_ID_H264, outWidth, outHeight, targetFPS, inTimeBase, "./scaled.mp4");
+	// FFmpegStreamer muxer(AV_CODEC_ID_H264, width, height, targetFPS, inTimeBase, "./scaled.mp4");
 
 	uint8_t *compressedFrame = nullptr;
 	int compressedFrameSize = 0;
 	int dts = 0;
 	int pts = 0;
 
-	// NvPipe is a shitty API. Expects us to allocate a buffer for it to output to.. WTF...	
+	// NvPipe is a shitty API. Expects us to allocate a buffer for it to output to.. WTF...
 	uint8_t *compressedOutFrame = new uint8_t[200000];
 
 	Timer timer;
@@ -104,11 +113,11 @@ int main(int argc, char* argv[])
 	while(demuxer.Demux(&compressedFrame, &compressedFrameSize, &dts)) {
 		timer.reset();
 		// Allocate GPU memory and copy the compressed Frame to it
-		void* compressedFrameDevice;
+		void* compressedFrameDevice = nullptr;
 		cudaMalloc(&compressedFrameDevice, compressedFrameSize);
 		cudaMemcpy(compressedFrameDevice, compressedFrame, compressedFrameSize, cudaMemcpyHostToDevice);
 
-		void* decompressedFrameDevice;
+		void* decompressedFrameDevice = nullptr;
 		cudaMalloc(&decompressedFrameDevice, width*height*4);
 
 		// Decode the frame
@@ -116,18 +125,82 @@ int main(int argc, char* argv[])
 		if (ret == compressedFrameSize)
 			std::cerr << "Decode error: " << NvPipe_GetError(decoder) << std::endl;
 
+		// Scale the frame to -1:416
+		NppiSize srcImageSize = {width, height};
+		NppiRect srcImageROI = {0, 0, width, height};
+
+		NppiSize dstImageSize = {416, 416};
+		NppiRect dstImageROI = {0,0, 416, 416};
+
+		NppiSize dstImageSizeNoPad = {416, 416};
+
+		// Keep aspect ratio and pad the image with a black border as needed.
+		double h1 = dstImageSize.width * (srcImageSize.height/(double)srcImageSize.width);
+		double w2 = dstImageSize.height * (srcImageSize.width/(double)srcImageSize.height);
+		if( h1 <= dstImageSize.height)
+			dstImageSizeNoPad.height = (int)h1;
+		else
+			dstImageSizeNoPad.width = (int)w2;
+
+		NppiInterpolationMode interploationMode = NPPI_INTER_CUBIC;
+
+		void scaledFrameNoPad = nullptr;
+		cudaMalloc(&scaledFrameNoPad,
+			dstImageSizeNoPad.width*dstImageSizeNoPad.height*4);
+
+		NppStatus status = nppiResize_8u_C4R(static_cast<const Npp8u *>decompressedFrameDevice,
+											width*4,
+											srcImageSize,
+											srcImageROI,
+											static_cast<const Npp8u *>scaledFrameNoPad,
+											dstImageSizeNoPad.width*4,
+											dstImageSizeNoPad,
+											dstImageROI,
+											interploationMode);
+
+		if (status != NPP_SUCCESS)
+			std::cout << "NPPResize Status = " << _cudaGetErrorEnum(status)
+					<< "("<< status << ")" << std::endl;
+		NPP_ASSERT(status == NPP_SUCCESS);
+
+		// Pad the image with black border if needed
+		int top = (dstImageSize.height - dstImageSizeNoPad.height) / 2;
+		int left = (dstImageSize.width - dstImageSizeNoPad.width) / 2;
+
+		void scaledFramePadded = nullptr;
+		cudaMalloc(&scaledFramePadded, dstImageSize.width*dstImageSize.height*4);
+
+		status = nppiCopyConstBorder_8u_C4R(static_cast<const Npp8u *>scaledFrameNoPad,
+											dstImageSizeNoPad.width*4,
+											dstImageSizeNoPad,
+											static_cast<const Npp8u *>scaledFramePadded,
+											dstImageSize.width*4,
+											dstImageSize,
+											top,
+											left,
+											{0,0,0,0});
+
+		if (status != NPP_SUCCESS)
+			std::cout << "NPP_PadBorder Status = " << _cudaGetErrorEnum(status)
+					<< "("<< status << ")" << std::endl;
+		NPP_ASSERT(status == NPP_SUCCESS);
+		cudaFree(scaledFrameNoPad);
+
+		// Pass image pointer to Darknet for detection
+
 		// Encode the processed Frame
-		uint64_t size = NvPipe_Encode(encoder, decompressedFrameDevice, width * 4, compressedOutFrame, 200000, width, height, false);
+		uint64_t size = NvPipe_Encode(encoder, scaledFramePadded, outWidth * 4, compressedOutFrame, 200000, outWidth, outHeight, false);
+		// uint64_t size = NvPipe_Encode(encoder, decompressedFrameDevice, width * 4, compressedOutFrame, 200000, width, height, false);
 		if (0 == size)
 			std::cerr << "Encode error: " << NvPipe_GetError(encoder) << std::endl;
 
 		// MUX the frame
 		int dts2 = ceil(static_cast<float>(dts)*targetFPS/inTimeBase.den*1.0);
-		//std::cout <<"Calling Stream. packet Pts = " << dts2 <<std::endl;
 		muxer.Stream(compressedOutFrame, size, dts2);
-		//muxer.Stream(compressedOutFrame, size, (inTimeBase.num*dts*targetFPS)/inTimeBase.den);
 		cudaFree(compressedFrameDevice);
 		cudaFree(decompressedFrameDevice);
+
+		std::cout << "Processing frame " << i << " took " << timer.getElapsedMicroSeconds() << " us." << std::endl;
 	}
 
 	NvPipe_Destroy(encoder);
