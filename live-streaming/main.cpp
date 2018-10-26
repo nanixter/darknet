@@ -127,14 +127,26 @@ int main(int argc, char* argv[])
 		cudaMalloc(&decompressedFrameDevice, inWidth*inHeight*4);
 
 		// Decode the frame
-		uint64_t ret = NvPipe_Decode(decoder, compressedFrame, compressedFrameSize, decompressedFrameDevice, inWidth, inHeight);
-		if (ret == compressedFrameSize)
+		uint64_t decompressedFrameSize = NvPipe_Decode(decoder, compressedFrame, compressedFrameSize, decompressedFrameDevice, inWidth, inHeight);
+		if (decompressedFrameSize <= compressedFrameSize) {
 			std::cerr << "Decode error: " << NvPipe_GetError(decoder) << std::endl;
-		cudaFree(compressedFrameDevice);
+			exit(-1);
+		}
 
+		// Convert to RGB from NV12
+/*		void *decompressedFrameRGBADevice = nullptr;
+		cudaMalloc(&decompressedFrameRGBADevice, inWidth*inHeight*sizeof(float4));
+
+		cudaError_t status = cudaNV12ToRGBA(static_cast<uint8_t *>(decompressedFrameDevice),
+											static_cast<uchar4 *>(decompressedFrameRGBADevice),
+											(size_t)inWidth,
+											(size_t)inHeight);
+		if (status != cudaSuccess)
+			std::cout << "cudaNV12ToRGBAf Status = " << cudaGetErrorName(status) << std::endl;
+		assert(status == cudaSuccess);
+*/
 		// Scale the frame to outWidth;outHeight
-		NppiSize dstImageSizeNoPad = {416, 416};
-		size_t noPadWidth = outWidth;
+/*		size_t noPadWidth = outWidth;
 		size_t noPadHeight = outHeight;
 
 		// Keep aspect ratio
@@ -147,32 +159,20 @@ int main(int argc, char* argv[])
 
 		NppiInterpolationMode interploationMode = NPPI_INTER_SUPER;
 
-		void *decompressedFrameRGBADevice = nullptr;
-		cudaMalloc(&decompressedFrameRGBADevice, noPadWidth*noPadHeight*4);
-
-		cudaError_t status = cudaNV12ToRGBAf(static_cast<uint8_t *>(decompressedFrameDevice),
-											static_cast<float4 *>(decompressedFrameRGBADevice),
-											(size_t)inWidth,
-											(size_t)inHeight);
-		if (status != cudaSuccess)
-			std::cout << "cudaNV12ToRGBAf Status = " << cudaGetErrorName(status) << std::endl;
-		assert(status == cudaSuccess);
-		cudaFree(decompressedFrameDevice);
-
 		void *scaledFrameNoPad = nullptr;
 		cudaMalloc(&scaledFrameNoPad, noPadWidth*noPadHeight*4);
 
 		status = cudaResizeRGBA(static_cast<float4 *>(decompressedFrameRGBADevice),
-								(size_t)width,
-								(size_t)height,
+								(size_t)inWidth,
+								(size_t)inHeight,
 								static_cast<float4 *>(scaledFrameNoPad),
 								noPadWidth,
 								noPadHeight);
 
 		// Pad the image with black border if needed
-		int top = (dstImageSize.height - dstImageSizeNoPad.height) / 2;
-		int left = (dstImageSize.width - dstImageSizeNoPad.width) / 2;
-
+		int top = (outHeight - noPadHeight) / 2;
+		int left = (outWidth - noPadWidth) / 2;
+*/
 		// void *scaledFramePadded = nullptr;
 		// cudaMalloc(&scaledFramePadded, dstImageSize.width*dstImageSize.height*4);
 
@@ -195,16 +195,20 @@ int main(int argc, char* argv[])
 		// Pass image pointer to Darknet for detection
 
 		// Encode the processed Frame
-		uint64_t size = NvPipe_Encode(encoder, scaledFrameNoPad, noPadWidth, compressedOutFrame, 200000, noPadWidth, noPadHeight, false);
+		//uint64_t size = NvPipe_Encode(encoder, scaledFrameNoPad, noPadWidth, compressedOutFrame, 200000, noPadWidth, noPadHeight, false);
 		//uint64_t size = NvPipe_Encode(encoder, scaledFramePadded, outWidth * 4, compressedOutFrame, 200000, outWidth, outHeight, false);
-		//uint64_t size = NvPipe_Encode(encoder, decompressedFrameDevice, width * 4, compressedOutFrame, 200000, width, height, false);
+		//uint64_t size = NvPipe_Encode(encoder, decompressedFrameRGBADevice, inWidth * 4, compressedOutFrame, 200000, inWidth, inHeight, false);
+		uint64_t size = NvPipe_Encode(encoder, decompressedFrameDevice, decompressedFrameSize/inHeight, compressedOutFrame, 200000, inWidth, inHeight, false);
 		if (0 == size)
 			std::cerr << "Encode error: " << NvPipe_GetError(encoder) << std::endl;
 
 		// MUX the frame
 		//int dts2 = ceil(static_cast<float>(dts)*targetFPS/inTimeBase.den*1.0);
 		muxer.Stream(compressedOutFrame, size, frameNum);
-		cudaFree(scaledFrameNoPad);
+		cudaFree(compressedFrameDevice);
+		cudaFree(decompressedFrameDevice);
+		//cudaFree(decompressedFrameRGBADevice);
+		//cudaFree(scaledFrameNoPad);
 		// cudaFree(scaledFramePadded);
 
 		std::cout << "Processing frame " << frameNum++ << " took " << timer.getElapsedMicroseconds() << " us." << std::endl;

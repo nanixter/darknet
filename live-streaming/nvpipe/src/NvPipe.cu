@@ -87,6 +87,8 @@ inline uint64_t getFrameSize(NvPipe_Format format, uint32_t width, uint32_t heig
         return width * height * 2;
     else if (format == NVPIPE_UINT32)
         return width * height * 4;
+    else if (format == NVPIPE_NV12)
+        return width * height * 4;
 
     return 0;
 }
@@ -425,11 +427,15 @@ public:
             this->recreate(width, height);
 
         // RGBA can be directly copied from host or device
-        if (this->format == NVPIPE_RGBA32 || this->format == NVPIPE_NV12)
+        if (this->format == NVPIPE_RGBA32)
         {
             CUDA_THROW(cudaMemcpy2D(this->encoder->GetNextInputFrame()->inputPtr, width * 4, src, srcPitch, width * 4, height, isDevicePointer(src) ? cudaMemcpyDeviceToDevice : cudaMemcpyHostToDevice),
                        "Failed to copy input frame");
         }
+		else if (this->format == NVPIPE_NV12)
+		{
+			CUDA_THROW(cudaMemcpy(this->encoder->GetNextInputFrame()->inputPtr, src, width*srcPitch, cudaMemcpyDeviceToDevice), "Failed to copy NV12 frame to encoder's buffers");
+		}
         // Other formats need to be copied to the device and converted
         else
         {
@@ -733,7 +739,11 @@ public:
             {
                 Nv12ToBgra32(decoded, width, dstDevice, width * 4, width, height);
             }
-			//else if (this->format == NVPIPE_NV12) Do nothing
+			else if (this->format == NVPIPE_NV12)
+			{	
+				CUDA_THROW(cudaMemcpy(dst, decoded, this->decoder->GetDeviceFramePitch()*height, cudaMemcpyDeviceToDevice),
+							"NV12 Failed to copy from decoder buffer to user buffer");
+			}
             else if (this->format == NVPIPE_UINT4)
             {
                 // one thread per TWO pixels (merge 2x4 bit to one byte per thread)
@@ -772,6 +782,8 @@ public:
                 CUDA_THROW(cudaMemcpy(dst, this->deviceBuffer, getFrameSize(this->format, width, height), cudaMemcpyDeviceToHost),
                            "Failed to copy output to host memory");
 
+			if(this->format == NVPIPE_NV12)
+				return this->decoder->GetDeviceFramePitch()*height;
             return getFrameSize(this->format, width, height);
         }
 
