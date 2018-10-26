@@ -12,3 +12,5 @@ perf*
 *.grpc.fb.cc
 *.grpc.fb.h
 darknetserver_generated.h
+*.log
+logs/

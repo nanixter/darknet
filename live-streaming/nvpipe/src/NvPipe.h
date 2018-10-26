@@ -70,6 +70,7 @@ typedef enum {
  */
 typedef enum {
     NVPIPE_RGBA32,
+    NVPIPE_NV12,
     NVPIPE_UINT4,
     NVPIPE_UINT8,
     NVPIPE_UINT16,

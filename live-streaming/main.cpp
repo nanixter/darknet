@@ -83,7 +83,8 @@ int main(int argc, char* argv[])
 	}
 
 	// Create decoder
-	NvPipe* decoder = NvPipe_CreateDecoder(NVPIPE_RGBA32, codec);
+	NvPipe* decoder = NvPipe_CreateDecoder(NVPIPE_NV12, codec);
+	//NvPipe* decoder = NvPipe_CreateDecoder(NVPIPE_RGBA32, codec);
 	if (!decoder)
 		std::cerr << "Failed to create decoder: " << NvPipe_GetError(NULL) << std::endl;
 
@@ -92,7 +93,8 @@ int main(int argc, char* argv[])
 	const uint32_t targetFPS = 30;
 
 	// Create encoder
-	NvPipe* encoder = NvPipe_CreateEncoder(NVPIPE_RGBA32, codec, NVPIPE_LOSSY, bitrateMbps * 1000 * 1000, targetFPS);
+	NvPipe* encoder = NvPipe_CreateEncoder(NVPIPE_NV12, codec, NVPIPE_LOSSY, bitrateMbps * 1000 * 1000, targetFPS);
+	//NvPipe* encoder = NvPipe_CreateEncoder(NVPIPE_RGBA32, codec, NVPIPE_LOSSY, bitrateMbps * 1000 * 1000, targetFPS);
 	if (!encoder)
 		std::cerr << "Failed to create encoder: " << NvPipe_GetError(NULL) << std::endl;
 	uint32_t outWidth = 416;
@@ -137,21 +139,23 @@ int main(int argc, char* argv[])
 
 		NppiSize dstImageSizeNoPad = {416, 416};
 
-		// Keep aspect ratio and pad the image with a black border as needed.
+		// Keep aspect ratio 
 		double h1 = dstImageSize.width * (srcImageSize.height/(double)srcImageSize.width);
 		double w2 = dstImageSize.height * (srcImageSize.width/(double)srcImageSize.height);
-		if( h1 <= dstImageSize.height)
+		if( h1 <= dstImageSize.height) {
 			dstImageSizeNoPad.height = (int)h1;
-		else
+			dstImageROI.height = (int)h1;
+		} else {
 			dstImageSizeNoPad.width = (int)w2;
+			dstImageROI.width = (int)w2;
+		}
 
-		NppiInterpolationMode interploationMode = NPPI_INTER_CUBIC;
+		NppiInterpolationMode interploationMode = NPPI_INTER_SUPER;
 
 		void *scaledFrameNoPad = nullptr;
-		cudaMalloc(&scaledFrameNoPad,
-			dstImageSizeNoPad.width*dstImageSizeNoPad.height*4);
+		cudaMalloc(&scaledFrameNoPad, dstImageSizeNoPad.width*dstImageSizeNoPad.height*4);
 
-		NppStatus status = nppiResize_8u_C4R(static_cast<const Npp8u *>(decompressedFrameDevice),
+		/*NppStatus status = nppiResize_8u_C3R(static_cast<const Npp8u *>(decompressedFrameDevice),
 											width*4,
 											srcImageSize,
 											srcImageROI,
@@ -160,6 +164,19 @@ int main(int argc, char* argv[])
 											dstImageSizeNoPad,
 											dstImageROI,
 											interploationMode);
+		*/
+		NppStatus status = nppiResizeSqrPixel_8u_C1R(static_cast<const Npp8u *>(decompressedFrameDevice),
+														srcImageSize,
+														width,
+														srcImageROI,
+														static_cast<Npp8u *>(scaledFrameNoPad),
+														dstImageSizeNoPad.width,
+														dstImageROI,
+														dstImageSizeNoPad.width/(double)srcImageSize.width,
+														dstImageSizeNoPad.height/(double)srcImageSize.height,
+														0.0,
+														0.0,
+														interploationMode);
 
 		if (status != NPP_SUCCESS)
 			std::cout << "NPPResize Status = " << status << std::endl;
@@ -172,9 +189,7 @@ int main(int argc, char* argv[])
 		void *scaledFramePadded = nullptr;
 		cudaMalloc(&scaledFramePadded, dstImageSize.width*dstImageSize.height*4);
 
-		const Npp8u bordercolor[4] = {0,0,0,0};
-
-		status = nppiCopyConstBorder_8u_C4R(static_cast<const Npp8u *>(scaledFrameNoPad),
+		status = nppiCopyConstBorder_8u_C3R(static_cast<const Npp8u *>(scaledFrameNoPad),
 											dstImageSizeNoPad.width*4,
 											dstImageSizeNoPad,
 											static_cast<Npp8u *>(scaledFramePadded),
@@ -187,19 +202,20 @@ int main(int argc, char* argv[])
 		if (status != NPP_SUCCESS)
 			std::cout << "NPPCopyConstBorder Status = " << status << std::endl;
 		assert(status == NPP_SUCCESS);
-		cudaFree(scaledFrameNoPad);
+		//cudaFree(scaledFrameNoPad);
 
 		// Pass image pointer to Darknet for detection
 
 		// Encode the processed Frame
-		uint64_t size = NvPipe_Encode(encoder, scaledFramePadded, outWidth * 4, compressedOutFrame, 200000, outWidth, outHeight, false);
-		// uint64_t size = NvPipe_Encode(encoder, decompressedFrameDevice, width * 4, compressedOutFrame, 200000, width, height, false);
+		uint64_t size = NvPipe_Encode(encoder, scaledFrameNoPad, dstImageSizeNoPad.width, compressedOutFrame, 200000, dstImageSizeNoPad.width, dstImageSizeNoPad.height, false);
+		//uint64_t size = NvPipe_Encode(encoder, scaledFramePadded, outWidth * 4, compressedOutFrame, 200000, outWidth, outHeight, false);
+		//uint64_t size = NvPipe_Encode(encoder, decompressedFrameDevice, width * 4, compressedOutFrame, 200000, width, height, false);
 		if (0 == size)
 			std::cerr << "Encode error: " << NvPipe_GetError(encoder) << std::endl;
 
 		// MUX the frame
-		int dts2 = ceil(static_cast<float>(dts)*targetFPS/inTimeBase.den*1.0);
-		muxer.Stream(compressedOutFrame, size, dts2);
+		//int dts2 = ceil(static_cast<float>(dts)*targetFPS/inTimeBase.den*1.0);
+		muxer.Stream(compressedOutFrame, size, frameNum);
 		cudaFree(compressedFrameDevice);
 		cudaFree(decompressedFrameDevice);
 

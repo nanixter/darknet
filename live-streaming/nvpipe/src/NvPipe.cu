@@ -425,7 +425,7 @@ public:
             this->recreate(width, height);
 
         // RGBA can be directly copied from host or device
-        if (this->format == NVPIPE_RGBA32)
+        if (this->format == NVPIPE_RGBA32 || this->format == NVPIPE_NV12)
         {
             CUDA_THROW(cudaMemcpy2D(this->encoder->GetNextInputFrame()->inputPtr, width * 4, src, srcPitch, width * 4, height, isDevicePointer(src) ? cudaMemcpyDeviceToDevice : cudaMemcpyHostToDevice),
                        "Failed to copy input frame");
@@ -733,6 +733,7 @@ public:
             {
                 Nv12ToBgra32(decoded, width, dstDevice, width * 4, width, height);
             }
+			//else if (this->format == NVPIPE_NV12) Do nothing
             else if (this->format == NVPIPE_UINT4)
             {
                 // one thread per TWO pixels (merge 2x4 bit to one byte per thread)
