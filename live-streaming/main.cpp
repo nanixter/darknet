@@ -20,19 +20,18 @@
 
 #include <assert.h>
 
-
 // Custom C++ Wrapper around Darknet.
 //#include "DarknetWrapper.h"
 
 // Simple wrapper around NVDEC and NVENC distributed by NVIDIA
 #include <NvPipe.h>
 
-#include "NvCodec/Utils/Logger.h"
+#include "Utils/Logger.h"
 simplelogger::Logger *logger = simplelogger::LoggerFactory::CreateConsoleLogger();
 
 // Utils from NVIDIA to DEMUX and MUX video streams
-#include "NvCodec/Utils/FFmpegDemuxer.h"
-#include "NvCodec/Utils/FFmpegStreamer.h"
+#include "Utils/FFmpegDemuxer.h"
+#include "Utils/FFmpegStreamer.h"
 
 #include "Timer.h"
 
@@ -109,7 +108,7 @@ int main(int argc, char* argv[])
 	int dts = 0;
 	int pts = 0;
 
-	// NvPipe is a shitty API. Expects us to allocate a buffer for it to output to.. WTF...
+	// NvPipe expects us to allocate a buffer for it to output to.. Sigh...
 	uint8_t *compressedOutFrame = new uint8_t[200000];
 
 	Timer timer;
@@ -139,7 +138,7 @@ int main(int argc, char* argv[])
 
 		NppiSize dstImageSizeNoPad = {416, 416};
 
-		// Keep aspect ratio 
+		// Keep aspect ratio
 		double h1 = dstImageSize.width * (srcImageSize.height/(double)srcImageSize.width);
 		double w2 = dstImageSize.height * (srcImageSize.width/(double)srcImageSize.height);
 		if( h1 <= dstImageSize.height) {
@@ -165,18 +164,19 @@ int main(int argc, char* argv[])
 											dstImageROI,
 											interploationMode);
 		*/
-		NppStatus status = nppiResizeSqrPixel_8u_C1R(static_cast<const Npp8u *>(decompressedFrameDevice),
-														srcImageSize,
-														width,
-														srcImageROI,
-														static_cast<Npp8u *>(scaledFrameNoPad),
-														dstImageSizeNoPad.width,
-														dstImageROI,
-														dstImageSizeNoPad.width/(double)srcImageSize.width,
-														dstImageSizeNoPad.height/(double)srcImageSize.height,
-														0.0,
-														0.0,
-														interploationMode);
+		NppStatus status = nppiResizeSqrPixel_8u_C1R(
+											static_cast<const Npp8u *>(decompressedFrameDevice),
+											srcImageSize,
+											width,
+											srcImageROI,
+											static_cast<Npp8u *>(scaledFrameNoPad),
+											dstImageSizeNoPad.width,
+											dstImageROI,
+											dstImageSizeNoPad.width/(double)srcImageSize.width,
+											dstImageSizeNoPad.height/(double)srcImageSize.height,
+											0.0,
+											0.0,
+											interploationMode);
 
 		if (status != NPP_SUCCESS)
 			std::cout << "NPPResize Status = " << status << std::endl;
