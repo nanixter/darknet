@@ -4,7 +4,7 @@ GPU=1
 CXX = g++
 DARKNET_HEADER_PATH = ../include/
 CPPFLAGS += `pkg-config libavformat libavcodec` -g -O4
-CXXFLAGS += -std=c++11 -I $(DARKNET_HEADER_PATH) -I ./NvCodec
+CXXFLAGS += -std=c++11 -I $(DARKNET_HEADER_PATH) -I nvpipe/NvCodec/Utils
 LDFLAGS += -L/usr/local/lib `pkg-config --libs libavformat libavcodec opencv` -lNvPipe \
 			-Wl,--as-needed -ldl -lpthread \
 			-L../ -Wl,--as-needed -ldarknet

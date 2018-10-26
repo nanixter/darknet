@@ -26,19 +26,21 @@ private:
     AVFormatContext *oc = NULL;
     AVStream *vs = NULL;
     int nFps = 0;
+	AVRational TimeBase;
 
 public:
-    FFmpegStreamer(AVCodecID eCodecId, int nWidth, int nHeight, int nFps, const char *szInFilePath) : nFps(nFps) {
+    FFmpegStreamer(AVCodecID eCodecId, int nWidth, int nHeight, int nFps, AVRational inTimeBase, const char *szInFilePath) : nFps(nFps) {
         av_register_all();
         avformat_network_init();
         oc = avformat_alloc_context();
+		this->TimeBase = inTimeBase;
         if (!oc) {
             LOG(ERROR) << "FFMPEG: avformat_alloc_context error";
             return;
         }
 
         // Set format on oc
-        AVOutputFormat *fmt = av_guess_format("mpegts", NULL, NULL);
+        AVOutputFormat *fmt = av_guess_format("mp4", NULL, NULL);
         if (!fmt) {
             LOG(ERROR) << "Invalid format";
             return;
@@ -75,6 +77,7 @@ public:
             LOG(ERROR) << "FFMPEG: avformat_write_header error!";
             return;
         }
+		LOG(INFO) << "FFMPEGStreamer time-base:"<<vs->time_base.num << " " << vs->time_base.den <<std::endl;
     }
     ~FFmpegStreamer() {
         if (oc) {
@@ -87,7 +90,9 @@ public:
     bool Stream(uint8_t *pData, int nBytes, int nPts) {
         AVPacket pkt = {0};
         av_init_packet(&pkt);
-        pkt.pts = av_rescale_q(nPts++, AVRational {1, nFps}, vs->time_base);
+		pkt.pts = av_rescale_q(nPts++, AVRational {1, nFps}, vs->time_base);
+        //pkt.pts = av_rescale_q(nPts++, TimeBase, vs->time_base);
+		//LOG(INFO) << "Adding pkt pts = " << pkt.pts << std::endl;
         // No B-frames
         pkt.dts = pkt.pts;
         pkt.stream_index = vs->index;

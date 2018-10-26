@@ -26,12 +26,12 @@
 // Simple wrapper around NVDEC and NVENC distributed by NVIDIA
 #include <NvPipe.h>
 
-#include "Utils/Logger.h"
+#include "nvpipe/NvCodec/Utils/Logger.h"
 simplelogger::Logger *logger = simplelogger::LoggerFactory::CreateConsoleLogger();
 
 // Utils from NVIDIA to DEMUX and MUX video streams
-#include "Utils/FFmpegDemuxer.h"
-#include "Utils/FFmpegStreamer.h"
+#include "nvpipe/NvCodec/Utils/FFmpegDemuxer.h"
+#include "nvpipe/NvCodec/Utils/FFmpegStreamer.h"
 
 #include "Timer.h"
 
@@ -188,6 +188,8 @@ int main(int argc, char* argv[])
 
 		void *scaledFramePadded = nullptr;
 		cudaMalloc(&scaledFramePadded, dstImageSize.width*dstImageSize.height*4);
+
+		const Npp8u bordercolor[4] = {0,0,0,0};
 
 		status = nppiCopyConstBorder_8u_C3R(static_cast<const Npp8u *>(scaledFrameNoPad),
 											dstImageSizeNoPad.width*4,
