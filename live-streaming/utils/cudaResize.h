@@ -42,8 +42,5 @@ cudaError_t cudaResize( float* input,  size_t inputWidth,  size_t inputHeight,
 cudaError_t cudaResizeRGBA( float4* input,  size_t inputWidth,  size_t inputHeight,
 				        float4* output, size_t outputWidth, size_t outputHeight );
 
-
-						
-
 #endif
 
