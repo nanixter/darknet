@@ -33,6 +33,8 @@ simplelogger::Logger *logger = simplelogger::LoggerFactory::CreateConsoleLogger(
 #include "nvpipe/NvCodec/Utils/FFmpegDemuxer.h"
 #include "nvpipe/NvCodec/Utils/FFmpegStreamer.h"
 
+#include <cuda/cudaYUV.h>
+
 #include "Timer.h"
 
 int main(int argc, char* argv[])
@@ -164,6 +166,7 @@ int main(int argc, char* argv[])
 											dstImageROI,
 											interploationMode);
 		*/
+
 		NppStatus status = nppiResizeSqrPixel_8u_C1R(
 											static_cast<const Npp8u *>(decompressedFrameDevice),
 											srcImageSize,

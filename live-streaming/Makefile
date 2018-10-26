@@ -2,6 +2,7 @@
 GPU=1
 
 CXX = g++
+NVCC = nvcc
 DARKNET_HEADER_PATH = ../include/
 CPPFLAGS += `pkg-config libavformat libavcodec` -g -O4
 CXXFLAGS += -std=c++11 -I $(DARKNET_HEADER_PATH) -I nvpipe/NvCodec/Utils
@@ -14,11 +15,13 @@ CXXFLAGS+= -DGPU -I/usr/local/cuda/include/
 LDFLAGS+= -L/usr/local/cuda/lib64 -Wl,--as-needed -lcuda -lcudart -lcublas -lcurand -lcudnn -lnppisu -lnppicom -lnppig -lnppc -lnppidei
 endif
 
-all: server 
+all: server
 
-server: main.o
+server: main.o cudaYUV-NV12.o
 	$(CXX) $^ -I $(DARKNET_HEADER_PATH) $(LDFLAGS) -o $@
+
+cudaYUV-NV12.o: cuda/cudaYUV-NV12.cu
+	nvcc -std=c++11 -c -arch=sm_60 $^ -o $@
+
 clean:
 	rm -f *.o server
-clean_certs:
-	rm -f *.csr *.key *.crt
