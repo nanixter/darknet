@@ -5,7 +5,7 @@ CXX = g++
 NVCC = nvcc
 DARKNET_HEADER_PATH = ../include/
 CPPFLAGS += `pkg-config libavformat libavcodec` -g -O4
-CXXFLAGS += -std=c++11 -I $(DARKNET_HEADER_PATH) -I nvpipe/NvCodec/Utils
+CXXFLAGS += -std=c++11 -I $(DARKNET_HEADER_PATH) -Invpipe/NvCodec/Utils -Iutils
 LDFLAGS += -L/usr/local/lib `pkg-config --libs libavformat libavcodec opencv` -lNvPipe \
 			-Wl,--as-needed -ldl -lpthread \
 			-L../ -Wl,--as-needed -ldarknet
@@ -20,7 +20,7 @@ all: server
 server: main.o cudaYUV-NV12.o
 	$(CXX) $^ -I $(DARKNET_HEADER_PATH) $(LDFLAGS) -o $@
 
-cudaYUV-NV12.o: cuda/cudaYUV-NV12.cu
+cudaYUV-NV12.o: utils/cudaYUV-NV12.cu
 	nvcc -std=c++11 -c -arch=sm_60 $^ -o $@
 
 clean:

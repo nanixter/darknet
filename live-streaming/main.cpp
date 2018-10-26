@@ -33,9 +33,9 @@ simplelogger::Logger *logger = simplelogger::LoggerFactory::CreateConsoleLogger(
 #include "nvpipe/NvCodec/Utils/FFmpegDemuxer.h"
 #include "nvpipe/NvCodec/Utils/FFmpegStreamer.h"
 
-#include <cuda/cudaYUV.h>
+#include "utils/cudaYUV.h"
 
-#include "Timer.h"
+#include "utils/Timer.h"
 
 int main(int argc, char* argv[])
 {
