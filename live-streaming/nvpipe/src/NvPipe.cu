@@ -88,7 +88,7 @@ inline uint64_t getFrameSize(NvPipe_Format format, uint32_t width, uint32_t heig
     else if (format == NVPIPE_UINT32)
         return width * height * 4;
     else if (format == NVPIPE_NV12)
-        return width * height * 4;
+        return width * height * 1.5;
 
     return 0;
 }
@@ -741,7 +741,8 @@ public:
             }
 			else if (this->format == NVPIPE_NV12)
 			{	
-				CUDA_THROW(cudaMemcpy(dst, decoded, this->decoder->GetDeviceFramePitch()*height, cudaMemcpyDeviceToDevice),
+				CUDA_THROW(cudaMemcpy(dst, decoded, this->decoder->GetDeviceFramePitch()*height*1.5, cudaMemcpyDeviceToDevice),
+				//CUDA_THROW(cudaMemcpy(dst, decoded, width*height*1.5, cudaMemcpyDeviceToDevice),
 							"NV12 Failed to copy from decoder buffer to user buffer");
 			}
             else if (this->format == NVPIPE_UINT4)
@@ -783,7 +784,8 @@ public:
                            "Failed to copy output to host memory");
 
 			if(this->format == NVPIPE_NV12)
-				return this->decoder->GetDeviceFramePitch()*height;
+				return this->decoder->GetDeviceFramePitch()*height*1.5;
+				//return width*height*1.5;
             return getFrameSize(this->format, width, height);
         }
 
