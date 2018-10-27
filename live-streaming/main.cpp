@@ -38,6 +38,8 @@ simplelogger::Logger *logger = simplelogger::LoggerFactory::CreateConsoleLogger(
 
 #include "utils/Timer.h"
 
+#include "darknet.h"
+
 int main(int argc, char* argv[])
 {
 	// Parse command-line options.
@@ -197,6 +199,7 @@ int main(int argc, char* argv[])
 		// Encode the processed Frame
 		//uint64_t size = NvPipe_Encode(encoder, scaledFrameNoPad, noPadWidth, compressedOutFrame, 200000, noPadWidth, noPadHeight, false);
 		//uint64_t size = NvPipe_Encode(encoder, scaledFramePadded, outWidth * 4, compressedOutFrame, 200000, outWidth, outHeight, false);
+		//uint64_t size = NvPipe_Encode(encoder, decompressedFrameDevice, inWidth * 4, compressedOutFrame, 200000, inWidth, inHeight, false);
 		//uint64_t size = NvPipe_Encode(encoder, decompressedFrameRGBADevice, inWidth * 4, compressedOutFrame, 200000, inWidth, inHeight, false);
 		uint64_t size = NvPipe_Encode(encoder, decompressedFrameDevice, decompressedFrameSize/inHeight, compressedOutFrame, 200000, inWidth, inHeight, false);
 		if (0 == size)

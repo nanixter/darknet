@@ -434,7 +434,7 @@ public:
         }
 		else if (this->format == NVPIPE_NV12)
 		{
-			CUDA_THROW(cudaMemcpy(this->encoder->GetNextInputFrame()->inputPtr, src, width*srcPitch, cudaMemcpyDeviceToDevice), "Failed to copy NV12 frame to encoder's buffers");
+			CUDA_THROW(cudaMemcpy(this->encoder->GetNextInputFrame()->inputPtr, src, height*srcPitch, cudaMemcpyDeviceToDevice), "Failed to copy NV12 frame to encoder's buffers");
 		}
         // Other formats need to be copied to the device and converted
         else
