@@ -432,10 +432,10 @@ public:
             CUDA_THROW(cudaMemcpy2D(this->encoder->GetNextInputFrame()->inputPtr, width * 4, src, srcPitch, width * 4, height, isDevicePointer(src) ? cudaMemcpyDeviceToDevice : cudaMemcpyHostToDevice),
                        "Failed to copy input frame");
         }
-		else if (this->format == NVPIPE_NV12)
-		{
-			CUDA_THROW(cudaMemcpy(this->encoder->GetNextInputFrame()->inputPtr, src, height*srcPitch, cudaMemcpyDeviceToDevice), "Failed to copy NV12 frame to encoder's buffers");
-		}
+        else if (this->format == NVPIPE_NV12)
+        {
+            CUDA_THROW(cudaMemcpy(this->encoder->GetNextInputFrame()->inputPtr, src, height*srcPitch, cudaMemcpyDeviceToDevice), "Failed to copy NV12 frame to encoder's buffers");
+        }
         // Other formats need to be copied to the device and converted
         else
         {
@@ -590,10 +590,10 @@ private:
 
             if (this->codec == NVPIPE_H264) {
                 encodeConfig.encodeCodecConfig.h264Config.idrPeriod = 4;//NVENC_INFINITE_GOPLENGTH;
-				encodeConfig.profileGUID = NV_ENC_H264_PROFILE_HIGH_GUID;
-			} else if (this->codec == NVPIPE_HEVC) {
+                encodeConfig.profileGUID = NV_ENC_H264_PROFILE_HIGH_GUID;
+            } else if (this->codec == NVPIPE_HEVC) {
                 encodeConfig.encodeCodecConfig.hevcConfig.idrPeriod = 4;//NVENC_INFINITE_GOPLENGTH;
-			}
+            }
 
             if (this->compression == NVPIPE_LOSSY)
             {
@@ -739,11 +739,11 @@ public:
             {
                 Nv12ToBgra32(decoded, width, dstDevice, width * 4, width, height);
             }
-			else if (this->format == NVPIPE_NV12)
-			{	
-				CUDA_THROW(cudaMemcpy(dst, decoded, this->decoder->GetDeviceFramePitch()*height, cudaMemcpyDeviceToDevice),
-							"NV12 Failed to copy from decoder buffer to user buffer");
-			}
+            else if (this->format == NVPIPE_NV12)
+            {
+                CUDA_THROW(cudaMemcpy(dst, decoded, this->decoder->GetDeviceFramePitch()*height, cudaMemcpyDeviceToDevice),
+                            "NV12 Failed to copy from decoder buffer to user buffer");
+            }
             else if (this->format == NVPIPE_UINT4)
             {
                 // one thread per TWO pixels (merge 2x4 bit to one byte per thread)
@@ -782,8 +782,8 @@ public:
                 CUDA_THROW(cudaMemcpy(dst, this->deviceBuffer, getFrameSize(this->format, width, height), cudaMemcpyDeviceToHost),
                            "Failed to copy output to host memory");
 
-			if(this->format == NVPIPE_NV12)
-				return this->decoder->GetDeviceFramePitch()*height;
+            if(this->format == NVPIPE_NV12)
+                return this->decoder->GetDeviceFramePitch()*height;
             return getFrameSize(this->format, width, height);
         }
 
