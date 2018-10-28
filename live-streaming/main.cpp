@@ -26,12 +26,12 @@
 // Simple wrapper around NVDEC and NVENC distributed by NVIDIA
 #include <NvPipe.h>
 
-#include "nvpipe/NvCodec/Utils/Logger.h"
+#include "nvpipe/src/NvCodec/Utils/Logger.h"
 simplelogger::Logger *logger = simplelogger::LoggerFactory::CreateConsoleLogger();
 
 // Utils from NVIDIA to DEMUX and MUX video streams
-#include "nvpipe/NvCodec/Utils/FFmpegDemuxer.h"
-#include "nvpipe/NvCodec/Utils/FFmpegStreamer.h"
+#include "nvpipe/src/NvCodec/Utils/FFmpegDemuxer.h"
+#include "nvpipe/src/NvCodec/Utils/FFmpegStreamer.h"
 
 #include "utils/cudaYUV.h"
 #include "utils/cudaResize.h"
@@ -206,7 +206,6 @@ int main(int argc, char* argv[])
 			std::cerr << "Encode error: " << NvPipe_GetError(encoder) << std::endl;
 
 		// MUX the frame
-		//int dts2 = ceil(static_cast<float>(dts)*targetFPS/inTimeBase.den*1.0);
 		muxer.Stream(compressedOutFrame, size, frameNum);
 		cudaFree(compressedFrameDevice);
 		cudaFree(decompressedFrameDevice);
