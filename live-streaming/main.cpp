@@ -89,6 +89,7 @@ int main(int argc, char* argv[])
 			return -1;
 	}
 
+	cudaSetDevice(3);;
 	// Create decoder
 	NvPipe* decoder = NvPipe_CreateDecoder(NVPIPE_NV12, codec);
 	//NvPipe* decoder = NvPipe_CreateDecoder(NVPIPE_RGBA32, codec);
@@ -108,7 +109,8 @@ int main(int argc, char* argv[])
 	uint32_t outHeight = 416;
 
 	// Create the output stream writer wrapper
-	FFmpegStreamer muxer(AV_CODEC_ID_H264, outWidth, outHeight, targetFPS, inTimeBase, "./scaled.mp4");
+	//FFmpegStreamer muxer(AV_CODEC_ID_H264, outWidth, outHeight, targetFPS, inTimeBase, "./scaled.mp4");
+	FFmpegStreamer muxer(AV_CODEC_ID_H264, inWidth, inHeight, targetFPS, inTimeBase, "./scaled.mp4");
 
 	uint8_t *compressedFrame = nullptr;
 	int compressedFrameSize = 0;
@@ -138,13 +140,14 @@ int main(int argc, char* argv[])
 			exit(-1);
 		}
 
-		cudaMemcpy(compressedOutFrame, decompressedFrameDevice, decompressedFrameSize, cudaMemcpyDevicetoHost);
+/*		void *decompressedFrameHost = new unsigned char[decompressedFrameSize/sizeof(unsigned char)];
+		cudaMemcpy(decompressedFrameHost, decompressedFrameDevice, decompressedFrameSize, cudaMemcpyDeviceToHost);
 
-		cv::Mat picYV12 = cv::Mat(inHeight * 3/2, inWidth, CV_8UC1, compressedOutFrame);
+		cv::Mat picYV12 = cv::Mat(inHeight * 3/2, inWidth, CV_8UC1, decompressedFrameHost);
 		cv::Mat picBGR;
 		cv::cvtColor(picYV12, picBGR, cv::COLOR_YUV2BGR_NV12);
 		cv::imwrite("test.bmp", picBGR);  //only for test
-		exit(0);
+*/
 
 		// Convert to RGB from NV12
 /*		void *decompressedFrameRGBADevice = nullptr;
@@ -212,7 +215,7 @@ int main(int argc, char* argv[])
 		//uint64_t size = NvPipe_Encode(encoder, scaledFramePadded, outWidth * 4, compressedOutFrame, 200000, outWidth, outHeight, false);
 		//uint64_t size = NvPipe_Encode(encoder, decompressedFrameDevice, inWidth * 4, compressedOutFrame, 200000, inWidth, inHeight, false);
 		//uint64_t size = NvPipe_Encode(encoder, decompressedFrameRGBADevice, inWidth * 4, compressedOutFrame, 200000, inWidth, inHeight, false);
-		uint64_t size = NvPipe_Encode(encoder, decompressedFrameDevice, decompressedFrameSize/inHeight, compressedOutFrame, 200000, inWidth, inHeight, false);
+		uint64_t size = NvPipe_Encode(encoder, decompressedFrameDevice, decompressedFrameSize/(inHeight*1.5), compressedOutFrame, 200000, inWidth, inHeight, false);
 		if (0 == size)
 			std::cerr << "Encode error: " << NvPipe_GetError(encoder) << std::endl;
 

@@ -434,7 +434,7 @@ public:
         }
         else if (this->format == NVPIPE_NV12)
         {
-            CUDA_THROW(cudaMemcpy(this->encoder->GetNextInputFrame()->inputPtr, src, height*srcPitch, cudaMemcpyDeviceToDevice), "Failed to copy NV12 frame to encoder's buffers");
+            CUDA_THROW(cudaMemcpy(this->encoder->GetNextInputFrame()->inputPtr, src, height*srcPitch*1.5, cudaMemcpyDeviceToDevice), "Failed to copy NV12 frame to encoder's buffers");
         }
         // Other formats need to be copied to the device and converted
         else
@@ -741,7 +741,7 @@ public:
             }
 			else if (this->format == NVPIPE_NV12)
 			{	
-				CUDA_THROW(cudaMemcpy(dst, decoded, this->decoder->GetDeviceFramePitch()*height*1.5, cudaMemcpyDeviceToDevice),
+				CUDA_THROW(cudaMemcpy(dstDevice, decoded, this->decoder->GetDeviceFramePitch()*height*1.5, cudaMemcpyDeviceToDevice),
 				//CUDA_THROW(cudaMemcpy(dst, decoded, width*height*1.5, cudaMemcpyDeviceToDevice),
 							"NV12 Failed to copy from decoder buffer to user buffer");
 			}
