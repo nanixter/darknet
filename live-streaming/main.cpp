@@ -20,6 +20,9 @@
 
 #include <assert.h>
 
+#include "opencv2/imgproc.hpp"
+#include "opencv2/highgui/highgui.hpp"
+
 // Custom C++ Wrapper around Darknet.
 //#include "DarknetWrapper.h"
 
@@ -134,6 +137,14 @@ int main(int argc, char* argv[])
 			std::cerr << "Decode error: " << NvPipe_GetError(decoder) << std::endl;
 			exit(-1);
 		}
+
+		cudaMemcpy(compressedOutFrame, decompressedFrameDevice, decompressedFrameSize, cudaMemcpyDevicetoHost);
+
+		cv::Mat picYV12 = cv::Mat(inHeight * 3/2, inWidth, CV_8UC1, compressedOutFrame);
+		cv::Mat picBGR;
+		cv::cvtColor(picYV12, picBGR, cv::COLOR_YUV2BGR_NV12);
+		cv::imwrite("test.bmp", picBGR);  //only for test
+		exit(0);
 
 		// Convert to RGB from NV12
 /*		void *decompressedFrameRGBADevice = nullptr;
