@@ -132,8 +132,8 @@ cudaError_t cudaYUYVToGray( uchar2* input, size_t inputPitch, float* output, siz
 cudaError_t cudaNV12ToRGBA( uint8_t* input, size_t inputPitch, uchar4* output, size_t outputPitch, size_t width, size_t height );
 cudaError_t cudaNV12ToRGBA( uint8_t* input, uchar4* output, size_t width, size_t height );
 
-cudaError_t cudaNV12ToRGBAf( uint8_t* input, size_t inputPitch, float4* output, size_t outputPitch, size_t width, size_t height );
-cudaError_t cudaNV12ToRGBAf( uint8_t* input, float4* output, size_t width, size_t height );
+cudaError_t cudaNV12ToRGBAf( uint8_t* input, size_t inputPitch, float3* output, size_t outputPitch, size_t width, size_t height );
+cudaError_t cudaNV12ToRGBAf( uint8_t* input, float3* output, size_t width, size_t height );
 
 /**
  * Setup NV12 color conversion constants.
@@ -142,7 +142,7 @@ cudaError_t cudaNV12ToRGBAf( uint8_t* input, float4* output, size_t width, size_
  * However if you want to setup custom constants (ie with a hue different than 0),
  * then you can call cudaNV12SetupColorspace() at any time, overriding the default.
  */
-cudaError_t cudaNV12SetupColorspace( float hue = 0.0f ); 
+cudaError_t cudaNV12SetupColorspace( float hue = 0.0f );
 
 ///@}
 

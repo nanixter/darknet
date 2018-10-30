@@ -1,14 +1,14 @@
 #ifndef DARKNET_WRAPPER_HPP
 #define DARKNET_WRAPPER_HPP
 
-#include <grpcpp/grpcpp.h>
-#include <grpc/support/log.h>
 #include <thread>
+#include <cstring>
+
 #include <queue>
 #include <mutex>
 #include <condition_variable>
-#include <cstring>
-#include <sys/time.h>
+
+#include "utils/Timer.h"
 
 extern "C" {
 	#undef __cplusplus
@@ -16,42 +16,11 @@ extern "C" {
 	#define __cplusplus 1
 }
 
-struct timestamp {
-	struct timeval start;
-	struct timeval end;
-};
-
-static inline void tvsub(struct timeval *x,
-						 struct timeval *y,
-						 struct timeval *ret)
-{
-	ret->tv_sec = x->tv_sec - y->tv_sec;
-	ret->tv_usec = x->tv_usec - y->tv_usec;
-	if (ret->tv_usec < 0) {
-		ret->tv_sec--;
-		ret->tv_usec += 1000000;
-	}
-}
-
-void probe_time_start2(struct timestamp *ts)
-{
-	gettimeofday(&ts->start, NULL);
-}
-
-float probe_time_end2(struct timestamp *ts)
-{
-	struct timeval tv;
-	gettimeofday(&ts->end, NULL);
-	tvsub(&ts->end, &ts->start, &tv);
-	return (tv.tv_sec * 1000.0 + (float) tv.tv_usec / 1000.0);
-}
-
 namespace DarknetWrapper {
 
 	typedef struct
 	{
 		bool done;
-		bool cancelled;
 		image img;
 		detection *dets;
 		int nboxes;
@@ -59,7 +28,8 @@ namespace DarknetWrapper {
 		void *tag;
 	} WorkRequest;
 
-	class DetectionQueue {
+
+	class WorkQueue {
 	public:
 
 		void push_back(WorkRequest &elem) {
@@ -122,77 +92,33 @@ namespace DarknetWrapper {
 			#ifdef GPU
 			cuda_set_device(gpuNo);
 			#endif
-			char *datacfg = argv[1];
-			char *cfgfile = argv[2];
-			char *weightfile = argv[3];
+			char *cfgfile = argv[1];
+			char *weightfile = argv[2];
 
 			this->net = load_network(cfgfile, weightfile, 0);
-			this->gpuBufferInit = false;
-
-			this->numNetworkOutputs = this->sizeNetwork();
-			this->predictions = new float[numNetworkOutputs];
-			this->average = new float[numNetworkOutputs];
 		}
 
 		void Shutdown() {
 			// Free any darknet resources held. Close the GPU connection, etc...
-			delete this->predictions;
-			delete this->average;
+			// This buffer doesn't belong to the network...
+			// Don't free it. The caller provided the buffer.
+			net->input_gpu = nullptr;
 			free_network(this->net);
 		}
 
-		image convertImage(const darknetServer::KeyFrame *frame) {
-			image newImage;
-
-			// ==== Convert to the right format ====
-			// Allocate memory for data in 'image', based on the size of 'data' in frame
-			newImage.data = new float[frame->data()->size()];
-
-			// Copy from the frame in elem to the 'image' format that darknet uses internally...
-			this->convertFrameToImage(frame, &newImage);
-
-			//save_image(newImage, "recieved");
-
-			// Convert from OpenCV's wonky BGR to the RGB format that YOLO operates on..
-			// TODO: This should be guarded by a flag.
-			rgbgr_image(newImage);
-
-			// Scale the image to 410x410 retaining the original aspect ratio,
-			// and add black borders (letter-boxing) around the scaled image
-			return letterbox_image(newImage, net->w, net->h);
-		}
-
 		void doDetection(WorkRequest &elem) {
+			timer_gpu.reset();
+
 			float nms = .4;
 			set_batch_network(net, 1);
 			layer l = net->layers[net->n-1];
 
-			 // ==== Now we finally run the actual network ====
-			probe_time_start2(&ts_gpu);
+			network_predict_gpubuffer(net, elem.img.data);
 
-/*			// ==== This block is used to test NoTransfer and NoGPUCompute ====
-			bool transferData = false;
-			if (gpuBufferInit == false) {
-				transferData = true;
-				gpuBufferInit = true;
-//				network_predict2(net, newImage_letterboxed.data, transferData);
-//				this->remember_network();
-//				this->dets = this->average_predictions(&(this->nboxes), newImage.h, newImage.w);
-			}
-			network_predict2(net, newImage_letterboxed.data, transferData);
-			this->remember_network();
-			elem.dets = this->average_predictions(&(elem.nboxes), newImage.h, newImage.w);
-//			elem.dets = this->dets;
-//			elem.nboxes = this->nboxes;
-*/
-			// If the rug got pulled out from underneath us...
-			if (elem.cancelled == true)
-				return;
-
-			network_predict(net, elem.img.data);
+			// This helper function can scale the boxes to the original image size.
 			elem.dets = get_network_boxes(this->net, elem.img.w, elem.img.h, 0.5, 0.5, 0, 1, &(elem.nboxes));
 
-			// What the hell does this do?
+			// Non-maximum suppression whatever that is...
 			if (nms > 0) {
 				do_nms_obj(elem.dets, elem.nboxes, l.classes, nms);
 			}
@@ -200,13 +126,13 @@ namespace DarknetWrapper {
 			elem.classes = l.classes;
 			elem.done = true;
 
-			std::cout << elem.tag << " GPU processing took " << probe_time_end2(&ts_gpu) << " milliseconds"<< std::endl;
+			std::cout << elem.tag << " GPU processing took " << timer_gpu.getElapsedMicroseconds() << " milliseconds"<< std::endl;
 		}
 
 		void doDetection(std::vector<WorkRequest> &elems, int numImages) {
 
 			std::cout << "doDetection: new batch request. Batch Size = " << numImages << std::endl;
-			probe_time_start2(&ts_detect);
+			timer_detection.reset();
 
 			// Save the address of the l.output for YOLO layers so we can restore it later.
 			// What a dirty hack...
@@ -221,29 +147,20 @@ namespace DarknetWrapper {
 			for (int elemNum = 0; elemNum < numImages; elemNum++)
 				bufferSize += net->h*net->w*elems[elemNum].img.c;
 
+			void *dataToProcess = nullptr;
+			cudaMalloc(&dataToProcess, bufferSize*sizeof(float));
+
+
 			// Copy all the images into 1 buffer.
-			float *dataToProcess = new float[bufferSize*sizeof(float)];
 			for (int elemNum = 0 ; elemNum < numImages; elemNum++) {
 				int imgSize = net->h*net->w*elems[elemNum].img.c;
-				std::memcpy(dataToProcess+elemNum*imgSize, elems[elemNum].img.data,
-							imgSize*sizeof(float));
+				cudaMemcpy(dataToProcess+elemNum*imgSize, elems[elemNum].img.data, imgSize*sizeof(float), cudaMemcpyDeviceToDevice);
 			}
-
-			// If at least one of the images is not cancelled, go through with it...
-			bool process = false;
-			for (int elemNum = 0 ; elemNum < numImages; elemNum++) {
-				if (elems[elemNum].cancelled == false) {
-					process = true;
-				}
-			}
-
-			if (!process)
-				return;
 
 			 // Now we finally run the actual network
-			probe_time_start2(&ts_gpu);
+			timer_gpu.reset();
 
-			network_predict(net, dataToProcess);
+			network_predict_gpubuffer(net, dataToProcess);
 
 			// Copy the detected boxes into the appropriate WorkRequest
 			for (int elemNum = 0 ; elemNum < numImages; elemNum++) {
@@ -257,22 +174,16 @@ namespace DarknetWrapper {
 				shiftOutput();
 				elems[elemNum].classes = l.classes;
 				elems[elemNum].done = true;
-
 			}
-			restoreOutputAddr();
-			delete dataToProcess;
 
-			std::cout << "Batch GPU processing took " << probe_time_end2(&ts_gpu) << " milliseconds"<< std::endl;
-			std::cout << " doDetection: took " << probe_time_end2(&ts_detect) << " milliseconds"<< std::endl;
+			restoreOutputAddr();
+			cudaFree(dataToProcess);
+
+			std::cout << "Batch GPU processing took " << timer_gpu.getElapsedMicroseconds() << " milliseconds"<< std::endl;
+			std::cout << " doDetection: took " << timer_detection.getElapsedMicroseconds() << " milliseconds"<< std::endl;
 		}
 
 	private:
-		void convertFrameToImage(const darknetServer::KeyFrame *frame, image *newImage) {
-			newImage->w = frame->width();
-			newImage->h = frame->height();
-			newImage->c = frame->numChannels();
-			newImage->data =  const_cast<float *>(frame->data()->data());
-		}
 
 		// Helper functions from https://gist.github.com/ElPatou/706a6ff36b2dce1f492007e87bcd2a0c
 		void saveBaseOutput() {
@@ -316,29 +227,11 @@ namespace DarknetWrapper {
 			}
 		}
 
-		// Helper functions stolen from demo.c
-		int sizeNetwork()
-		{
-			int count = 0;
-			for(int i = 0; i < this->net->n; ++i){
-				layer l = this->net->layers[i];
-				if(l.type == YOLO || l.type == REGION || l.type == DETECTION){
-					count += l.outputs;
-				}
-			}
-			return count;
-		}
-
 		// All the darknet globals.
-		struct timestamp ts_detect;
-		struct timestamp ts_gpu;
-		float *predictions;
-		float *average;
-		bool gpuBufferInit;
-		detection *dets;
-		int nboxes;
+		Timer timer_gpu;
+		Timer timer_detection;
+
 		network *net;
-		int numNetworkOutputs;
 
 		float **baseOutput;
 
@@ -359,10 +252,6 @@ namespace DarknetWrapper {
 			this->requestQueue = nullptr;
 			this->completionQueue = nullptr;
 			Detector::Shutdown();
-		}
-
-		image convertImage(const darknetServer::KeyFrame *frame) {
-			return Detector::convertImage(frame);
 		}
 
 		void doDetection() {

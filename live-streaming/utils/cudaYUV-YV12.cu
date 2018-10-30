@@ -49,7 +49,7 @@ __global__ void RGB_to_YV12( T* src, int srcAlignedWidth, uint8_t* dst, int dstP
 		return;
 
 	const int planeSize = height * dstPitch;
-	
+
 	uint8_t* y_plane = dst;
 	uint8_t* u_plane;
 	uint8_t* v_plane;
@@ -79,7 +79,7 @@ __global__ void RGB_to_YV12( T* src, int srcAlignedWidth, uint8_t* dst, int dstP
 	px = src[y1 * srcAlignedWidth + x];
 	rgb_to_y(px.x, px.y, px.z, y_val);
 	y_plane[y1 * dstPitch + x] = y_val;
-	
+
 	px = src[y1 * srcAlignedWidth + x1];
 	rgb_to_yuv(px.x, px.y, px.z, y_val, u_val, v_val);
 	y_plane[y1 * dstPitch + x1] = y_val;
@@ -89,7 +89,7 @@ __global__ void RGB_to_YV12( T* src, int srcAlignedWidth, uint8_t* dst, int dstP
 
 	u_plane[uvIndex] = u_val;
 	v_plane[uvIndex] = v_val;
-} 
+}
 
 template<typename T, bool formatYV12>
 cudaError_t launch420( T* input, size_t inputPitch, uint8_t* output, size_t outputPitch, size_t width, size_t height)

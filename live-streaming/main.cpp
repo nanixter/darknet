@@ -20,11 +20,15 @@
 
 #include <assert.h>
 
+#include "opencv2/core.hpp"
+#include <opencv2/core/utility.hpp>
+#include "opencv2/core/cuda.hpp"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
+#include "opencv2/cudaimgproc.hpp"
 
 // Custom C++ Wrapper around Darknet.
-//#include "DarknetWrapper.h"
+#include "DarknetWrapper.h"
 
 // Simple wrapper around NVDEC and NVENC distributed by NVIDIA
 #include <NvPipe.h>
@@ -38,13 +42,47 @@ simplelogger::Logger *logger = simplelogger::LoggerFactory::CreateConsoleLogger(
 
 #include "utils/cudaYUV.h"
 #include "utils/cudaResize.h"
+#include "utils/cudaRGB.h"
 
 #include "utils/Timer.h"
 
-#include "darknet.h"
+using DarknetWrapper::WorkRequest;
+// using DarknetWrapper::DetectionQueue;
+using DarknetWrapper::Detector;
+
+void printUsage(char *binaryName) {
+	std::cout << "Usage:" << std::endl
+			<< binaryName << " <cfg> <weights> -f <vid_file>"
+			<< std::endl;
+}
+
+// Assumes the box is scaled to 416x416 image
+float4 scale_box416(box bbox, int width, int height, int ARHeight, int ARWidth, int top, int left)
+{
+	// Convert from x, y, w, h to xleft, ytop, xright, ybottom
+	//  ---------------------------------------------------------
+	// |xleft,ytop-> .----------.
+	// |			 |			|
+	// |			 |			|
+	// |			 |			|
+	// |			 .----------. <-xright,ybottom
+
+	float4 box;
+	box.x = (bbox.x - left)*(float)width/ARWidth;
+	box.y = (bbox.y - top)*(float)height/ARHeight;
+	box.z = ((bbox.x + bbox.z) - left)*(float)width/ARWidth;
+	box.w = ((bbox.y + bbox.w) - top)*(float)height/ARHeight;
+	return box;
+}
 
 int main(int argc, char* argv[])
 {
+
+	if(argc < 5){
+		std::cout << "Too few arguments provided." << std::endl;
+		printUsage(argv[0]);
+		return EXIT_FAILURE;
+	}
 	// Parse command-line options.
 	// TODO: support RTMP ingestion (or some other network ingestion)
 	char *filename;
@@ -53,9 +91,11 @@ int main(int argc, char* argv[])
 			filename = argv[i+1];
 		}
 	}
+
 	if (NULL == filename) {
-		std::cout << "Usage:" << std::endl << argv[0] << " -f <vid_file>" << std::endl;
-		return -1;
+		std::cout << "Please provide input video file." << std::endl;
+		printUsage(argv[0]);
+		return EXIT_FAILURE;
 	}
 	std::cout << "video file:" << filename <<std::endl;
 
@@ -89,7 +129,13 @@ int main(int argc, char* argv[])
 			return -1;
 	}
 
-	cudaSetDevice(3);;
+	// We're running detection on GPU 3 and Decode/Encode on GPU 4
+	// Enable P2P access.
+	cudaSetDevice(2);
+	cudaDeviceEnablePeerAccess(3, 0);
+	cudaSetDevice(3);
+	cudaDeviceEnablePeerAccess(2, 0);
+
 	// Create decoder
 	NvPipe* decoder = NvPipe_CreateDecoder(NVPIPE_NV12, codec);
 	if (!decoder)
@@ -100,14 +146,12 @@ int main(int argc, char* argv[])
 	const uint32_t targetFPS = 30;
 
 	// Create encoder
-	NvPipe* encoder = NvPipe_CreateEncoder(NVPIPE_NV12, codec, NVPIPE_LOSSY, bitrateMbps * 1000 * 1000, targetFPS);
+	NvPipe* encoder = NvPipe_CreateEncoder(NVPIPE_RGBA32, codec, NVPIPE_LOSSY, bitrateMbps * 1000 * 1000, targetFPS);
 	if (!encoder)
 		std::cerr << "Failed to create encoder: " << NvPipe_GetError(NULL) << std::endl;
-	uint32_t outWidth = 416;
-	uint32_t outHeight = 416;
 
 	// Create the output stream writer wrapper
-	FFmpegStreamer muxer(AV_CODEC_ID_H264, outWidth, outHeight, targetFPS, inTimeBase, "./scaled.mp4");
+	FFmpegStreamer muxer(AV_CODEC_ID_H264, inWidth, inHeight, targetFPS, inTimeBase, "./scaled.mp4");
 	//FFmpegStreamer muxer(AV_CODEC_ID_H264, inWidth, inHeight, targetFPS, inTimeBase, "./scaled.mp4");
 
 	uint8_t *compressedFrame = nullptr;
@@ -117,6 +161,12 @@ int main(int argc, char* argv[])
 
 	// NvPipe expects us to allocate a buffer for it to output to.. Sigh...
 	uint8_t *compressedOutFrame = new uint8_t[200000];
+
+	std::cout << "Initializing detector" <<std::endl;
+	Detector detector;
+	uint32_t netWidth = 416;
+	uint32_t netHeight = 416;
+	detector.Init(argc, argv, 2);
 
 	Timer timer;
 	uint64_t frameNum = 0;
@@ -148,70 +198,75 @@ int main(int argc, char* argv[])
 		cv::imwrite("raw.bmp", picBGR);  //only for test
 */
 		// Convert to RGB from NV12
-		void *decompressedFrameRGBADevice = nullptr;
-		cudaMalloc(&decompressedFrameRGBADevice, inWidth*inHeight*sizeof(float4));
+		void *decompressedFrameRGBDevice = nullptr;
+		cudaMalloc(&decompressedFrameRGBDevice, inWidth*inHeight*sizeof(float3));
 
-		cudaError_t status = cudaNV12ToRGBAf(static_cast<uint8_t *>(decompressedFrameDevice),
-											static_cast<float4 *>(decompressedFrameRGBADevice),
+		cudaError_t status = cudaNV12ToRGBf(static_cast<uint8_t *>(decompressedFrameDevice),
+											static_cast<float4 *>(decompressedFrameRGBDevice),
 											(size_t)inWidth,
 											(size_t)inHeight);
 		if (status != cudaSuccess)
-			std::cout << "cudaNV12ToRGBAf Status = " << cudaGetErrorName(status) << std::endl;
+			std::cout << "cudaNV12ToRGBf Status = " << cudaGetErrorName(status) << std::endl;
 		assert(status == cudaSuccess);
 
 		// Uncomment this block to dump raw frames as a sanity check.
-/*		float4 *decompressedFrameRGBAHost = new float4[inWidth*inHeight];
-		cudaMemcpy((void *)decompressedFrameRGBAHost, decompressedFrameRGBADevice, sizeof(float4)*inWidth*inHeight, cudaMemcpyDeviceToHost);
-		//std::cout << "RGBA data: " <<std::endl;
+/*		float3 *decompressedFrameRGBHost = new float3[inWidth*inHeight];
+		cudaMemcpy((void *)decompressedFrameRGBHost, decompressedFrameRGBDevice, sizeof(float3)*inWidth*inHeight, cudaMemcpyDeviceToHost);
+		//std::cout << "RGB data: " <<std::endl;
 		//for (int i = 0; i < inWidth*inHeight; i++) {
-		//	float4 temp = decompressedFrameRGBAHost[i];
+		//	float3 temp = decompressedFrameRGBHost[i];
 		//	std::cout << "Red " << temp.x
 		//				<< "Green " << temp.y
-		//				<< "Blue " << temp.z 
-		//				<< "Alpha " << temp.w 
+		//				<< "Blue " << temp.z
+		//				<< "Alpha " << temp.w
 		//				<< std::endl;
 		//}
-		cv::Mat picRGB = cv::Mat(inHeight, inWidth, CV_32FC4, decompressedFrameRGBAHost);
+		cv::Mat picRGB = cv::Mat(inHeight, inWidth, CV_32FC4, decompressedFrameRGBHost);
 		//cv::Mat picBGR;
-		cv::cvtColor(picRGB, picBGR, cv::COLOR_RGBA2BGR);
+		cv::cvtColor(picRGB, picBGR, cv::COLOR_RGB2BGR);
 		cv::imwrite("bgr.bmp", picBGR);  //only for test
 */
-		// Scale the frame to outWidth;outHeight
-		size_t noPadWidth = outWidth;
-		size_t noPadHeight = outHeight;
+		// Scale the frame to netWidth;netHeight
+		size_t noPadWidth = netWidth;
+		size_t noPadHeight = netHeight;
 
 		// Keep aspect ratio
-		double h1 = outWidth * (inHeight/(double)inWidth);
-		double w2 = outHeight * (inWidth/(double)inHeight);
-		if( h1 <= outHeight)
+		double h1 = netWidth * (inHeight/(double)inWidth);
+		double w2 = netHeight * (inWidth/(double)inHeight);
+		if( h1 <= netHeight)
 			noPadHeight = (int)h1;
 		else
 			noPadWidth = (int)w2;
 
 		void *scaledFrameNoPad = nullptr;
-		cudaMalloc(&scaledFrameNoPad, noPadWidth*noPadHeight*sizeof(float4));
+		cudaMalloc(&scaledFrameNoPad, noPadWidth*noPadHeight*sizeof(float3));
 
-		status = cudaResizeRGBA(static_cast<float4 *>(decompressedFrameRGBADevice),
+		status = cudaResizeRGB(static_cast<float3 *>(decompressedFrameRGBDevice),
 								(size_t)inWidth,
 								(size_t)inHeight,
-								static_cast<float4 *>(scaledFrameNoPad),
+								static_cast<float3 *>(scaledFrameNoPad),
 								noPadWidth,
 								noPadHeight);
 
+		if (status != cudaSuccess)
+			std::cout << "cudaResizeRGB Status = " << cudaGetErrorName(status) << std::endl;
+		assert(status == cudaSuccess);
+
 		// Pad the image with black border if needed
-		int top = (outHeight - noPadHeight) / 2;
-		int left = (outWidth - noPadWidth) / 2;
+		int top = (netHeight - noPadHeight) / 2;
+		int left = (netWidth - noPadWidth) / 2;
 
 		void *scaledFramePadded = nullptr;
-		cudaMalloc(&scaledFramePadded, outWidth*outHeight*sizeof(float4));
+		cudaMalloc(&scaledFramePadded, netWidth*netHeight*sizeof(float3));
 
 		const Npp32f bordercolor[3] = {0.0,0.0,0.0};
-		NppStatus nppStatus = nppiCopyConstBorder_32f_AC4R(static_cast<const Npp32f *>(scaledFrameNoPad),
-											noPadWidth*sizeof(float4),
+
+		NppStatus nppStatus = nppiCopyConstBorder_32f_C3R(static_cast<const Npp32f *>(scaledFrameNoPad),
+											noPadWidth*sizeof(float3),
 											(NppiSize){noPadWidth, noPadHeight},
 											static_cast<Npp32f *>(scaledFramePadded),
-											outWidth*sizeof(float4),
-											(NppiSize){outWidth, outHeight},
+											netWidth*sizeof(float3),
+											(NppiSize){netWidth, netHeight},
 											top,
 											left,
 											bordercolor);
@@ -220,32 +275,83 @@ int main(int argc, char* argv[])
 			std::cout << "NPPCopyConstBorder Status = " << status << std::endl;
 		assert(nppStatus == NPP_SUCCESS);
 
-/*		float4 *letterboxedRGBAHost = new float4[outWidth*outHeight];
-		cudaMemcpy((void *)letterboxedRGBAHost, scaledFramePadded, sizeof(float4)*outWidth*outHeight, cudaMemcpyDeviceToHost);
-		//std::cout << "RGBA data: " <<std::endl;
+/*		float3 *letterboxedRGBHost = new float3[netWidth*netHeight];
+		cudaMemcpy((void *)letterboxedRGBHost, scaledFramePadded, sizeof(float3)*netWidth*netHeight, cudaMemcpyDeviceToHost);
+		//std::cout << "RGB data: " <<std::endl;
 		//for (int i = 0; i < inWidth*inHeight; i++) {
-		//	float4 temp = decompressedFrameRGBAHost[i];
+		//	float3 temp = decompressedFrameRGBHost[i];
 		//	std::cout << "Red " << temp.x
 		//				<< "Green " << temp.y
-		//				<< "Blue " << temp.z 
-		//				<< "Alpha " << temp.w 
+		//				<< "Blue " << temp.z
+		//				<< "Alpha " << temp.w
 		//				<< std::endl;
 		//}
-		cv::Mat picRGB = cv::Mat(outHeight, outWidth, CV_32FC4, letterboxedRGBAHost);
+		cv::Mat picRGB = cv::Mat(netHeight, netWidth, CV_32FC4, letterboxedRGBHost);
 		cv::Mat picBGR;
-		cv::cvtColor(picRGB, picBGR, cv::COLOR_RGBA2BGR);
+		cv::cvtColor(picRGB, picBGR, cv::COLOR_RGB2BGR);
 		cv::imwrite("letterboxed.bmp", picBGR);  //only for test
 */
 
 		// Pass image pointer to Darknet for detection
+		WorkRequest work;
+		work.done = false;
+		work.tag = this;
+		work.img = {netWidth, netHeight, 3, scaledFramePadded};
+		work.dets = nullptr;
+		work.nboxes = 0;
+		work.classes = 0;
+
+		// The actual processing.
+		detector.doDetection(work);
+
+		// Copy detected objects to the Request
+		assert(work.done == true);
+		assert(work.dets != nullptr);
 
 		// Draw boxes in the decompressedFrameDevice using cudaOverlayRectLine
+		int numObjects = 0;
+		std::vector<float4> boundingBoxes;
+		for (int i = 0; i < work.nboxes; i++) {
+			if(work.dets[i].objectness == 0) continue;
+			bool draw = false;
+			for (int j = 0; j < work.classes; j++) {
+				if(work.dets[i].prob[j] > 0.5)
+					draw = true;
+			}
+			if (draw == true) {
+				boundingBoxes.push_back(scale_box416(work.dets[i].bbox, inWidth, inHeight,noPadHeight, noPadWidth, top, left));
+				numObjects++;
+			}
+		}
+
+		const float4 lineColor = {255.0,0.0,0.0,255.0};
+
+		void *boundingBoxesDevice = nullptr;
+		cudaMalloc(&boundingBoxesDevice, numObjects*sizeof(float4));
+		cudaMemcpy(boundingBoxesDevice, boundingBoxes.data(), numObjects*sizeof(float4), cudaMemcpyHostToDevice);
+
+		status = cudaRectOutlineOverlay(decompressedFrameRGBDevice, decompressedFrameRGBDevice, inWidth, inHeight, (float4 *)boundingBoxesDevice, numObjects, lineColor);
+
+		if (status != cudaSuccess)
+			std::cout << "cudaRectOutlineOverlay Status = " << cudaGetErrorName(status)
+						<< std::endl;
+		assert(status == cudaSuccess);
 
 		// Draw labels using cudaFont
+		// Maybe later.
+
+		// Free the detections
+		free_detections(work.dets, work.nboxes);
+
+		status = cudaRGBAToRGBA8(decompressedFrameRGBDevice, (uchar4*) decompressedFrameDevice, inWidth, inHeight);
+
+		if (status != cudaSuccess)
+			std::cout << "cudaRectOutlineOverlay Status = " << cudaGetErrorName(status)
+						<< std::endl;
+		assert(status == cudaSuccess);
 
 		// Encode the processed Frame
-		//uint64_t size = NvPipe_Encode(encoder, scaledFramePadded, outWidth * 4, compressedOutFrame, 200000, outWidth, outHeight, false);
-		uint64_t size = NvPipe_Encode(encoder, decompressedFrameDevice, decompressedFrameSize/(inHeight*1.5), compressedOutFrame, 200000, inWidth, inHeight, false);
+		uint64_t size = NvPipe_Encode(encoder, decompressedFrameDevice, inWidth*4, compressedOutFrame, 200000, inWidth, inHeight, false);
 		if (0 == size)
 			std::cerr << "Encode error: " << NvPipe_GetError(encoder) << std::endl;
 
@@ -253,9 +359,10 @@ int main(int argc, char* argv[])
 		muxer.Stream(compressedOutFrame, size, frameNum);
 		cudaFree(compressedFrameDevice);
 		cudaFree(decompressedFrameDevice);
-		cudaFree(decompressedFrameRGBADevice);
+		cudaFree(decompressedFrameRGBDevice);
 		cudaFree(scaledFrameNoPad);
 		cudaFree(scaledFramePadded);
+		cudaFree(boundingBoxesDevice);
 
 		std::cout << "Processing frame " << frameNum++ << " took " << timer.getElapsedMicroseconds() << " us." << std::endl;
 	}

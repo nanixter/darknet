@@ -67,8 +67,8 @@ cudaError_t cudaResize( float* input, size_t inputWidth, size_t inputHeight,
 
 
 // cudaResizeRGBA
-cudaError_t cudaResizeRGBA( float4* input,  size_t inputWidth, size_t inputHeight,
-				            float4* output, size_t outputWidth, size_t outputHeight )
+cudaError_t cudaResizeRGBA( float3* input,  size_t inputWidth, size_t inputHeight,
+				            float3* output, size_t outputWidth, size_t outputHeight )
 {
 	if( !input || !output )
 		return cudaErrorInvalidDevicePointer;
@@ -83,7 +83,7 @@ cudaError_t cudaResizeRGBA( float4* input,  size_t inputWidth, size_t inputHeigh
 	const dim3 blockDim(8, 8);
 	const dim3 gridDim(iDivUp(outputWidth,blockDim.x), iDivUp(outputHeight,blockDim.y));
 
-	gpuResize<float4><<<gridDim, blockDim>>>(scale, input, inputWidth, output, outputWidth, outputHeight);
+	gpuResize<float3><<<gridDim, blockDim>>>(scale, input, inputWidth, output, outputWidth, outputHeight);
 
 	return CUDA(cudaGetLastError());
 }
