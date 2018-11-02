@@ -54,6 +54,7 @@ class ServiceImpl final : public ImageDetection::Service {
 		// This structure was mostly created for the Async version, but we use it too...
 		WorkRequest work;
 		work.done = false;
+		work.cancelled = false;
 		work.tag = this;
 		work.img = detector.convertImage(requestMessage->GetRoot());
 		work.dets = nullptr;
@@ -72,6 +73,7 @@ class ServiceImpl final : public ImageDetection::Service {
 		for (int i = 0; i < work.nboxes; i++) {
 			if(work.dets[i].objectness == 0) continue;
 			bbox box(work.dets[i].bbox.x, work.dets[i].bbox.y, work.dets[i].bbox.w, work.dets[i].bbox.h);
+		//	std::cout << work.dets[i].bbox.x <<" " <<work.dets[i].bbox.y <<" " << work.dets[i].bbox.w <<" " <<work.dets[i].bbox.h <<std::endl;
 			std::vector<float> prob;
 			for (int j = 0; j < work.classes; j++) {
 				prob.push_back(work.dets[i].prob[j]);
