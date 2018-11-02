@@ -20,12 +20,8 @@
 
 #include <assert.h>
 
-#include "opencv2/core.hpp"
-#include <opencv2/core/utility.hpp>
-#include "opencv2/core/cuda.hpp"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
-#include "opencv2/cudaimgproc.hpp"
 
 // Custom C++ Wrapper around Darknet.
 #include "DarknetWrapper.h"
@@ -43,6 +39,7 @@ simplelogger::Logger *logger = simplelogger::LoggerFactory::CreateConsoleLogger(
 #include "utils/cudaYUV.h"
 #include "utils/cudaResize.h"
 #include "utils/cudaRGB.h"
+#include "utils/cudaOverlay.h"
 
 #include "utils/Timer.h"
 
@@ -57,21 +54,22 @@ void printUsage(char *binaryName) {
 }
 
 // Assumes the box is scaled to 416x416 image
-float4 scale_box416(box bbox, int width, int height, int ARHeight, int ARWidth, int top, int left)
+float4 scale_box416(box bbox, int width, int height)
 {
 	// Convert from x, y, w, h to xleft, ytop, xright, ybottom
 	//  ---------------------------------------------------------
 	// |xleft,ytop-> .----------.
 	// |			 |			|
-	// |			 |			|
+	// |			 |	   .<-----------(x,y,w,h)
 	// |			 |			|
 	// |			 .----------. <-xright,ybottom
 
+	//std::cout << "Scale_box416:" << bbox.x 	<<" " << bbox.y	<<" " << bbox.w <<" " << bbox.h	<< std::endl;
 	float4 box;
-	box.x = (bbox.x - left)*(float)width/ARWidth;
-	box.y = (bbox.y - top)*(float)height/ARHeight;
-	box.z = ((bbox.x + bbox.z) - left)*(float)width/ARWidth;
-	box.w = ((bbox.y + bbox.w) - top)*(float)height/ARHeight;
+	box.x = std::max( (bbox.x - bbox.w/2.0) * width, 0.0);
+	box.y = std::max( (bbox.y - bbox.h/2.0) * height, 0.0);
+	box.z = std::min( (bbox.x + bbox.w/2.0) * width, width-1.0);
+	box.w = std::min( (bbox.y + bbox.h/2.0) * height, height-1.0);
 	return box;
 }
 
@@ -170,6 +168,7 @@ int main(int argc, char* argv[])
 
 	Timer timer;
 	uint64_t frameNum = 0;
+	cv::Mat picRGB, picBGR;
 	// In a loop, grab compressed frames from the demuxer.
 	while(demuxer.Demux(&compressedFrame, &compressedFrameSize, &dts)) {
 		timer.reset();
@@ -193,7 +192,6 @@ int main(int argc, char* argv[])
 		cudaMemcpy(decompressedFrameHost, decompressedFrameDevice, decompressedFrameSize, cudaMemcpyDeviceToHost);
 
 		cv::Mat picYV12 = cv::Mat(inHeight * 3/2, inWidth, CV_8UC1, decompressedFrameHost);
-		cv::Mat picBGR;
 		cv::cvtColor(picYV12, picBGR, cv::COLOR_YUV2BGR_NV12);
 		cv::imwrite("raw.bmp", picBGR);  //only for test
 */
@@ -202,7 +200,7 @@ int main(int argc, char* argv[])
 		cudaMalloc(&decompressedFrameRGBDevice, inWidth*inHeight*sizeof(float3));
 
 		cudaError_t status = cudaNV12ToRGBf(static_cast<uint8_t *>(decompressedFrameDevice),
-											static_cast<float4 *>(decompressedFrameRGBDevice),
+											static_cast<float3 *>(decompressedFrameRGBDevice),
 											(size_t)inWidth,
 											(size_t)inHeight);
 		if (status != cudaSuccess)
@@ -212,6 +210,7 @@ int main(int argc, char* argv[])
 		// Uncomment this block to dump raw frames as a sanity check.
 /*		float3 *decompressedFrameRGBHost = new float3[inWidth*inHeight];
 		cudaMemcpy((void *)decompressedFrameRGBHost, decompressedFrameRGBDevice, sizeof(float3)*inWidth*inHeight, cudaMemcpyDeviceToHost);
+		std::cout << decompressedFrameRGBHost[0].x << " " << decompressedFrameRGBHost[0].y << " " <<decompressedFrameRGBHost[0].z << std::endl;
 		//std::cout << "RGB data: " <<std::endl;
 		//for (int i = 0; i < inWidth*inHeight; i++) {
 		//	float3 temp = decompressedFrameRGBHost[i];
@@ -221,8 +220,7 @@ int main(int argc, char* argv[])
 		//				<< "Alpha " << temp.w
 		//				<< std::endl;
 		//}
-		cv::Mat picRGB = cv::Mat(inHeight, inWidth, CV_32FC4, decompressedFrameRGBHost);
-		//cv::Mat picBGR;
+		picRGB = cv::Mat(inHeight, inWidth, CV_32FC3, decompressedFrameRGBHost);
 		cv::cvtColor(picRGB, picBGR, cv::COLOR_RGB2BGR);
 		cv::imwrite("bgr.bmp", picBGR);  //only for test
 */
@@ -275,28 +273,46 @@ int main(int argc, char* argv[])
 			std::cout << "NPPCopyConstBorder Status = " << status << std::endl;
 		assert(nppStatus == NPP_SUCCESS);
 
-/*		float3 *letterboxedRGBHost = new float3[netWidth*netHeight];
-		cudaMemcpy((void *)letterboxedRGBHost, scaledFramePadded, sizeof(float3)*netWidth*netHeight, cudaMemcpyDeviceToHost);
-		//std::cout << "RGB data: " <<std::endl;
-		//for (int i = 0; i < inWidth*inHeight; i++) {
-		//	float3 temp = decompressedFrameRGBHost[i];
-		//	std::cout << "Red " << temp.x
-		//				<< "Green " << temp.y
-		//				<< "Blue " << temp.z
-		//				<< "Alpha " << temp.w
-		//				<< std::endl;
-		//}
-		cv::Mat picRGB = cv::Mat(netHeight, netWidth, CV_32FC4, letterboxedRGBHost);
-		cv::Mat picBGR;
+		Npp32f *scaledPaddedPlanar[3] = {nullptr,nullptr,nullptr};
+		void *scaledPaddedPlanarS = nullptr;
+		cudaMalloc(&scaledPaddedPlanarS, netWidth*netHeight*sizeof(float)*3);
+
+		//std::cout << "scaledPlanar = " << scaledPaddedPlanarS << " Last memory location = " << scaledPaddedPlanarS+netWidth*netHeight*sizeof(float)*3-1 <<std::endl;
+		scaledPaddedPlanar[0] = (float *)scaledPaddedPlanarS;
+		scaledPaddedPlanar[1] = (float *)(scaledPaddedPlanarS+netWidth*netHeight*sizeof(float));
+		scaledPaddedPlanar[2] = (float *)(scaledPaddedPlanarS+netWidth*netHeight*sizeof(float));
+		//std::cout << "scaledPlanar[0] = " << scaledPaddedPlanar[0] <<std::endl; 
+		//std::cout << "scaledPlanar[1] = " << scaledPaddedPlanar[1] <<std::endl; 
+		//std::cout << "scaledPlanar[2] = " << scaledPaddedPlanar[2] <<std::endl; 
+
+		nppStatus = nppiCopy_32f_C3P3R(static_cast<const Npp32f *>(scaledFramePadded),
+											netWidth*sizeof(float3),
+											scaledPaddedPlanar,
+											netWidth*sizeof(float),
+											(NppiSize){netWidth, netHeight});
+
+		if (nppStatus != NPP_SUCCESS)
+			std::cout << "nppiCopy_32f_C3P3R Status = " << status << std::endl;
+		assert(nppStatus == NPP_SUCCESS);
+
+		float *planarRGBHost = new float[netWidth*netHeight*3];
+		//cudaMemcpy((void *)planarRGBHost, scaledPaddedPlanarS, sizeof(float)*netWidth*netHeight*3, cudaMemcpyDeviceToHost);
+		//cudaMemcpy((void *)scaledPaddedPlanarS, planarRGBHost, sizeof(float)*netWidth*netHeight*3, cudaMemcpyHostToDevice);
+/*		picRGB = cv::Mat(netHeight, netWidth, CV_32FC3, letterboxedRGBHost);
 		cv::cvtColor(picRGB, picBGR, cv::COLOR_RGB2BGR);
 		cv::imwrite("letterboxed.bmp", picBGR);  //only for test
+		exit(0);
 */
-
+		image img;
+		img.w = netWidth;
+		img.h = netHeight;
+		img.c = 3;
+		img.data = (float *)scaledPaddedPlanarS;
+		
 		// Pass image pointer to Darknet for detection
 		WorkRequest work;
 		work.done = false;
-		work.tag = this;
-		work.img = {netWidth, netHeight, 3, scaledFramePadded};
+		work.img = img;
 		work.dets = nullptr;
 		work.nboxes = 0;
 		work.classes = 0;
@@ -307,35 +323,55 @@ int main(int argc, char* argv[])
 		// Copy detected objects to the Request
 		assert(work.done == true);
 		assert(work.dets != nullptr);
+		
+/*		detector.getInput((float*)letterboxedRGBHost, 3*netWidth*netHeight);
+		std::cout << letterboxedRGBHost[top*netWidth].x << " " << letterboxedRGBHost[top*netWidth].y << " " <<letterboxedRGBHost[top*netWidth].z << std::endl;
+		picRGB = cv::Mat(netHeight, netWidth, CV_32FC3, letterboxedRGBHost);
+		cv::cvtColor(picRGB, picBGR, cv::COLOR_RGB2BGR);
+		cv::imwrite("letterboxedInput.bmp", picBGR);  //only for test
 
+		picRGB = cv::Mat(netHeight, netWidth, CV_32FC3, detector.getOutput());
+		cv::cvtColor(picRGB, picBGR, cv::COLOR_RGB2BGR);
+		cv::imwrite("letterboxedOut.bmp", picBGR);  //only for test
+*/
 		// Draw boxes in the decompressedFrameDevice using cudaOverlayRectLine
 		int numObjects = 0;
 		std::vector<float4> boundingBoxes;
+		//std::cout << "nboxes = " <<work.nboxes <<std::endl; 
 		for (int i = 0; i < work.nboxes; i++) {
-			if(work.dets[i].objectness == 0) continue;
-			bool draw = false;
-			for (int j = 0; j < work.classes; j++) {
-				if(work.dets[i].prob[j] > 0.5)
-					draw = true;
-			}
-			if (draw == true) {
-				boundingBoxes.push_back(scale_box416(work.dets[i].bbox, inWidth, inHeight,noPadHeight, noPadWidth, top, left));
-				numObjects++;
-			}
+		//	std::cout << "objectness = " << work.dets[i].objectness <<std::endl; 
+			if(work.dets[i].objectness ==  0.0) continue;
+//			bool draw = false;
+//			for (int j = 0; j < work.classes; j++) {
+//				std::cout << "prob = " << work.dets[i].prob[j] <<std::endl; 
+//				if(work.dets[i].prob[j] > 0.5)
+//					draw = true;
+//			}
+			boundingBoxes.push_back(scale_box416(work.dets[i].bbox, inWidth, inHeight));
+			numObjects++;
 		}
 
-		const float4 lineColor = {255.0,0.0,0.0,255.0};
+		//std::cout << "Num Objects detected = " << numObjects << std::endl;
+		//for(int i = 0; i < numObjects; i++) {
+		//	std::cout << "Box " << i << ": " << boundingBoxes[i].x <<" "<< boundingBoxes[i].y <<" " << boundingBoxes[i].z
+		//				<<" " << boundingBoxes[i].w << std::endl;
+		//}
 
-		void *boundingBoxesDevice = nullptr;
-		cudaMalloc(&boundingBoxesDevice, numObjects*sizeof(float4));
-		cudaMemcpy(boundingBoxesDevice, boundingBoxes.data(), numObjects*sizeof(float4), cudaMemcpyHostToDevice);
+		if (numObjects >0) {
+			const float4 lineColor = {75.0, 156.0, 211.0,100.0}; 
 
-		status = cudaRectOutlineOverlay(decompressedFrameRGBDevice, decompressedFrameRGBDevice, inWidth, inHeight, (float4 *)boundingBoxesDevice, numObjects, lineColor);
+			void *boundingBoxesDevice = nullptr;
+			cudaMalloc(&boundingBoxesDevice, numObjects*sizeof(float4));
+			cudaMemcpy(boundingBoxesDevice, boundingBoxes.data(), numObjects*sizeof(float4), cudaMemcpyHostToDevice);
 
-		if (status != cudaSuccess)
-			std::cout << "cudaRectOutlineOverlay Status = " << cudaGetErrorName(status)
-						<< std::endl;
-		assert(status == cudaSuccess);
+			status = cudaRectOutlineOverlay((float3 *)decompressedFrameRGBDevice, (float3 *)decompressedFrameRGBDevice, 
+											inWidth, inHeight, (float4 *)boundingBoxesDevice, numObjects, lineColor);
+
+			if (status != cudaSuccess)
+				std::cout << "cudaRectOutlineOverlay Status = " << cudaGetErrorName(status)	<< std::endl;
+			assert(status == cudaSuccess);
+			cudaFree(boundingBoxesDevice);
+		}
 
 		// Draw labels using cudaFont
 		// Maybe later.
@@ -343,13 +379,19 @@ int main(int argc, char* argv[])
 		// Free the detections
 		free_detections(work.dets, work.nboxes);
 
-		status = cudaRGBAToRGBA8(decompressedFrameRGBDevice, (uchar4*) decompressedFrameDevice, inWidth, inHeight);
+		status = cudaRGBToBGRA8((float3 *)decompressedFrameRGBDevice, (uchar4*) decompressedFrameDevice, inWidth, inHeight);
 
 		if (status != cudaSuccess)
-			std::cout << "cudaRectOutlineOverlay Status = " << cudaGetErrorName(status)
-						<< std::endl;
+			std::cout << "cudaRGBToRGBA8 Status = " << cudaGetErrorName(status)	<< std::endl;
 		assert(status == cudaSuccess);
 
+/*		uchar4 *detectedRGBHost = new uchar4[inWidth*inHeight];
+		cudaMemcpy((void *)detectedRGBHost, decompressedFrameDevice, sizeof(uchar4)*inWidth*inHeight, cudaMemcpyDeviceToHost);
+		picRGB = cv::Mat(inHeight, inWidth, CV_8UC4, detectedRGBHost);
+		cv::cvtColor(picRGB, picBGR, cv::COLOR_BGRA2BGR);
+		cv::imwrite("detected.bmp", picBGR);  //only for test
+		exit(0);
+*/
 		// Encode the processed Frame
 		uint64_t size = NvPipe_Encode(encoder, decompressedFrameDevice, inWidth*4, compressedOutFrame, 200000, inWidth, inHeight, false);
 		if (0 == size)
@@ -362,7 +404,7 @@ int main(int argc, char* argv[])
 		cudaFree(decompressedFrameRGBDevice);
 		cudaFree(scaledFrameNoPad);
 		cudaFree(scaledFramePadded);
-		cudaFree(boundingBoxesDevice);
+		cudaFree(scaledPaddedPlanarS);
 
 		std::cout << "Processing frame " << frameNum++ << " took " << timer.getElapsedMicroseconds() << " us." << std::endl;
 	}

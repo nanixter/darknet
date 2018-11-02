@@ -62,7 +62,7 @@ cudaError_t cudaRGBToRGBAf( uchar3* srcDev, float4* destDev, size_t width, size_
 
 //-------------------------------------------------------------------------------------------------------------------------
 
-__global__ void RGBToRGBA8(float3* srcImage,
+__global__ void RGBToBGRA8(float3* srcImage,
 							uchar4* dstImage,
 							int width, int height,
 							float scaling_factor)
@@ -79,13 +79,13 @@ __global__ void RGBToRGBA8(float3* srcImage,
 		return;
 
 	const float3 px = srcImage[pixel];
-	dstImage[pixel] = make_uchar4(255.0f * scaling_factor,
-							px.x * scaling_factor,
+	dstImage[pixel] = make_uchar4(px.z * scaling_factor,
 							px.y * scaling_factor,
-							px.z * scaling_factor);
+							px.x * scaling_factor,
+							255.0f * scaling_factor);
 }
 
-cudaError_t cudaRGBAToRGBA8( float3* srcDev, uchar4* destDev, size_t width, size_t height, const float2& inputRange )
+cudaError_t cudaRGBToBGRA8( float3* srcDev, uchar4* destDev, size_t width, size_t height, const float2& inputRange )
 {
 	if( !srcDev || !destDev )
 		return cudaErrorInvalidDevicePointer;
@@ -98,14 +98,14 @@ cudaError_t cudaRGBAToRGBA8( float3* srcDev, uchar4* destDev, size_t width, size
 	const dim3 blockDim(8,8,1);
 	const dim3 gridDim(iDivUp(width,blockDim.x), iDivUp(height,blockDim.y), 1);
 
-	RGBToRGBA8<<<gridDim, blockDim>>>( srcDev, destDev, width, height, multiplier );
+	RGBToBGRA8<<<gridDim, blockDim>>>( srcDev, destDev, width, height, multiplier );
 
 	return CUDA(cudaGetLastError());
 }
 
-cudaError_t cudaRGBAToRGBA8( float3* srcDev, uchar4* destDev, size_t width, size_t height )
+cudaError_t cudaRGBToBGRA8( float3* srcDev, uchar4* destDev, size_t width, size_t height )
 {
-	return cudaRGBAToRGBA8(srcDev, destDev, width, height, make_float2(0.0f, 255.0f));
+	return cudaRGBToBGRA8(srcDev, destDev, width, height, make_float2(0.0f, 255.0f));
 }
 
 

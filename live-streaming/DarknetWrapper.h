@@ -29,7 +29,7 @@ namespace DarknetWrapper {
 	} WorkRequest;
 
 
-	class WorkQueue {
+	class DetectionQueue {
 	public:
 
 		void push_back(WorkRequest &elem) {
@@ -124,9 +124,10 @@ namespace DarknetWrapper {
 			}
 
 			elem.classes = l.classes;
+			//std::cout << l.classes <<std::endl;
 			elem.done = true;
 
-			std::cout << elem.tag << " GPU processing took " << timer_gpu.getElapsedMicroseconds() << " milliseconds"<< std::endl;
+			std::cout << " GPU processing took " << timer_gpu.getElapsedMicroseconds() << " microseconds. numDetections =" <<elem.nboxes << std::endl;
 		}
 
 		void doDetection(std::vector<WorkRequest> &elems, int numImages) {
@@ -160,7 +161,7 @@ namespace DarknetWrapper {
 			 // Now we finally run the actual network
 			timer_gpu.reset();
 
-			network_predict_gpubuffer(net, dataToProcess);
+			network_predict_gpubuffer(net, (float *)dataToProcess);
 
 			// Copy the detected boxes into the appropriate WorkRequest
 			for (int elemNum = 0 ; elemNum < numImages; elemNum++) {
@@ -182,6 +183,15 @@ namespace DarknetWrapper {
 			std::cout << "Batch GPU processing took " << timer_gpu.getElapsedMicroseconds() << " milliseconds"<< std::endl;
 			std::cout << " doDetection: took " << timer_detection.getElapsedMicroseconds() << " milliseconds"<< std::endl;
 		}
+
+	float * getOutput() {
+		layer l = get_network_output_layer(net);
+		return l.output;
+	}
+
+	void getInput(float *buffer, int size) {
+		cuda_pull_array(net->input_gpu, buffer, size);
+	}
 
 	private:
 

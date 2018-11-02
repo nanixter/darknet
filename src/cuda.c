@@ -32,7 +32,7 @@ void check_error(cudaError_t status)
     {   
         const char *s = cudaGetErrorString(status);
         char buffer[256];
-        printf("CUDA Error: %s\n", s);
+        printf("CUDA Error:%d  %s\n", status, s);
         assert(0);
         snprintf(buffer, 256, "CUDA Error: %s", s);
         error(buffer);
@@ -147,6 +147,13 @@ int *cuda_make_int_array(int *x, size_t n)
 void cuda_free(float *x_gpu)
 {
     cudaError_t status = cudaFree(x_gpu);
+    check_error(status);
+}
+
+void cuda_push_arrayD2D(float *x_gpu, float *y_gpu, size_t n)
+{
+    size_t size = sizeof(float)*n;
+    cudaError_t status = cudaMemcpy(x_gpu, y_gpu, size, cudaMemcpyDeviceToDevice);
     check_error(status);
 }
 

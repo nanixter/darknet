@@ -67,7 +67,7 @@ cudaError_t cudaResize( float* input, size_t inputWidth, size_t inputHeight,
 
 
 // cudaResizeRGBA
-cudaError_t cudaResizeRGBA( float3* input,  size_t inputWidth, size_t inputHeight,
+cudaError_t cudaResizeRGB( float3* input,  size_t inputWidth, size_t inputHeight,
 				            float3* output, size_t outputWidth, size_t outputHeight )
 {
 	if( !input || !output )

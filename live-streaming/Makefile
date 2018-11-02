@@ -17,14 +17,20 @@ endif
 
 all: server
 
-server: main.o cudaYUV-NV12.o cudaResize.o
+server: main.o cudaYUV-NV12.o cudaResize.o cudaRGB.o cudaOverlay.o
 	$(CXX) $^ -I $(DARKNET_HEADER_PATH) $(LDFLAGS) -o $@
 
 cudaYUV-NV12.o: utils/cudaYUV-NV12.cu
-	nvcc -std=c++11 -c -arch=sm_60 $^ -o $@
+	nvcc -g -std=c++11 -c -arch=sm_60 $^ -o $@
 
 cudaResize.o: utils/cudaResize.cu
-	nvcc -std=c++11 -c -arch=sm_60 $^ -o $@
+	nvcc -g -std=c++11 -c -arch=sm_60 $^ -o $@
+
+cudaRGB.o: utils/cudaRGB.cu
+	nvcc -g -std=c++11 -c -arch=sm_60 $^ -o $@
+
+cudaOverlay.o: utils/cudaOverlay.cu
+	nvcc -g -std=c++11 -c -arch=sm_60 $^ -o $@
 
 clean:
 	rm -f *.o server

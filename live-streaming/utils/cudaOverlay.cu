@@ -41,6 +41,11 @@ __global__ void gpuRectOutlines( T* input, T* output, int width, int height,
 	const T px_in = input[ y * width + x ];
 	T px_out = px_in;
 
+	// Convert to 0-255.0 range from 0-1.0 range
+	px_out.x = px_out.x*255.0;
+	px_out.y = px_out.y*255.0;
+	px_out.z = px_out.z*255.0;
+
 	const float fx = x;
 	const float fy = y;
 
@@ -51,6 +56,7 @@ __global__ void gpuRectOutlines( T* input, T* output, int width, int height,
 	for( int nr=0; nr < numRects; nr++ )
 	{
 		const float4 r = rects[nr];
+		float ep = 20.0;
 
 		//printf("%i %i %i  %f %f %f %f\n", numRects, x, y, r.x, r.y, r.z, r.w);
 

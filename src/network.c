@@ -500,8 +500,7 @@ void top_predictions(network *net, int k, int *index)
 float *network_predict_gpubuffer(network *net, float *input)
 {
     network orig = *net;
-    net->input = NULL;
-    net->input_gpu = input;
+    net->input = input;
     net->truth = 0;
     net->train = 0;
     net->delta = 0;
@@ -794,6 +793,7 @@ void forward_network_gpubuffer(network *netp)
 {
     network net = *netp;
     cuda_set_device(net.gpu_index);
+    cuda_push_arrayD2D(net.input_gpu, net.input, net.inputs*net.batch);
 
     int i;
     for(i = 0; i < net.n; ++i){
@@ -802,7 +802,8 @@ void forward_network_gpubuffer(network *netp)
         if(l.delta_gpu){
             fill_gpu(l.outputs * l.batch, 0, l.delta_gpu, 1);
         }
-        l.forward_gpu(l, net);
+        //printf("Node no %d\n", i);
+		l.forward_gpu(l, net);
         net.input_gpu = l.output_gpu;
         net.input = l.output;
         if(l.truth) {

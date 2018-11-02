@@ -640,9 +640,10 @@ float *cuda_make_array(float *x, size_t n);
 void cuda_pull_array(float *x_gpu, float *x, size_t n);
 float cuda_mag_array(float *x_gpu, size_t n);
 void cuda_push_array(float *x_gpu, float *x, size_t n);
+void cuda_push_arrayD2D(float *x_gpu, float *y_gpu, size_t n);
 
 void forward_network_gpu(network *net);
-void forward_network_gpu2(network *net, bool transfer);
+void forward_network_gpubuffer(network *net);
 void backward_network_gpu(network *net);
 void update_network_gpu(network *net);
 

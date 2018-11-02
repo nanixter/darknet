@@ -290,7 +290,7 @@ cudaError_t cudaNV12ToRGBA( uint8_t* srcDev, uchar4* destDev, size_t width, size
 
 //-------------------------------------------------------------------------------------------------------------------------
 
-__global__ void NV12ToRGBAf(uint32_t* srcImage,  size_t nSourcePitch,
+__global__ void NV12ToRGBf(uint32_t* srcImage,  size_t nSourcePitch,
                            float3* dstImage,     size_t nDestPitch,
                            uint32_t width,       uint32_t height)
 {
@@ -367,16 +367,19 @@ __global__ void NV12ToRGBAf(uint32_t* srcImage,  size_t nSourcePitch,
     // Clamp the results to RGBA
 	//printf("cuda thread %i %i  %f %f %f\n", x, y, red[0], green[0], blue[0]);
 
-	const float s = 1.0f / 1024.0f * 255.0f;
+	const float s = 1.0f / 1024.0f * 1.0f;
+	//const float s = 1.0f / 1024.0f * 255.0f;
 
-	dstImage[y * width + x]     = make_float4(red[0] * s, green[0] * s, blue[0] * s);
-	dstImage[y * width + x + 1] = make_float4(red[1] * s, green[1] * s, blue[1] * s);
+	dstImage[y * width + x]     = make_float3(red[0] * s, green[0] * s, blue[0] * s);
+	dstImage[y * width + x + 1] = make_float3(red[1] * s, green[1] * s, blue[1] * s);
+	//dstImage[y * width + x]     = make_float3(blue[0] * s, green[0] * s, red[0] * s);
+	//dstImage[y * width + x + 1] = make_float3(blue[1] * s, green[1] * s, red[1] * s);
 }
 
 
 
 // cudaNV12ToRGBA
-cudaError_t cudaNV12ToRGBAf( uint8_t* srcDev, size_t srcPitch, float4* destDev, size_t destPitch, size_t width, size_t height )
+cudaError_t cudaNV12ToRGBf( uint8_t* srcDev, size_t srcPitch, float3* destDev, size_t destPitch, size_t width, size_t height )
 {
 	if( !srcDev || !destDev )
 		return cudaErrorInvalidDevicePointer;
@@ -390,14 +393,14 @@ cudaError_t cudaNV12ToRGBAf( uint8_t* srcDev, size_t srcPitch, float4* destDev, 
 	const dim3 blockDim(8,8,1);
 	const dim3 gridDim(iDivUp(width,blockDim.x), iDivUp(height, blockDim.y), 1);
 
-	NV12ToRGBAf<<<gridDim, blockDim>>>( (uint32_t*)srcDev, srcPitch, destDev, destPitch, width, height );
+	NV12ToRGBf<<<gridDim, blockDim>>>( (uint32_t*)srcDev, srcPitch, destDev, destPitch, width, height );
 
 	return CUDA(cudaGetLastError());
 }
 
-cudaError_t cudaNV12ToRGBAf( uint8_t* srcDev, float3* destDev, size_t width, size_t height )
+cudaError_t cudaNV12ToRGBf( uint8_t* srcDev, float3* destDev, size_t width, size_t height )
 {
-	return cudaNV12ToRGBAf(srcDev, width * sizeof(uint8_t), destDev, width * sizeof(float3), width, height);
+	return cudaNV12ToRGBf(srcDev, width * sizeof(uint8_t), destDev, width * sizeof(float3), width, height);
 }
 
 
