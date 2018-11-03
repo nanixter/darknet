@@ -67,9 +67,9 @@ float4 scale_box416(box bbox, int width, int height)
 	//std::cout << "Scale_box416:" << bbox.x 	<<" " << bbox.y	<<" " << bbox.w <<" " << bbox.h	<< std::endl;
 	float4 box;
 	box.x = std::max( (bbox.x - bbox.w/2.0) * width, 0.0);
-	box.y = std::max( (bbox.y - bbox.h/2.0) * height, 0.0);
+	box.y = std::max( (bbox.y - bbox.h*0.75) * height, 0.0);
 	box.z = std::min( (bbox.x + bbox.w/2.0) * width, width-1.0);
-	box.w = std::min( (bbox.y + bbox.h/2.0) * height, height-1.0);
+	box.w = std::min( (bbox.y + bbox.h*0.75) * height, height-1.0);
 	return box;
 }
 
@@ -358,7 +358,7 @@ int main(int argc, char* argv[])
 		//}
 
 		if (numObjects >0) {
-			const float4 lineColor = {75.0, 156.0, 211.0,100.0}; 
+			const float4 lineColor = {75.0, 156.0, 211.0,120.0}; 
 
 			void *boundingBoxesDevice = nullptr;
 			cudaMalloc(&boundingBoxesDevice, numObjects*sizeof(float4));
