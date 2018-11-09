@@ -12,6 +12,7 @@
 #include <sys/time.h>
 
 #include <cuda_runtime_api.h>
+#include <cuda_profiler_api.h>
 #include <curand.h>
 #include <npp.h>
 #include <nppi.h>
@@ -53,8 +54,7 @@ void printUsage(char *binaryName) {
 			<< std::endl;
 }
 
-// Assumes the box is scaled to 416x416 image
-float4 scale_box416(box bbox, int width, int height)
+float4 scale_box(box bbox, int width, int height)
 {
 	// Convert from x, y, w, h to xleft, ytop, xright, ybottom
 	//  ---------------------------------------------------------
@@ -64,7 +64,6 @@ float4 scale_box416(box bbox, int width, int height)
 	// |			 |			|
 	// |			 .----------. <-xright,ybottom
 
-	//std::cout << "Scale_box416:" << bbox.x 	<<" " << bbox.y	<<" " << bbox.w <<" " << bbox.h	<< std::endl;
 	float4 box;
 	box.x = std::max( (bbox.x - bbox.w/2.0) * width, 0.0);
 	box.y = std::max( (bbox.y - bbox.h*0.75) * height, 0.0);
@@ -170,6 +169,7 @@ int main(int argc, char* argv[])
 	uint64_t frameNum = 0;
 	cv::Mat picRGB, picBGR;
 	// In a loop, grab compressed frames from the demuxer.
+	cudaProfilerStart();
 	while(demuxer.Demux(&compressedFrame, &compressedFrameSize, &dts)) {
 		timer.reset();
 		// Allocate GPU memory and copy the compressed Frame to it
@@ -347,7 +347,7 @@ int main(int argc, char* argv[])
 //				if(work.dets[i].prob[j] > 0.5)
 //					draw = true;
 //			}
-			boundingBoxes.push_back(scale_box416(work.dets[i].bbox, inWidth, inHeight));
+			boundingBoxes.push_back(scale_box(work.dets[i].bbox, inWidth, inHeight));
 			numObjects++;
 		}
 
@@ -408,9 +408,9 @@ int main(int argc, char* argv[])
 
 		std::cout << "Processing frame " << frameNum++ << " took " << timer.getElapsedMicroseconds() << " us." << std::endl;
 	}
-
 	NvPipe_Destroy(encoder);
 	NvPipe_Destroy(decoder);
+	cudaProfilerStop();
 
 	return 0;
 }
