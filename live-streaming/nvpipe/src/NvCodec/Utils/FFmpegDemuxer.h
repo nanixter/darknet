@@ -155,12 +155,12 @@ public:
         return nBitDepth;
     }
 	AVRational GetTimeBase() {
-		return fmtc->streams[iVideoStream]->time_base; 
+		return fmtc->streams[iVideoStream]->time_base;
 	}
     int GetFrameSize() {
         return nBitDepth == 8 ? nWidth * nHeight * 3 / 2: nWidth * nHeight * 3;
     }
-    bool Demux(uint8_t **ppVideo, int *pnVideoBytes, int *dts) {
+    bool Demux(uint8_t **ppVideo, int *pnVideoBytes) {
         if (!fmtc) {
             return false;
         }
@@ -187,11 +187,9 @@ public:
             ck(av_bsf_receive_packet(bsfc, &pktFiltered));
             *ppVideo = pktFiltered.data;
             *pnVideoBytes = pktFiltered.size;
-			*dts = pktFiltered.dts;
         } else {
             *ppVideo = pkt.data;
             *pnVideoBytes = pkt.size;
-			*dts = pkt.dts;
         }
 
         return true;
