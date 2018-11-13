@@ -21,6 +21,7 @@ namespace DarknetWrapper {
 	typedef struct
 	{
 		bool done;
+		bool finished;
 		image img;
 		detection *dets;
 		int nboxes;
@@ -130,112 +131,16 @@ namespace DarknetWrapper {
 			std::cout << " GPU processing took " << timer_gpu.getElapsedMicroseconds() << " microseconds. numDetections =" <<elem.nboxes << std::endl;
 		}
 
-		void doDetection(std::vector<WorkRequest> &elems, int numImages) {
-
-			std::cout << "doDetection: new batch request. Batch Size = " << numImages << std::endl;
-			timer_detection.reset();
-
-			// Save the address of the l.output for YOLO layers so we can restore it later.
-			// What a dirty hack...
-			this->saveBaseOutput();
-
-			float nms = .4;
-			set_batch_network(net, numImages);
-			layer l = net->layers[net->n-1];
-
-			int bufferSize = 0;
-
-			for (int elemNum = 0; elemNum < numImages; elemNum++)
-				bufferSize += net->h*net->w*elems[elemNum].img.c;
-
-			void *dataToProcess = nullptr;
-			cudaMalloc(&dataToProcess, bufferSize*sizeof(float));
-
-
-			// Copy all the images into 1 buffer.
-			for (int elemNum = 0 ; elemNum < numImages; elemNum++) {
-				int imgSize = net->h*net->w*elems[elemNum].img.c;
-				cudaMemcpy(dataToProcess+elemNum*imgSize, elems[elemNum].img.data, imgSize*sizeof(float), cudaMemcpyDeviceToDevice);
-			}
-
-			 // Now we finally run the actual network
-			timer_gpu.reset();
-
-			network_predict_gpubuffer(net, (float *)dataToProcess);
-
-			// Copy the detected boxes into the appropriate WorkRequest
-			for (int elemNum = 0 ; elemNum < numImages; elemNum++) {
-				elems[elemNum].dets = get_network_boxes(this->net, elems[elemNum].img.w, elems[elemNum].img.h,0.5, 0.5, 0, 1, &(elems[elemNum].nboxes));
-				// What the hell does this do?
-				if (nms > 0) {
-					do_nms_obj(elems[elemNum].dets, elems[elemNum].nboxes, l.classes, nms);
-				}
-				// Darknet batching is kinda broken.
-				// Gotta do this nonsense to set the l.output to the right address
-				shiftOutput();
-				elems[elemNum].classes = l.classes;
-				elems[elemNum].done = true;
-			}
-
-			restoreOutputAddr();
-			cudaFree(dataToProcess);
-
-			std::cout << "Batch GPU processing took " << timer_gpu.getElapsedMicroseconds() << " milliseconds"<< std::endl;
-			std::cout << " doDetection: took " << timer_detection.getElapsedMicroseconds() << " milliseconds"<< std::endl;
+		float * getOutput() {
+			layer l = get_network_output_layer(net);
+			return l.output;
 		}
 
-	float * getOutput() {
-		layer l = get_network_output_layer(net);
-		return l.output;
-	}
-
-	void getInput(float *buffer, int size) {
-		cuda_pull_array(net->input_gpu, buffer, size);
-	}
+		void getInput(float *buffer, int size) {
+			cuda_pull_array(net->input_gpu, buffer, size);
+		}
 
 	private:
-
-		// Helper functions from https://gist.github.com/ElPatou/706a6ff36b2dce1f492007e87bcd2a0c
-		void saveBaseOutput() {
-			int num = 0;
-			for(int i = 0; i < net->n; ++i) {
-				layer *l = &(net->layers[i]);
-				if (l->type == YOLO) {
-					num++;
-				}
-			}
-
-			baseOutput = (float **)calloc(num, sizeof(float **));
-
-			int k = 0;
-			for(int i = 0; i < net->n; ++i) {
-				layer *l = &(net->layers[i]);
-				if (l->type == YOLO) {
-					baseOutput[k] = l->output;
-					k++;
-				}
-			}
-		}
-
-		void restoreOutputAddr() {
-			int k = 0;
-			for(int i = 0; i < net->n; ++i) {
-				layer *l = &(net->layers[i]);
-				if (l->type == YOLO) {
-					l->output = baseOutput[k];
-					k++;
-				}
-			}
-		}
-
-		void shiftOutput() {
-			for(int i = 0; i < net->n; ++i) {
-				layer *l = &(net->layers[i]);
-				if (l->type == YOLO) {
-					l->output += l->outputs;
-				}
-			}
-		}
 
 		// All the darknet globals.
 		Timer timer_gpu;
@@ -247,9 +152,9 @@ namespace DarknetWrapper {
 
 	}; // class Detector
 
-	class AsyncDetector : Detector
+	class QueuedDetector : Detector
 	{
-	  public:
+	public:
 		void Init(int argc, char** argv, DetectionQueue *requestQueue, DetectionQueue *completionQueue, int gpuNo) {
 			// Store pointers to the workQueues
 			this->requestQueue = requestQueue;
@@ -266,33 +171,37 @@ namespace DarknetWrapper {
 
 		void doDetection() {
 			std::vector<WorkRequest> elems;
-			elems.reserve(4);
+			bool finished = false;
+			elems.reserve(1);
 			while(true) {
-				int numImages = 4;
+				int numImages = 1;
 
 				// Wait on the requestQueue
 				requestQueue->pop_front(elems, numImages);
 
 				// Do the detection
-				// For N=1, and N=2, just fall back to the 1 image at a time step.
-				if (numImages == 1) {
-					Detector::doDetection(elems[0]);
-				} else if (numImages == 2) {
-					Detector::doDetection(elems[0]);
-					Detector::doDetection(elems[1]);
-				} else{
-					Detector::doDetection(elems, numImages);
+				for (int i = 0; i < numImages; i++){
+					// Break if this flag is set to indicate that there is no more work.
+					if (elems[i].finished == true){
+						this->finished == true;
+						break;
+					}
+					Detector::doDetection(elems[i]);
 				}
 
 				// Put the result back on the completionQueue.
 				completionQueue->push_back(elems);
+
+				// Break if this flag is set to indicate that there is no more work.
+				if(this->finished == true)
+					break;
 
 				// Clear the vector so we can use it again.
 				elems.clear();
 			}
 		}
 
-	  private:
+	private:
 		DetectionQueue *requestQueue;
 		DetectionQueue *completionQueue;
 	};
