@@ -183,7 +183,7 @@ namespace DarknetWrapper {
 				for (int i = 0; i < numImages; i++){
 					// Break if this flag is set to indicate that there is no more work.
 					if (elems[i].finished == true){
-						this->finished == true;
+						finished == true;
 						break;
 					}
 					Detector::doDetection(elems[i]);
@@ -193,7 +193,7 @@ namespace DarknetWrapper {
 				completionQueue->push_back(elems);
 
 				// Break if this flag is set to indicate that there is no more work.
-				if(this->finished == true)
+				if(finished == true)
 					break;
 
 				// Clear the vector so we can use it again.

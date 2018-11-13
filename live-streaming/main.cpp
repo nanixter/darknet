@@ -5,8 +5,13 @@
 #include <string>
 #include <cstring>
 #include <cstdlib>
-#include <vector>
 #include <cstdio>
+#include <vector>
+#include <deque>
+#include <atomic>
+#include <mutex>
+#include <condition_variable>
+#include <unordered_map>
 #include <thread>
 #include <cmath>
 #include <sys/time.h>
@@ -46,8 +51,8 @@ simplelogger::Logger *logger = simplelogger::LoggerFactory::CreateConsoleLogger(
 #include "utils/Timer.h"
 
 using DarknetWrapper::WorkRequest;
-// using DarknetWrapper::DetectionQueue;
-using DarknetWrapper::Detector;
+using DarknetWrapper::DetectionQueue;
+using DarknetWrapper::QueuedDetector;
 
 float4 scale_box(box bbox, int width, int height)
 {
@@ -75,20 +80,19 @@ struct Frame {
 	void *decompressedFrameRGBDevice = nullptr;
 	void *decompressedFrameDevice = nullptr;
 	bool finished = 0;
-}
+};
 
-template <class T>
 class FrameMap {
 public:
 
-	void insert(T frame, std::uint64_t frameNum)
+	void insert(Frame frame, std::uint64_t frameNum)
 	{
 		std::lock_guard<std::mutex> lock(this->mutex);
 		frames.emplace(std::make_pair(frameNum,frame));
 		cv.notify_all();
 	}
 
-	bool getFrame(T frame, std::uint64_t frameNum)
+	bool getFrame(Frame frame, std::uint64_t frameNum)
 	{
 		std::unique_lock<std::mutex> lock(this->mutex);
 		if (frames.empty())
@@ -115,7 +119,7 @@ public:
 	}
 
 private:
-	std::unordered_map<std::uint64_t, T> frames;
+	std::unordered_map<std::uint64_t, Frame> frames;
 	std::mutex mutex;
 	std::condition_variable cv;
 
@@ -123,7 +127,9 @@ private:
 
 class FrameProcessor {
 public:
-	FrameProcessor(DetectionQueue *requestQueue, DetectionQueue *completionQueue, FrameMap *frames, FFmpegStreamer *muxer, float bitrateMbps, int targetFPS, int inWidth, int inHeight, int maxOutstandingPerThread, int threadID)
+	void Init(int gpuNum, NvPipe_Codec codec, DetectionQueue *requestQueue, DetectionQueue *completionQueue, 
+				FrameMap *frames, FFmpegStreamer *muxer, float bitrateMbps, int targetFPS, int inWidth, int inHeight, 
+				int maxOutstandingPerThread, int threadID)
 	{
 		this->requestQueue = requestQueue;
 		this->completionQueue = completionQueue;
@@ -135,10 +141,7 @@ public:
 		this->inHeight = inHeight;
 		this->maxOutstandingPerThread = maxOutstandingPerThread;
 		this->threadID = threadID;
-	}
 
-	void Init(int gpuNum, NvPipe_Codec codec)
-	{
 		cudaSetDevice(gpuNum);
 
 		// Create decoder
@@ -165,12 +168,6 @@ public:
 		void *scaledFramePadded = nullptr;
 		void *scaledPaddedPlanarS = nullptr;
 
-		cudaMalloc(&decompressedFrameDevice, inWidth*inHeight*4);
-		cudaMalloc(&decompressedFrameRGBDevice, inWidth*inHeight*sizeof(float3));
-		cudaMalloc(&scaledFrameNoPad, noPadWidth*noPadHeight*sizeof(float3));
-		cudaMalloc(&scaledFramePadded, netWidth*netHeight*sizeof(float3));
-		cudaMalloc(&scaledPaddedPlanarS, netWidth*netHeight*sizeof(float)*3);
-
 		size_t noPadWidth = netWidth;
 		size_t noPadHeight = netHeight;
 
@@ -188,6 +185,10 @@ public:
 		const Npp32f bordercolor[3] = {0.0,0.0,0.0};
 
 		Npp32f *scaledPaddedPlanar[3] = {nullptr,nullptr,nullptr};
+
+		cudaMalloc(&scaledFrameNoPad, noPadWidth*noPadHeight*sizeof(float3));
+		cudaMalloc(&scaledFramePadded, netWidth*netHeight*sizeof(float3));
+		cudaMalloc(&scaledPaddedPlanarS, netWidth*netHeight*sizeof(float)*3);
 
 		scaledPaddedPlanar[0] = (float *)scaledPaddedPlanarS;
 		scaledPaddedPlanar[1] = (float *)(scaledPaddedPlanarS+netWidth*netHeight*sizeof(float));
@@ -212,7 +213,7 @@ public:
 				work.nboxes = 0;
 				work.classes = 0;
 				work.tag = nullptr;
-				requestQueue.push_back(work);
+				requestQueue->push_back(work);
 				break;
 			}
 
@@ -228,8 +229,8 @@ public:
 				cudaMalloc(&frame.decompressedFrameRGBDevice, inWidth*inHeight*sizeof(float3));
 
 				// Decode the frame
-				uint64_t decompressedFrameSize = NvPipe_Decode(decoder, compressedFrame, compressedFrameSize, frame.decompressedFrameDevice, inWidth, inHeight);
-				if (decompressedFrameSize <= compressedFrameSize) {
+				uint64_t decompressedFrameSize = NvPipe_Decode(decoder, (const uint8_t *)compressedFrameDevice, frame.frameSize, frame.decompressedFrameDevice, inWidth, inHeight);
+				if (decompressedFrameSize <= frame.frameSize) {
 					std::cerr << "Decode error: " << NvPipe_GetError(decoder) << std::endl;
 					exit(-1);
 				}
@@ -311,10 +312,9 @@ public:
 
 			this->currentFrame++;
 			// Account for the time spent processing the packet...
-			usleep((1000000/fps) - timer.getElapsedMicroseconds);
+			usleep((1000000/targetFPS) - frame.timer.getElapsedMicroseconds());
 		} // while(true)
 
-		cudaFree(compressedFrameDevice);
 		cudaFree(scaledFrameNoPad);
 		cudaFree(scaledFramePadded);
 		cudaFree(scaledPaddedPlanarS);
@@ -335,6 +335,7 @@ public:
 			assert(work.done == true);
 			assert(work.dets != nullptr);
 
+			Frame frame = *(Frame *)work.tag;
 			// Draw boxes in the decompressedFrameDevice using cudaOverlayRectLine
 			int numObjects = 0;
 			std::vector<float4> boundingBoxes;
@@ -352,8 +353,10 @@ public:
 				numObjects++;
 			}
 
-			if (numObjects >0) {
+			cudaError_t status;
+			NppStatus nppStatus;
 
+			if (numObjects >0) {
 				void *boundingBoxesDevice = nullptr;
 				cudaMalloc(&boundingBoxesDevice, numObjects*sizeof(float4));
 				cudaMemcpy(boundingBoxesDevice, boundingBoxes.data(), numObjects*sizeof(float4), cudaMemcpyHostToDevice);
@@ -395,12 +398,11 @@ public:
 
 			// MUX the frame
 			muxer->Stream(compressedOutFrame, size, frame.frameNum);
-			cudaFree(decompressedFrameRGBDevice);
-			cudaFree(decompressedFrameDevice);
+			cudaFree(frame.decompressedFrameRGBDevice);
+			cudaFree(frame.decompressedFrameDevice);
 			this->lastCompletedFrame = frame.frameNum;
 			this->decrementOutstanding();
-			LOG(INFO) << "Processing frame " << frame.frameNum << " took "
-						<< timer.getElapsedMicroseconds() << " us.";
+			LOG(INFO) << "Processing frame " << frame.frameNum << " took "	<< frame.timer.getElapsedMicroseconds() << " us.";
 		}
 		delete[] compressedOutFrame;
 	}
@@ -456,12 +458,12 @@ private:
 
 void printUsage(char *binaryName) {
 	LOG(ERROR) << "Usage:" << std::endl
-			<< binaryName << " <cfg_file> <weights_file> -v <vid_file>
-			Optional Arguments:
-				-n number-of-clients(default=1; valid range: 1 to 12)
-				-f fps (default=30fps; valid range: 1 to 120)
-				-r per_client_max_outstanding_requests (default=90; valid range = 1 to 1000)
-				-b bit rate of output video (in Mbps; default=2; valid range = 1 to 6;)";
+			<< binaryName << " <cfg_file> <weights_file> -v <vid_file> <Opt Args>" <<std::endl
+			<< "Optional Arguments:" <<std::endl
+			<<	"-n number-of-clients(default=1; valid range: 1 to 12)" <<std::endl
+			<<	"-f fps (default=30fps; valid range: 1 to 120)" <<std::endl
+			<<	"-r per_client_max_outstanding_requests (default=90; valid range = 1 to 1000)" <<std::endl
+			<<	"-b bit rate of output video (in Mbps; default=2; valid range = 1 to 6;)" <<std::endl;
 }
 
 int main(int argc, char* argv[])
@@ -519,8 +521,8 @@ int main(int argc, char* argv[])
 		bitrateMbps = 6;
 	}
 
-	LOG(INFO) << "video file:" << filename;
-	LOG(INFO) << "Creating " << numThreads << "threads, each producing frames at "
+	LOG(INFO) << "video file: " << filename;
+	LOG(INFO) << "Creating " << numThreads << " threads, each producing frames at "
 				<< fps << " FPS.";
 	LOG(INFO) << "Each thread can have a maximum of " << maxOutstandingPerThread
 				<< " outstanding requests at any time. All other frames will be dropped.";
@@ -575,31 +577,29 @@ int main(int argc, char* argv[])
 	cudaDeviceEnablePeerAccess(1, 0);
 	cudaDeviceEnablePeerAccess(2, 0);
 
-	std::std::vector<FFmpegStreamer> muxers;
+	std::vector<FFmpegStreamer> muxers;
 	for( int i=0; i<numThreads; ++i ){
-		char filename[20];
-		strcpy(filename,"./scaled");
-		strcat(filename, itoa(i));
-		strcat(filename, ".mp4");
-		muxers.push(muxer(AV_CODEC_ID_H264, inWidth, inHeight, fps, inTimeBase, filename));
+		std::string filename = "./scaled" + std::to_string(i) + ".mp4";
+		muxers.push_back(FFmpegStreamer(AV_CODEC_ID_H264, inWidth, inHeight, fps, inTimeBase, filename.c_str()));
 	}
 
-	FrameMap<Frame> frames;
+	FrameMap frames;
 
 	// Launch the detector threads (1 per GPU)
-	std::vector<std::thread> detectionThreads(4);
-	QueuedDetector detectors[4];
-	DetectionQueue requestQueues[4];
-	DetectionQueue completionQueues[4];
+	int numGPUs = std::min(numThreads, 4);
+	std::vector<std::thread> detectionThreads(numGPUs);
+	QueuedDetector detectors[numGPUs];
+	DetectionQueue requestQueues[numGPUs];
+	DetectionQueue completionQueues[numGPUs];
 	int cpuMapping[4] = {0,1,12,13};
 
 	// Initialize n detectors where n = numGPUs in the system.
 	// We should automatically figure out numGPUs, but meh...
 	// Initialization must be done before launching the detection thread.
-	for (int i = 0; i < 4; i++) {
+	for (int i = 0; i < numGPUs; i++) {
 		detectors[i].Init(argc, argv, &requestQueues[i], &completionQueues[i], i);
 		// start a Thread per GPU to run doDetection
-		detectionThreads[i] = std::thread(&QueuedDetector::doDetection, &detector[i]);
+		detectionThreads[i] = std::thread(&QueuedDetector::doDetection, &detectors[i]);
 		// Create a cpu_set_t object representing a set of CPUs. Clear it and mark
 		// only CPU i as set.
 		cpu_set_t cpuset;
@@ -611,17 +611,16 @@ int main(int argc, char* argv[])
 			std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
 	}
 
-	std::vector<FrameProcessor> frameProcessors;
-	std::vector<std::thread> decoders;
-	std::vector<std::thread> encoders;
+	std::vector<FrameProcessor> frameProcessors(numThreads);
+	std::vector<std::thread> decoders(numThreads);
+	std::vector<std::thread> encoders(numThreads);
 	for (int i = 0; i < numThreads; i++){
 		int j = i%4;
-		frameProcessors.push(FrameProcessor(requestQueues[j], completionQueues[j], frames,
-			muxer[i], bitrateMbps, targetFPS, inWidth, inHeight, maxOutstandingPerThread, i));
 		// Use the next GPU for decode and encode
-		frameProcessor[i].Init((j+1)%4, codec);
-		decoders[i] = std::thread(&FrameProcessor::DecodeAndResize, &frameProcessor[i]);
-		encoders[i] = std::thread(&FrameProcessor::DrawBoxesAndEncode, &frameProcessor[i]);
+		frameProcessors[i].Init((j+1)%4, codec, &requestQueues[j], &completionQueues[j], &frames,
+			&muxers[i], bitrateMbps, fps, inWidth, inHeight, maxOutstandingPerThread, i);
+		decoders[i] = std::thread(&FrameProcessor::DecodeAndResize, &frameProcessors[i]);
+		encoders[i] = std::thread(&FrameProcessor::DrawBoxesAndEncode, &frameProcessors[i]);
 	}
 
 	uint8_t *compressedFrame = nullptr;
@@ -631,30 +630,31 @@ int main(int argc, char* argv[])
 	cudaProfilerStart();
 	// Grab compressed frames from the demuxer, and insert them into the FrameMap
 	while(true) {
-		timer.reset();
 		Frame frame;
 		frame.timer.reset();
 		frame.frameNum = frameNum;
 
-		if(!demuxer.Demux(&compressedFrame, &compressedFrameSize)) {
+		if(demuxer.Demux(&compressedFrame, &compressedFrameSize) == false) {
+			LOG(INFO) << "Demuxer returned no frames. Possibly end of file. We are done!";
 			frame.data = nullptr;
 			frame.frameSize = -1;
 			frame.finished = true;
-			frames.insert(image, frameNum);
+			frames.insert(frame, frameNum);
 			break;
 		}
 
 		frame.data = compressedFrame;
 		frame.frameSize = compressedFrameSize;
 		frame.finished = false;
-		frames.insert(image, frameNum++);
+		frames.insert(frame, frameNum++);
 	}
 
 	// Try to clean up the FrameMap
+	std::uint64_t lastFrameDequeued = 0;
 	while(true) {
-		std::uint64_t minProcessedFrameNum = requestThreads[0].getCurrentFrame()-1;
+		std::uint64_t minProcessedFrameNum = frameProcessors[0].getLastCompleted();
 		for (int i = 1; i < numThreads; i++) {
-			minProcessedFrameNum = std::min(requestThreads[i].getCurrentFrame()-1, minProcessedFrameNum);
+			minProcessedFrameNum = std::min(frameProcessors[i].getLastCompleted(), minProcessedFrameNum);
 		}
 		auto removeUpto = std::max(minProcessedFrameNum, lastFrameDequeued);
 		while (lastFrameDequeued < removeUpto) {
@@ -664,7 +664,7 @@ int main(int argc, char* argv[])
 
 		std::cout << "LastFrameDequeued = " << lastFrameDequeued <<std::endl;
 		for (int i = 0; i < numThreads; i++) {
-			std::cout << "Thread " << i << " dropped " << requestThreads[i].getNumDropped() << " frames so far." <<std::endl;
+			std::cout << "Thread " << i << " dropped " << frameProcessors[i].getNumDropped() << " frames so far." <<std::endl;
 		}
 
 		// Break out of this loop if the last frame (the fake one) was processed.
