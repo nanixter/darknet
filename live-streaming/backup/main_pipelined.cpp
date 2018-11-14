@@ -82,6 +82,35 @@ struct Frame {
 	bool finished = 0;
 };
 
+class FrameQueue {
+public:
+
+	void push_back(Frame *frame) {
+		std::lock_guard<std::mutex> lock(this->mutex);
+		this->queue.push(frame);
+		this->cv.notify_one();
+	}
+
+	// pops 1 element
+	void pop_front(Frame **frame) {
+		std::unique_lock<std::mutex> lock(this->mutex);
+		if(this->queue.empty())
+			cv.wait(lock, [this](){ return !this->queue.empty(); });
+
+		// Once the cv wakes us up....
+		if(!this->queue.empty()) {
+			*frame = this->queue.front();
+			this->queue.pop();
+		}
+	}
+
+private:
+	std::queue<Frame *> queue;
+	std::mutex mutex;
+	std::condition_variable cv;
+
+}; // class FrameQueue
+
 class FrameMap {
 public:
 
@@ -130,8 +159,8 @@ private:
 
 class FrameProcessor {
 public:
-	void Init(int gpuNum, NvPipe_Codec codec, DetectionQueue *requestQueue, DetectionQueue *completionQueue, 
-				FrameMap *frames, AVRational inTimeBase, float bitrateMbps, int targetFPS, int inWidth, int inHeight, 
+	void Init(int gpuNum, NvPipe_Codec codec, DetectionQueue *requestQueue, DetectionQueue *completionQueue,
+				FrameMap *frames, AVRational inTimeBase, float bitrateMbps, int targetFPS, int inWidth, int inHeight,
 				int maxOutstandingPerThread, int threadID)
 	{
 		this->requestQueue = requestQueue;
@@ -234,7 +263,7 @@ public:
 				cudaMalloc(&frame->decompressedFrameRGBDevice, inWidth*inHeight*sizeof(float3));
 
 				// Decode the frame
-				uint64_t decompressedFrameSize = NvPipe_Decode(decoder, (const uint8_t *)frame->data, frame->frameSize, 
+				uint64_t decompressedFrameSize = NvPipe_Decode(decoder, (const uint8_t *)frame->data, frame->frameSize,
 																frame->decompressedFrameDevice, inWidth, inHeight);
 				if (decompressedFrameSize <= frame->frameSize) {
 					std::cerr << "Decode error: " << NvPipe_GetError(decoder) << std::endl;
@@ -641,7 +670,7 @@ int main(int argc, char* argv[])
 			frames.insert(frame, frameNum);
 			break;
 		}
-		
+
 		frame->data = new uint8_t[compressedFrameSize];
 		std::memcpy(frame->data, compressedFrame, compressedFrameSize);
 		frame->frameSize = compressedFrameSize;

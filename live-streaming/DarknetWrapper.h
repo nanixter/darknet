@@ -8,80 +8,23 @@
 #include <mutex>
 #include <condition_variable>
 
-#include "utils/Timer.h"
-
 extern "C" {
 	#undef __cplusplus
 	#include "darknet.h"
 	#define __cplusplus 1
 }
 
+#include "utils/Timer.h"
+#include "utils/Types.h"
+#include "utils/Queue.h"
+#include "utils/PointerMap.h"
+
+using LiveStreamDetector::Frame;
+using LiveStreamDetector::WorkRequest;
+using LiveStreamDetector::MutexQueue;
+using LiveStreamDetector::PointerMap;
+
 namespace DarknetWrapper {
-
-	typedef struct
-	{
-		bool done;
-		bool finished;
-		image img;
-		detection *dets;
-		int nboxes;
-		int classes;
-		void *tag;
-	} WorkRequest;
-
-
-	class DetectionQueue {
-	public:
-
-		void push_back(WorkRequest &elem) {
-			std::lock_guard<std::mutex> lock(this->mutex);
-			this->queue.push(elem);
-			this->cv.notify_one();
-		}
-
-		void push_back(std::vector<WorkRequest> &elems) {
-			std::lock_guard<std::mutex> lock(this->mutex);
-			for (auto elemIterator = elems.begin(); elemIterator != elems.end(); elemIterator++) {
-				this->queue.push(*elemIterator);
-			}
-			this->cv.notify_one();
-		}
-
-		// pops 1 element
-		void pop_front(WorkRequest &elem) {
-			std::unique_lock<std::mutex> lock(this->mutex);
-			if(this->queue.empty())
-				cv.wait(lock, [this](){ return !this->queue.empty(); });
-
-			// Once the cv wakes us up....
-			if(!this->queue.empty()) {
-				elem = (this->queue.front());
-				this->queue.pop();
-			}
-		}
-
-		// Pops upto N elements
-		void pop_front(std::vector<WorkRequest> &elems, int &numElems) {
-			std::unique_lock<std::mutex> lock(this->mutex);
-			if(this->queue.empty())
-				cv.wait(lock, [this](){ return !this->queue.empty(); });
-
-			// Once the cv wakes us up....
-			int numPopped = 0;
-			while( !this->queue.empty() && (numPopped < numElems) ) {
-				elems.insert(elems.end(), this->queue.front());
-				this->queue.pop();
-				numPopped++;
-			}
-			numElems = numPopped;
-		}
-
-	private:
-		std::queue<WorkRequest> queue;
-		std::mutex mutex;
-		std::condition_variable cv;
-
-	}; // class DetectionQueue
 
 	class Detector {
 	public:
@@ -155,7 +98,8 @@ namespace DarknetWrapper {
 	class QueuedDetector : Detector
 	{
 	public:
-		void Init(int argc, char** argv, DetectionQueue *requestQueue, DetectionQueue *completionQueue, int gpuNo) {
+		void Init(int argc, char** argv, MutexQueue<WorkRequest> *requestQueue, 
+					MutexQueue<WorkRequest> *completionQueue, int gpuNo) {
 			// Store pointers to the workQueues
 			this->requestQueue = requestQueue;
 			this->completionQueue = completionQueue;
@@ -193,8 +137,14 @@ namespace DarknetWrapper {
 				completionQueue->push_back(elems);
 
 				// Break if this flag is set to indicate that there is no more work.
-				if(finished == true)
+				// Also insert 12 finished workRequests (12 encoder threads)
+				if(finished == true){
+					WorkRequest work;
+					work.finished = true;
+					for (int i = 0; i < 12; i++)
+						completionQueue->push_back(work);
 					break;
+				}
 
 				// Clear the vector so we can use it again.
 				elems.clear();
@@ -202,8 +152,8 @@ namespace DarknetWrapper {
 		}
 
 	private:
-		DetectionQueue *requestQueue;
-		DetectionQueue *completionQueue;
+		MutexQueue<WorkRequest> *requestQueue;
+		MutexQueue<WorkRequest> *completionQueue;
 	};
 
 } // namespace DarknetWrapper
