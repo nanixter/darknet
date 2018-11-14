@@ -52,7 +52,7 @@ option(NVPIPE_BUILD_EXAMPLES "Builds the NvPipe example applications (requires b
 # Header
 configure_file(src/NvPipe.h.in include/NvPipe.h @ONLY)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
-link_directories(/usr/lib/nvidia-396)
+link_directories(/usr/lib/nvidia-396 /usr/lib/nvidia-410)
 
 
 # NvPipe shared library
