@@ -50,7 +50,7 @@ using DarknetWrapper::Detector;
 
 void printUsage(char *binaryName) {
 	std::cout << "Usage:" << std::endl
-			<< binaryName << " <cfg> <weights> -f <vid_file>"
+			<< binaryName << " <cfg> <weights> -v <vid_file>"
 			<< std::endl;
 }
 
@@ -84,7 +84,7 @@ int main(int argc, char* argv[])
 	// TODO: support RTMP ingestion (or some other network ingestion)
 	char *filename;
 	for(int i = 0; i < argc-1; ++i){
-		if(0==strcmp(argv[i], "-f")){
+		if(0==strcmp(argv[i], "-v")){
 			filename = argv[i+1];
 		}
 	}
@@ -128,10 +128,10 @@ int main(int argc, char* argv[])
 
 	// We're running detection on GPU 3 and Decode/Encode on GPU 4
 	// Enable P2P access.
-	cudaSetDevice(2);
-	cudaDeviceEnablePeerAccess(3, 0);
-	cudaSetDevice(3);
-	cudaDeviceEnablePeerAccess(2, 0);
+	cudaSetDevice(0);
+	cudaDeviceEnablePeerAccess(1, 0);
+	cudaSetDevice(1);
+	cudaDeviceEnablePeerAccess(0, 0);
 
 	// Create decoder
 	NvPipe* decoder = NvPipe_CreateDecoder(NVPIPE_NV12, codec);
@@ -163,14 +163,14 @@ int main(int argc, char* argv[])
 	Detector detector;
 	uint32_t netWidth = 416;
 	uint32_t netHeight = 416;
-	detector.Init(argc, argv, 2);
+	detector.Init(argc, argv, 0);
 
 	Timer timer;
 	uint64_t frameNum = 0;
 	cv::Mat picRGB, picBGR;
 	// In a loop, grab compressed frames from the demuxer.
 	cudaProfilerStart();
-	while(demuxer.Demux(&compressedFrame, &compressedFrameSize, &dts)) {
+	while(demuxer.Demux(&compressedFrame, &compressedFrameSize)) {
 		timer.reset();
 		// Allocate GPU memory and copy the compressed Frame to it
 		void *compressedFrameDevice = nullptr;
