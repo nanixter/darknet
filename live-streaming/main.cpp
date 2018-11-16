@@ -48,10 +48,10 @@ simplelogger::Logger *logger = simplelogger::LoggerFactory::CreateConsoleLogger(
 #include "utils/Timer.h"
 
 // Custom C++ Wrapper around Darknet.
+#include "DarknetWrapper.h"
 #include "utils/PointerMap.h"
 #include "utils/Types.h"
 #include "utils/Queue.h"
-#include "DarknetWrapper.h"
 
 using LiveStreamDetector::Frame;
 using LiveStreamDetector::WorkRequest;
