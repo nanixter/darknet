@@ -72,8 +72,8 @@ void decodeFrame(NvPipe* decoder, MutexQueue<Frame> *inFrames, MutexQueue<Frame>
 		inFrames->pop_front(frame);
 		frame.timer.reset();
 
-
 		cudaMalloc(&frame.decompressedFrameDevice, inWidth*inHeight*4);
+		frame.decompressedFrameSize = inWidth*inHeight*4;
 		frame.deviceNumDecompressed = gpuNum;
 
 		// Decode the frame
@@ -106,9 +106,9 @@ void encodeFrame(NvPipe *encoder, PointerMap<Frame> *inFrames, PointerMap<Frame>
 
 		void *frameDevice = nullptr;
 		if (frame->deviceNumDecompressed != gpuNum) {
-			cudaMalloc(&frameDevice, inWidth*inHeight*sizeof(float)*3);
+			cudaMalloc(&frameDevice, frame->decompressedFrameSize);
 			cudaMemcpyPeer(frameDevice, gpuNum, frame->decompressedFrameDevice,
-							frame->deviceNumDecompressed, inWidth*inHeight*sizeof(float)*3);
+							frame->deviceNumDecompressed, frame->decompressedFrameSize);
 			cudaFree(frame->decompressedFrameDevice);
 		} else{
 			frameDevice = frame->decompressedFrameDevice;

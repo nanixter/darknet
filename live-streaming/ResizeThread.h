@@ -83,15 +83,16 @@ public:
 
 			if (frame->deviceNumDecompressed != gpuNum) {
 				void *frameDevice = nullptr;
-				cudaMalloc(&frameDevice, inWidth*inHeight*sizeof(float)*3);
+				cudaMalloc(&frameDevice, frame->decompressedFrameSize);
 				cudaMemcpyPeer(frameDevice, gpuNum, frame->decompressedFrameDevice,
-								frame->deviceNumDecompressed, inWidth*inHeight*sizeof(float)*3);
+								frame->deviceNumDecompressed, frame->decompressedFrameSize);
 				cudaFree(frame->decompressedFrameDevice);
 				frame->decompressedFrameDevice = frameDevice;
 				frame->deviceNumDecompressed = gpuNum;
 			}
 
 			cudaMalloc(&frame->decompressedFrameRGBDevice, inWidth*inHeight*sizeof(float3));
+			frame->decompressedFrameRGBSize = inWidth*inHeight*sizeof(float3);
 			frame->deviceNumRGB = gpuNum;
 
 			// Convert to RGB from NV12

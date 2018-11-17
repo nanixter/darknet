@@ -12,7 +12,9 @@ namespace LiveStreamDetector {
 		Timer timer;
 		void *decompressedFrameDevice = nullptr;
 		int deviceNumDecompressed;
+		int decompressedFrameSize;
 		void *decompressedFrameRGBDevice = nullptr;
+		int decompressedFrameRGBSize;
 		int deviceNumRGB;
 		bool finished = 0;
 		int streamNum;
