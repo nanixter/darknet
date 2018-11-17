@@ -71,6 +71,7 @@ void decodeFrame(NvPipe* decoder, MutexQueue<Frame> *inFrames, MutexQueue<Frame>
 		Frame frame;
 		inFrames->pop_front(frame);
 		frame.timer.reset();
+		frame.streamNum = gpuNum;
 
 		cudaMalloc(&frame.decompressedFrameDevice, inWidth*inHeight*4);
 		frame.decompressedFrameSize = inWidth*inHeight*4;
