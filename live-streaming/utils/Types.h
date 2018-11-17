@@ -10,10 +10,11 @@ namespace LiveStreamDetector {
 		int frameSize = 0;
 		uint64_t frameNum;
 		Timer timer;
-		void *decompressedFrameRGBDevice = nullptr;
 		void *decompressedFrameDevice = nullptr;
+		int deviceNumDecompressed;
+		void *decompressedFrameRGBDevice = nullptr;
+		int deviceNumRGB;
 		bool finished = 0;
-		int deviceNum;
 		int streamNum;
 	} Frame;
 
@@ -25,6 +26,7 @@ namespace LiveStreamDetector {
 		detection *dets;
 		int nboxes;
 		int classes;
+		int deviceNum;
 		Frame *tag;
 	} WorkRequest;
 } //namespace

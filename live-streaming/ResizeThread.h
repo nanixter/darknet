@@ -80,7 +80,30 @@ public:
 
 			cudaError_t status;
 			NppStatus nppStatus;
+
+			if (frame->deviceNumDecompressed != gpuNum) {
+				void *frameDevice = nullptr;
+				cudaMalloc(&frameDevice, inWidth*inHeight*sizeof(float)*3);
+				cudaMemcpyPeer(frameDevice, gpuNum, frame->decompressedFrameDevice,
+								frame->deviceNumDecompressed, inWidth*inHeight*sizeof(float)*3);
+				cudaFree(frame->decompressedFrameDevice);
+				frame->decompressedFrameDevice = frameDevice;
+				frame->deviceNumDecompressed = gpuNum;
+			}
+
+			if (frame->deviceNumRGB != gpuNum) {
+				void *frameDevice = nullptr;
+				cudaMalloc(&frameDevice, inWidth*inHeight*sizeof(float)*3);
+				cudaMemcpyPeer(frameDevice, gpuNum, frame->decompressedFrameRGBDevice,
+								frame->deviceNumRGB, inWidth*inHeight*sizeof(float)*3);
+				cudaFree(frame->decompressedFrameRGBDevice);
+				frame->decompressedFrameRGBDevice = frameDevice;
+				frame->deviceNumRGB = gpuNum;
+			}
+
 			cudaMalloc(&frame->decompressedFrameRGBDevice, inWidth*inHeight*sizeof(float3));
+			frame.deviceNumRGB = gpuNum;
+
 			// Convert to RGB from NV12
 			status = cudaNV12ToRGBf(static_cast<uint8_t *>(frame->decompressedFrameDevice),
 												static_cast<float3 *>(frame->decompressedFrameRGBDevice),
@@ -144,6 +167,7 @@ public:
 			work.nboxes = 0;
 			work.classes = 0;
 			work.finished = false;
+			work.deviceNum = gpuNum;
 			work.tag = frame;
 
 			// Put packet in processing queue

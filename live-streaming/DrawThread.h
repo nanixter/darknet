@@ -78,10 +78,15 @@ public:
 			cudaError_t status;
 			NppStatus nppStatus;
 
-			// Ensure we're on the device the Frame was initially processed on.
-			// This is because we allocated some buffers in the frame that we'd like to operate on
-			// It's either this or memCpy from that buffer to a local buffer.
-			cudaSetDevice(frame->deviceNum);
+			if (frame->deviceNumRGB != gpuNum) {
+				void *frameDevice = nullptr;
+				cudaMalloc(&frameDevice, inWidth*inHeight*sizeof(float)*3);
+				cudaMemcpyPeer(frameDevice, gpuNum, frame->decompressedFrameRGBDevice,
+								frame->deviceNumRGB, inWidth*inHeight*sizeof(float)*3);
+				cudaFree(frame->decompressedFrameRGBDevice);
+				frame->decompressedFrameRGBDevice = frameDevice;
+				frame->deviceNumRGB = gpuNum;
+			}
 
 			if (numObjects >0) {
 				void *boundingBoxesDevice = nullptr;
@@ -107,6 +112,16 @@ public:
 
 			// Free the detections
 			free_detections(work.dets, work.nboxes);
+
+			if (frame->deviceNumDecompressed != gpuNum) {
+				void *frameDevice = nullptr;
+				cudaMalloc(&frameDevice, inWidth*inHeight*sizeof(float)*3);
+				cudaMemcpyPeer(frameDevice, gpuNum, frame->decompressedFrameDevice,
+								frame->deviceNumDecompressed, inWidth*inHeight*sizeof(float)*3);
+				cudaFree(frame->decompressedFrameDevice);
+				frame->decompressedFrameDevice = frameDevice;
+				frame->deviceNumDecompressed = gpuNum;
+			}
 
 			// Convert to uchar4 BGRA8 that the Encoder wants
 			status = cudaRGBToBGRA8((float3 *)frame->decompressedFrameRGBDevice,

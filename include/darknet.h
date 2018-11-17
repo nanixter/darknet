@@ -641,6 +641,7 @@ void cuda_pull_array(float *x_gpu, float *x, size_t n);
 float cuda_mag_array(float *x_gpu, size_t n);
 void cuda_push_array(float *x_gpu, float *x, size_t n);
 void cuda_push_arrayD2D(float *x_gpu, float *y_gpu, size_t n);
+void cuda_push_arrayPeer(float *x_gpu, int x_deviceNum, float *y_gpu, int y_deviceNum, size_t n);
 
 void forward_network_gpu(network *net);
 void forward_network_gpubuffer(network *net);

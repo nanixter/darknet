@@ -29,23 +29,23 @@ void check_error(cudaError_t status)
     //cudaDeviceSynchronize();
     cudaError_t status2 = cudaGetLastError();
     if (status != cudaSuccess)
-    {   
+    {
         const char *s = cudaGetErrorString(status);
         char buffer[256];
         printf("CUDA Error:%d  %s\n", status, s);
         assert(0);
         snprintf(buffer, 256, "CUDA Error: %s", s);
         error(buffer);
-    } 
+    }
     if (status2 != cudaSuccess)
-    {   
+    {
         const char *s = cudaGetErrorString(status);
         char buffer[256];
         printf("CUDA Error Prev: %s\n", s);
         assert(0);
         snprintf(buffer, 256, "CUDA Error Prev: %s", s);
         error(buffer);
-    } 
+    }
 }
 
 dim3 cuda_gridsize(size_t n){
@@ -154,6 +154,13 @@ void cuda_push_arrayD2D(float *x_gpu, float *y_gpu, size_t n)
 {
     size_t size = sizeof(float)*n;
     cudaError_t status = cudaMemcpy(x_gpu, y_gpu, size, cudaMemcpyDeviceToDevice);
+    check_error(status);
+}
+
+void cuda_push_arrayPeer(float *x_gpu, int x_deviceNum, float *y_gpu, int y_deviceNum, size_t n)
+{
+    size_t size = sizeof(float)*n;
+    cudaError_t status = cudaMemcpyPeer(x_gpu, x_deviceNum, y_gpu, y_deviceNum, size);
     check_error(status);
 }
 

@@ -497,14 +497,14 @@ void top_predictions(network *net, int k, int *index)
     top_k(net->output, net->outputs, k, index);
 }
 
-float *network_predict_gpubuffer(network *net, float *input)
+float *network_predict_gpubuffer(network *net, float *input, int bufferDeviceNum)
 {
     network orig = *net;
     net->input = input;
     net->truth = 0;
     net->train = 0;
     net->delta = 0;
-	forward_network_gpubuffer(net);
+	forward_network_gpubuffer(net, bufferDeviceNum);
     float *out = net->output;
     *net = orig;
     return out;
@@ -789,11 +789,14 @@ float *network_output(network *net)
 
 #ifdef GPU
 
-void forward_network_gpubuffer(network *netp)
+void forward_network_gpubuffer(network *netp, int bufferDeviceNum)
 {
     network net = *netp;
     cuda_set_device(net.gpu_index);
-    cuda_push_arrayD2D(net.input_gpu, net.input, net.inputs*net.batch);
+    if (net.gpu_index == bufferDeviceNum)
+        cuda_push_arrayD2D(net.input_gpu, net.input, net.inputs*net.batch);
+    else
+        cuda_push_arrayPeer(net.input_gpu, net.gpu_index, net.input, bufferDeviceNum, net.inputs*net.batch);
 
     int i;
     for(i = 0; i < net.n; ++i){

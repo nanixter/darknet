@@ -35,6 +35,7 @@ namespace DarknetWrapper {
 			// images for detection.
 			#ifdef GPU
 			cuda_set_device(gpuNo);
+			this->gpuNum = gpuNo;
 			#endif
 			char *cfgfile = argv[1];
 			char *weightfile = argv[2];
@@ -44,9 +45,6 @@ namespace DarknetWrapper {
 
 		void Shutdown() {
 			// Free any darknet resources held. Close the GPU connection, etc...
-			// This buffer doesn't belong to the network...
-			// Don't free it. The caller provided the buffer.
-			net->input_gpu = nullptr;
 			free_network(this->net);
 		}
 
@@ -57,7 +55,7 @@ namespace DarknetWrapper {
 			set_batch_network(net, 1);
 			layer l = net->layers[net->n-1];
 
-			network_predict_gpubuffer(net, elem.img.data);
+			network_predict_gpubuffer(net, elem.img.data, elem.deviceNum);
 
 			// This helper function can scale the boxes to the original image size.
 			elem.dets = get_network_boxes(this->net, elem.img.w, elem.img.h, 0.5, 0.5, 0, 1, &(elem.nboxes));
@@ -88,6 +86,7 @@ namespace DarknetWrapper {
 		// All the darknet globals.
 		Timer timer_gpu;
 		Timer timer_detection;
+		int gpuNum;
 
 		network *net;
 
@@ -98,7 +97,7 @@ namespace DarknetWrapper {
 	class QueuedDetector : Detector
 	{
 	public:
-		void Init(int argc, char** argv, MutexQueue<WorkRequest> *requestQueue, 
+		void Init(int argc, char** argv, MutexQueue<WorkRequest> *requestQueue,
 					MutexQueue<WorkRequest> *completionQueue, int gpuNo) {
 			// Store pointers to the workQueues
 			this->requestQueue = requestQueue;

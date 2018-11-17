@@ -74,7 +74,7 @@ void decodeFrame(NvPipe* decoder, MutexQueue<Frame> *inFrames, MutexQueue<Frame>
 
 
 		cudaMalloc(&frame.decompressedFrameDevice, inWidth*inHeight*4);
-		frame.deviceNum = gpuNum;
+		frame.deviceNumDecompressed = gpuNum;
 
 		// Decode the frame
 		uint64_t decompressedFrameSize = NvPipe_Decode(decoder, (const uint8_t *)frame.data,
@@ -105,10 +105,10 @@ void encodeFrame(NvPipe *encoder, PointerMap<Frame> *inFrames, PointerMap<Frame>
 			gotFrame = inFrames->getElem(&frame, frameNum);
 
 		void *frameDevice = nullptr;
-		if (frame->deviceNum != gpuNum) {
+		if (frame->deviceNumDecompressed != gpuNum) {
 			cudaMalloc(&frameDevice, inWidth*inHeight*sizeof(float)*3);
 			cudaMemcpyPeer(frameDevice, gpuNum, frame->decompressedFrameDevice,
-							frame->deviceNum, inWidth*inHeight*sizeof(float)*3);
+							frame->deviceNumDecompressed, inWidth*inHeight*sizeof(float)*3);
 			cudaFree(frame->decompressedFrameDevice);
 		} else{
 			frameDevice = frame->decompressedFrameDevice;
@@ -120,8 +120,8 @@ void encodeFrame(NvPipe *encoder, PointerMap<Frame> *inFrames, PointerMap<Frame>
 		frame->data = new uint8_t[frame->frameSize];
 
 		// Encode the processed Frame
-		uint64_t size = NvPipe_Encode(encoder, frameDevice, inWidth*4, frame->data, frame->frameSize,
-							 inWidth, inHeight, false);
+		uint64_t size = NvPipe_Encode(encoder, frameDevice, inWidth*4, frame->data,
+					frame->frameSize, inWidth, inHeight, false);
 
 		if (0 == size)
 			std::cerr << "Encode error: " << NvPipe_GetError(encoder) << std::endl;
