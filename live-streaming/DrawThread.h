@@ -13,10 +13,11 @@ using LiveStreamDetector::PointerMap;
 class DrawingThread {
 public:
 	void Init(int gpuNum, NvPipe_Codec codec, MutexQueue<WorkRequest> *completionQueue,
-				std::vector<PointerMap<Frame> *> detectedFrameMaps,
+				std::vector<PointerMap<Frame> *> &detectedFrameMaps,
 				float bitrateMbps, int targetFPS, int inWidth, int inHeight)
 	{
 		this->completionQueue = completionQueue;
+		this->detectedFrameMaps = detectedFrameMaps;
 		this->targetFPS = targetFPS;
 		this->inWidth = inWidth;
 		this->inHeight = inHeight;

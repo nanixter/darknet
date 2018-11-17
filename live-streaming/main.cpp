@@ -371,7 +371,7 @@ int main(int argc, char* argv[])
 	uint64_t outFrameNum = 1;
 	while(outFrameNum < frameNum) {
 		for(int i = 0; i < numStreams; i++){
-			Frame *compressedFrame;
+			Frame *compressedFrame = new Frame;
 			bool gotFrame = false;
 			while(!gotFrame)
 				gotFrame = encodedFrameMaps[i]->getElem(&compressedFrame, outFrameNum);
@@ -379,8 +379,10 @@ int main(int argc, char* argv[])
 								outFrameNum);
 			encodedFrameMaps[i]->remove(outFrameNum);
 			delete [] compressedFrame->data;
-			LOG(INFO) << "Processing frame " << compressedFrame->frameNum << " took "	<< compressedFrame->timer.getElapsedMicroseconds() << " us.";
+			LOG(INFO) << "Processing frame " << compressedFrame->frameNum << " took "
+					<< compressedFrame->timer.getElapsedMicroseconds() << " us.";
 		}
+		outFrameNum++;
 	}
 	cudaProfilerStop();
 
