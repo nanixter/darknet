@@ -289,8 +289,12 @@ int main(int argc, char* argv[])
 	MutexQueue<Frame> compressedFramesQueues[numStreams];
 	MutexQueue<Frame> decompressedFramesQueue;
 
-	PointerMap<Frame> detectedFrameMaps[numStreams];
-	PointerMap<Frame> encodedFrameMaps[numStreams];
+	std::vector<PointerMap<Frame> *> detectedFrameMaps(numStreams);
+	std::vector<PointerMap<Frame> *> encodedFrameMaps(numStreams);
+	for (int i = 0; i < numStreams; i++){
+		detectedFrameMaps[i] = new PointerMap<Frame>;
+		encodedFrameMaps[i] = new PointerMap<Frame>;
+	}
 
 	uint8_t *compressedFrame = nullptr;
 	int compressedFrameSize = 0;
@@ -344,7 +348,7 @@ int main(int argc, char* argv[])
 
 	std::vector<std::thread> encoderThreads(numStreams);
 	for(int i = 0; i < numStreams; i++) {
-		encoderThreads[i] = std::thread(&encodeFrame, encoders[i], &detectedFrameMaps[i], &encodedFrameMaps[i], inWidth, inHeight, i, frameNum-1);
+		encoderThreads[i] = std::thread(&encodeFrame, encoders[i], detectedFrameMaps[i], encodedFrameMaps[i], inWidth, inHeight, i, frameNum-1);
 	}
 
 	std::vector<DrawingThread> drawingThreads(numPhysicalGPUs);
@@ -370,11 +374,12 @@ int main(int argc, char* argv[])
 			Frame *compressedFrame;
 			bool gotFrame = false;
 			while(!gotFrame)
-				gotFrame = encodedFrameMaps[i].getElem(&compressedFrame, outFrameNum);
+				gotFrame = encodedFrameMaps[i]->getElem(&compressedFrame, outFrameNum);
 			muxers[i]->Stream((uint8_t *)compressedFrame->data, compressedFrame->frameSize,
 								outFrameNum);
-			LOG(INFO) << "Processing frame " << compressedFrame->frameNum << " took "	<< compressedFrame->timer.getElapsedMicroseconds() << " us.";
+			encodedFrameMaps[i]->remove(outFrameNum);
 			delete [] compressedFrame->data;
+			LOG(INFO) << "Processing frame " << compressedFrame->frameNum << " took "	<< compressedFrame->timer.getElapsedMicroseconds() << " us.";
 		}
 	}
 	cudaProfilerStop();
@@ -387,6 +392,10 @@ int main(int argc, char* argv[])
 		detector.Shutdown();
 	for (auto muxer : muxers)
 		delete muxer;
+	for (auto map : encodedFrameMaps)
+		delete map;
+	for (auto map : detectedFrameMaps)
+		delete map;
 
 	return 0;
 }

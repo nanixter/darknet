@@ -13,7 +13,7 @@ using LiveStreamDetector::PointerMap;
 class DrawingThread {
 public:
 	void Init(int gpuNum, NvPipe_Codec codec, MutexQueue<WorkRequest> *completionQueue,
-				PointerMap<Frame> *detectedFrameMaps,
+				std::vector<PointerMap<Frame> *> detectedFrameMaps,
 				float bitrateMbps, int targetFPS, int inWidth, int inHeight)
 	{
 		this->completionQueue = completionQueue;
@@ -133,7 +133,7 @@ public:
 				std::cout << "cudaRGBToRGBA8 Status = " << cudaGetErrorName(status)	<< std::endl;
 			assert(status == cudaSuccess);
 			cudaFree(frame->decompressedFrameRGBDevice);
-			detectedFrameMaps[frame->streamNum].insert(frame, frame->frameNum);
+			detectedFrameMaps[frame->streamNum]->insert(frame, frame->frameNum);
 		}
 	}
 
@@ -148,7 +148,7 @@ private:
 	// Objects (or pointers to)
 	// Create one output stream writer wrapper per thread
 	MutexQueue<WorkRequest> *completionQueue;
-	PointerMap<Frame> *detectedFrameMaps;
+	std::vector<PointerMap<Frame> *>  detectedFrameMaps;
 };
 
 #endif
