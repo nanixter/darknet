@@ -72,10 +72,10 @@ void decodeFrame(NvPipe* decoder, MutexQueue<Frame> *inFrames, MutexQueue<Frame>
 		inFrames->pop_front(frame);
 		frame.timer.reset();
 		frame.streamNum = gpuNum;
-
-		cudaMalloc(&frame.decompressedFrameDevice, inWidth*inHeight*4);
 		frame.decompressedFrameSize = inWidth*inHeight*4;
 		frame.deviceNumDecompressed = gpuNum;
+
+		cudaMalloc(&frame.decompressedFrameDevice, frame.decompressedFrameSize);
 
 		// Decode the frame
 		uint64_t decompressedFrameSize = NvPipe_Decode(decoder, (const uint8_t *)frame.data,
@@ -128,8 +128,8 @@ void encodeFrame(NvPipe *encoder, PointerMap<Frame> *inFrames, PointerMap<Frame>
 			std::cerr << "Encode error: " << NvPipe_GetError(encoder) << std::endl;
 
 		// Insert the encoded frame into map for the main thread to mux.
-		cudaFree(frameDevice);
 		outFrames->insert(frame, frameNum);
+		cudaFree(frameDevice);
 	}
 }
 
