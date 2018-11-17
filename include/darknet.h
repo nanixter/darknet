@@ -746,7 +746,7 @@ matrix network_predict_data(network *net, data test);
 image **load_alphabet();
 image get_network_image(network *net);
 float *network_predict(network *net, float *input);
-float *network_predict_gpubuffer(network *net, float *input);
+float *network_predict_gpubuffer(network *net, float *input, int bufferDeviceNum);
 
 int network_width(network *net);
 int network_height(network *net);
