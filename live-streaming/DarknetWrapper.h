@@ -132,6 +132,7 @@ namespace DarknetWrapper {
 					Detector::doDetection(elems[i]);
 				}
 
+
 				// Put the result back on the completionQueue.
 				completionQueue->push_back(elems);
 
@@ -147,6 +148,7 @@ namespace DarknetWrapper {
 
 				// Clear the vector so we can use it again.
 				elems.clear();
+				pthread_yield();
 			}
 		}
 

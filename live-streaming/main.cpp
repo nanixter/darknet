@@ -112,7 +112,7 @@ void encodeFrame(NvPipe *encoder, PointerMap<Frame> *inFrames, PointerMap<Frame>
 									frame->decompressedFrameDevice,
 									frame->deviceNumDecompressed, frame->decompressedFrameSize);
 			if (status != cudaSuccess)
-				std::cout << "cudaMemcpyPeer Status = "
+				std::cout << "EncodeFrame: " << frameNum <<" cudaMemcpyPeer Status = "
 						<< cudaGetErrorName(status)	<< std::endl;
 			cudaFree(frame->decompressedFrameDevice);
 		} else{
@@ -133,6 +133,7 @@ void encodeFrame(NvPipe *encoder, PointerMap<Frame> *inFrames, PointerMap<Frame>
 
 		// Insert the encoded frame into map for the main thread to mux.
 		outFrames->insert(frame, frameNum);
+		frameNum++;
 		cudaFree(frameDevice);
 	}
 }
@@ -158,7 +159,6 @@ int main(int argc, char* argv[])
 	// Parse command-line options.
 	// TODO: support RTMP ingestion (or some other network ingestion)
 	char *filename;
-	int numThreads = 1;
 	int numStreams = 1;
 	int fps = 30;
 	int maxOutstandingPerThread = 90;
@@ -173,8 +173,6 @@ int main(int argc, char* argv[])
 	for (int i = 1; i < argc-1; i=i+2) {
 		if(0==strcmp(argv[i], "-v")){
 			filename = argv[i+1];
-		} else if (0 == strcmp(argv[i], "-n")){
-			numThreads = atoi(argv[i+1]);
 		} else if (0 == strcmp(argv[i], "-f")) {
 			fps = atoi(argv[i+1]);
 		} else if (0 == strcmp(argv[i], "-r")) {
@@ -192,13 +190,9 @@ int main(int argc, char* argv[])
 		return EXIT_FAILURE;
 	}
 
-	if (numThreads > 12) {
-		LOG(INFO) << "Max concurrent clients supported = 12. Setting numThreads to 12";
-		numThreads = 12;
-	}
-
 	if (numStreams > numPhysicalGPUs) {
-		LOG(INFO) << "Max concurrent streams supported = " <<numPhysicalGPUs <<". Setting numStreams to " <<numPhysicalGPUs;
+		LOG(INFO) << "Max concurrent streams supported = " <<numPhysicalGPUs 
+					<<". Setting numStreams to " <<numPhysicalGPUs;
 		numStreams = numPhysicalGPUs;
 	}
 
@@ -218,7 +212,7 @@ int main(int argc, char* argv[])
 	}
 
 	LOG(INFO) << "video file: " << filename;
-	LOG(INFO) << "Creating " << numThreads << " threads, each producing frames at "
+	LOG(INFO) << "Creating " << numStreams << " threads, each producing frames at "
 				<< fps << " FPS.";
 	LOG(INFO) << "Each thread can have a maximum of " << maxOutstandingPerThread
 				<< " outstanding requests at any time. All other frames will be dropped.";
@@ -352,7 +346,8 @@ int main(int argc, char* argv[])
 
 	std::vector<std::thread> encoderThreads(numStreams);
 	for(int i = 0; i < numStreams; i++) {
-		encoderThreads[i] = std::thread(&encodeFrame, encoders[i], detectedFrameMaps[i], encodedFrameMaps[i], inWidth, inHeight, i, frameNum-1);
+		encoderThreads[i] = std::thread(&encodeFrame, encoders[i], detectedFrameMaps[i], 
+				encodedFrameMaps[i], inWidth, inHeight, i, frameNum-1);
 	}
 
 	std::vector<DrawingThread> drawingThreads(numPhysicalGPUs);
@@ -379,10 +374,9 @@ int main(int argc, char* argv[])
 			bool gotFrame = false;
 			while(!gotFrame)
 				gotFrame = encodedFrameMaps[i]->getElem(&compressedFrame, outFrameNum);
-			muxers[i]->Stream((uint8_t *)compressedFrame->data, compressedFrame->frameSize,
-								outFrameNum);
+			muxers[i]->Stream((uint8_t *)compressedFrame->data, compressedFrame->frameSize, outFrameNum);
 			encodedFrameMaps[i]->remove(outFrameNum);
-			delete [] compressedFrame->data;
+			//delete [] compressedFrame->data;
 			LOG(INFO) << "Processing frame " << compressedFrame->frameNum << " took "
 					<< compressedFrame->timer.getElapsedMicroseconds() << " us.";
 		}

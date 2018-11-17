@@ -87,7 +87,7 @@ public:
 				status = cudaMemcpyPeer(frameDevice, gpuNum, frame->decompressedFrameDevice,
 								frame->deviceNumDecompressed, frame->decompressedFrameSize);
 				if (status != cudaSuccess)
-					std::cout << "cudaMemcpyPeer Status = "<< cudaGetErrorName(status)
+					std::cout << "ResizeThread cudaMemcpyPeer Status = "<< cudaGetErrorName(status)
 							<< std::endl;
 				cudaFree(frame->decompressedFrameDevice);
 				frame->decompressedFrameDevice = frameDevice;
@@ -168,7 +168,7 @@ public:
 			requestQueue->push_back(work);
 
 			// Account for the time spent processing the packet...
-			usleep((1000000/targetFPS));//- frame->timer.getElapsedMicroseconds());
+			//usleep((1000000/targetFPS));//- frame->timer.getElapsedMicroseconds());
 		} // while(true)
 		LOG(INFO) << "Decoder is done. Freeing memory and returning";
 		cudaFree(scaledFrameNoPad);

@@ -85,7 +85,7 @@ public:
 				status = cudaMemcpyPeer(frameDevice, gpuNum, frame->decompressedFrameRGBDevice,
 								frame->deviceNumRGB, frame->decompressedFrameRGBSize);
 				if (status != cudaSuccess)
-					std::cout << "cudaMemcpyPeer Status = "<< cudaGetErrorName(status)
+					std::cout << "DrawThread1 cudaMemcpyPeer Status = "<< cudaGetErrorName(status)
 							<< std::endl;
 				cudaFree(frame->decompressedFrameRGBDevice);
 				frame->decompressedFrameRGBDevice = frameDevice;
@@ -123,7 +123,7 @@ public:
 				status = cudaMemcpyPeer(frameDevice, gpuNum, frame->decompressedFrameDevice,
 								frame->deviceNumDecompressed, frame->decompressedFrameSize);
 				if (status != cudaSuccess)
-					std::cout << "cudaMemcpyPeer Status = "<< cudaGetErrorName(status)
+					std::cout << "DrawThread2 cudaMemcpyPeer Status = "<< cudaGetErrorName(status)
 							<< std::endl;
 				cudaFree(frame->decompressedFrameDevice);
 				frame->decompressedFrameDevice = frameDevice;
