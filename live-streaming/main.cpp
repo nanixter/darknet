@@ -108,8 +108,12 @@ void encodeFrame(NvPipe *encoder, PointerMap<Frame> *inFrames, PointerMap<Frame>
 		void *frameDevice = nullptr;
 		if (frame->deviceNumDecompressed != gpuNum) {
 			cudaMalloc(&frameDevice, frame->decompressedFrameSize);
-			cudaMemcpyPeer(frameDevice, gpuNum, frame->decompressedFrameDevice,
-							frame->deviceNumDecompressed, frame->decompressedFrameSize);
+			cudaError_t status = cudaMemcpyPeer(frameDevice, gpuNum,
+									frame->decompressedFrameDevice,
+									frame->deviceNumDecompressed, frame->decompressedFrameSize);
+			if (status != cudaSuccess)
+				std::cout << "cudaMemcpyPeer Status = "
+						<< cudaGetErrorName(status)	<< std::endl;
 			cudaFree(frame->decompressedFrameDevice);
 		} else{
 			frameDevice = frame->decompressedFrameDevice;
@@ -163,7 +167,7 @@ int main(int argc, char* argv[])
 	int numPhysicalGPUs;
 	cudaError_t status = cudaGetDeviceCount(&numPhysicalGPUs);
 	if (status != cudaSuccess)
-	std::cout << "cudaGetDeviceCount Status = " << cudaGetErrorName(status)	<< std::endl;
+		std::cout << "cudaGetDeviceCount Status = " << cudaGetErrorName(status)	<< std::endl;
 	assert(status == cudaSuccess);
 
 	for (int i = 1; i < argc-1; i=i+2) {

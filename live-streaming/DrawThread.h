@@ -82,8 +82,11 @@ public:
 			if (frame->deviceNumRGB != gpuNum) {
 				void *frameDevice = nullptr;
 				cudaMalloc(&frameDevice, frame->decompressedFrameRGBSize);
-				cudaMemcpyPeer(frameDevice, gpuNum, frame->decompressedFrameRGBDevice,
+				status = cudaMemcpyPeer(frameDevice, gpuNum, frame->decompressedFrameRGBDevice,
 								frame->deviceNumRGB, frame->decompressedFrameRGBSize);
+				if (status != cudaSuccess)
+					std::cout << "cudaMemcpyPeer Status = "<< cudaGetErrorName(status)
+							<< std::endl;
 				cudaFree(frame->decompressedFrameRGBDevice);
 				frame->decompressedFrameRGBDevice = frameDevice;
 				frame->deviceNumRGB = gpuNum;
@@ -117,8 +120,11 @@ public:
 			if (frame->deviceNumDecompressed != gpuNum) {
 				void *frameDevice = nullptr;
 				cudaMalloc(&frameDevice, frame->decompressedFrameSize);
-				cudaMemcpyPeer(frameDevice, gpuNum, frame->decompressedFrameDevice,
+				status = cudaMemcpyPeer(frameDevice, gpuNum, frame->decompressedFrameDevice,
 								frame->deviceNumDecompressed, frame->decompressedFrameSize);
+				if (status != cudaSuccess)
+					std::cout << "cudaMemcpyPeer Status = "<< cudaGetErrorName(status)
+							<< std::endl;
 				cudaFree(frame->decompressedFrameDevice);
 				frame->decompressedFrameDevice = frameDevice;
 				frame->deviceNumDecompressed = gpuNum;
