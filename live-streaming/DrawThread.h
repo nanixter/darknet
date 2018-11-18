@@ -141,6 +141,7 @@ public:
 			assert(status == cudaSuccess);
 			cudaFree(frame->decompressedFrameRGBDevice);
 			detectedFrameMaps[frame->streamNum]->insert(frame, frame->frameNum);
+			pthread_yield();
 		}
 	}
 

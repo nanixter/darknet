@@ -126,16 +126,17 @@ void encodeFrame(NvPipe *encoder, PointerMap<Frame> *inFrames, PointerMap<Frame>
 
 		// NvPipe expects us to allocate a buffer for it to output to.. Sigh...
 		delete [] frame->data;
-		frame->frameSize = 500000;
-		frame->data = new uint8_t[frame->frameSize];
+		frame->data = new uint8_t[500000];
 
 		// Encode the processed Frame
 		uint64_t size = NvPipe_Encode(encoder, frameDevice, inWidth*4, frame->data,
-					frame->frameSize, inWidth, inHeight, false);
+					500000, inWidth, inHeight, false);
 
 		if (0 == size)
 			std::cerr << "Encode error: " << NvPipe_GetError(encoder) << std::endl;
 
+		frame->frameSize = size;
+ 
 		// Insert the encoded frame into map for the main thread to mux.
 		outFrames->insert(frame, frameNum);
 		frameNum++;
@@ -381,7 +382,7 @@ int main(int argc, char* argv[])
 				gotFrame = encodedFrameMaps[i]->getElem(&compressedFrame, outFrameNum);
 			muxers[i]->Stream((uint8_t *)compressedFrame->data, compressedFrame->frameSize, outFrameNum);
 			encodedFrameMaps[i]->remove(outFrameNum);
-			//delete [] compressedFrame->data;
+			delete [] compressedFrame->data;
 			LOG(INFO) << "Processing frame " <<compressedFrame->streamNum <<" " << compressedFrame->frameNum << " took "
 					<< compressedFrame->timer.getElapsedMicroseconds() << " us.";
 		}
