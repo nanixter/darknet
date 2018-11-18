@@ -70,6 +70,9 @@ void decodeFrame(NvPipe* decoder, MutexQueue<Frame> *inFrames, MutexQueue<Frame>
 	while( frameNum < lastFrameNum ) {
 		Frame frame;
 		inFrames->pop_front(frame);
+		//LOG(INFO) <<"decodeFrame " <<frame.frameNum;
+		if (frame.finished == true)
+			break;
 		frame.timer.reset();
 		frame.streamNum = gpuNum;
 		frame.decompressedFrameSize = inWidth*inHeight*4;
@@ -102,8 +105,10 @@ void encodeFrame(NvPipe *encoder, PointerMap<Frame> *inFrames, PointerMap<Frame>
 	while( frameNum < lastFrameNum ) {
 		Frame *frame = new Frame;
 		bool gotFrame = false;
+		//LOG(INFO) << "EncodeFrame " <<gpuNum <<" "<<inFrames;
 		while(!gotFrame)
 			gotFrame = inFrames->getElem(&frame, frameNum);
+		//LOG(INFO) <<"encodeFrame got frame: " <<frame->streamNum << " " <<frame->frameNum;
 
 		void *frameDevice = nullptr;
 		if (frame->deviceNumDecompressed != gpuNum) {
@@ -142,7 +147,6 @@ void printUsage(char *binaryName) {
 	LOG(ERROR) << "Usage:" << std::endl
 			<< binaryName << " <cfg_file> <weights_file> -v <vid_file> <Opt Args>" <<std::endl
 			<< "Optional Arguments:" <<std::endl
-			<<	"-n number-of-clients (default=1; valid range: 1 to 12)" <<std::endl
 			<<	"-s number of video streams (default=1; valid range: 1 to 4)" <<std::endl
 			<<	"-f fps (default=30fps; valid range: 1 to 120)" <<std::endl
 			<<	"-r per_client_max_outstanding_requests (default=90; valid range = 1 to 1000)" <<std::endl
@@ -301,7 +305,7 @@ int main(int argc, char* argv[])
 	while(demuxer.Demux(&compressedFrame, &compressedFrameSize)) {
 		for (int i = 0; i < numStreams; i++) {
 			Frame *frame = new Frame;
-			frame->frameNum = frameNum++;
+			frame->frameNum = frameNum;
 			frame->data = new uint8_t[compressedFrameSize];
 			std::memcpy(frame->data, compressedFrame, compressedFrameSize);
 			frame->frameSize = compressedFrameSize;
@@ -309,12 +313,13 @@ int main(int argc, char* argv[])
 			frame->streamNum = i;
 			compressedFramesQueues[i].push_back(*frame);
 		}
+		frameNum++;
 	}
 
 	// Insert completion frame->
 	for(int i=0; i <numStreams; i++) {
 		Frame *frame = new Frame;
-		frame->frameNum = frameNum++;
+		frame->frameNum = frameNum;
 		frame->data = nullptr;
 		frame->frameSize = -1;
 		frame->finished = true;
@@ -363,7 +368,7 @@ int main(int argc, char* argv[])
 	std::vector<std::thread> decodeThreads(numStreams);
 	for(int i = 0; i < numStreams; i++) {
 		decodeThreads[i] = std::thread(&decodeFrame, decoders[i], &compressedFramesQueues[i],
-			&decompressedFramesQueue, inWidth, inHeight, fps, i, frameNum);
+			&decompressedFramesQueue, inWidth, inHeight, fps, i, frameNum-1);
 	}
 
 	// Try to clean up the FrameMap
@@ -377,7 +382,7 @@ int main(int argc, char* argv[])
 			muxers[i]->Stream((uint8_t *)compressedFrame->data, compressedFrame->frameSize, outFrameNum);
 			encodedFrameMaps[i]->remove(outFrameNum);
 			//delete [] compressedFrame->data;
-			LOG(INFO) << "Processing frame " << compressedFrame->frameNum << " took "
+			LOG(INFO) << "Processing frame " <<compressedFrame->streamNum <<" " << compressedFrame->frameNum << " took "
 					<< compressedFrame->timer.getElapsedMicroseconds() << " us.";
 		}
 		outFrameNum++;

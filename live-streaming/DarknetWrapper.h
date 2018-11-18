@@ -57,6 +57,8 @@ namespace DarknetWrapper {
 
 			network_predict_gpubuffer(net, elem.img.data, elem.deviceNum);
 
+			bool transfer = (net->gpu_index == elem.deviceNum);
+
 			// This helper function can scale the boxes to the original image size.
 			elem.dets = get_network_boxes(this->net, elem.img.w, elem.img.h, 0.5, 0.5, 0, 1, &(elem.nboxes));
 
@@ -69,7 +71,8 @@ namespace DarknetWrapper {
 			//std::cout << l.classes <<std::endl;
 			elem.done = true;
 
-			std::cout << " GPU processing took " << timer_gpu.getElapsedMicroseconds() << " microseconds. numDetections =" <<elem.nboxes << std::endl;
+			LOG(INFO) << " GPU processing: transfer_needed: " <<transfer <<" took " << timer_gpu.getElapsedMicroseconds() 
+						<< " microseconds. numDetections =" <<elem.nboxes;
 		}
 
 		float * getOutput() {
