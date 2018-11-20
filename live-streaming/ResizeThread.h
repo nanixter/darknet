@@ -27,6 +27,11 @@ public:
 		this->thread = std::thread(&ResizeThread::Resize, this);
 	}
 
+	void ShutDown()
+	{
+		thread.join();
+	}
+
 	void Resize()
 	{
 		void *scaledFrameNoPad = nullptr;
@@ -169,9 +174,9 @@ public:
 
 			pthread_yield();
 			// Account for the time spent processing the packet...
-			//usleep((1000000/targetFPS));//- frame->timer.getElapsedMicroseconds());
-		} // while(true)
-		LOG(INFO) << "Decoder is done. Freeing memory and returning";
+			// usleep((1000000/targetFPS));//- frame->timer.getElapsedMicroseconds());
+		} 
+		LOG(INFO) << "ResizeThread is done. Freeing memory and returning";
 		cudaFree(scaledFrameNoPad);
 		cudaFree(scaledFramePadded);
 		cudaFree(scaledPaddedPlanarS);

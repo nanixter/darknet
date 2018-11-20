@@ -129,7 +129,7 @@ namespace DarknetWrapper {
 				for (int i = 0; i < numImages; i++){
 					// Break if this flag is set to indicate that there is no more work.
 					if (elems[i].finished == true){
-						finished == true;
+						finished = true;
 						break;
 					}
 					Detector::doDetection(elems[i]);
@@ -141,7 +141,7 @@ namespace DarknetWrapper {
 
 				// Break if this flag is set to indicate that there is no more work.
 				// Also insert 12 finished workRequests (12 encoder threads)
-				if(finished == true){
+				if(finished == true) {
 					WorkRequest work;
 					work.finished = true;
 					for (int i = 0; i < 12; i++)

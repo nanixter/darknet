@@ -62,7 +62,7 @@ using DarknetWrapper::QueuedDetector;
 #include "ResizeThread.h"
 
 void decodeFrame(NvPipe* decoder, MutexQueue<Frame> *inFrames, MutexQueue<Frame> *outFrames,
-				int inWidth, int inHeight, int fps, int gpuNum, uint64_t lastFrameNum)
+				int inWidth, int inHeight, int fps, int gpuNum, uint64_t lastFrameNum, int numDevices)
 {
 	uint64_t frameNum = 1;
 	cudaSetDevice(gpuNum);
@@ -70,9 +70,13 @@ void decodeFrame(NvPipe* decoder, MutexQueue<Frame> *inFrames, MutexQueue<Frame>
 	while( frameNum < lastFrameNum ) {
 		Frame frame;
 		inFrames->pop_front(frame);
-		//LOG(INFO) <<"decodeFrame " <<frame.frameNum;
-		if (frame.finished == true)
+
+		if (frame.finished == true) {
+			for (int i = 0; i < numDevices; i++)
+				outFrames->push_back(frame);
 			break;
+		}
+
 		frame.timer.reset();
 		frame.streamNum = gpuNum;
 		frame.decompressedFrameSize = inWidth*inHeight*4;
@@ -105,10 +109,13 @@ void encodeFrame(NvPipe *encoder, PointerMap<Frame> *inFrames, PointerMap<Frame>
 	while( frameNum < lastFrameNum ) {
 		Frame *frame = new Frame;
 		bool gotFrame = false;
-		//LOG(INFO) << "EncodeFrame " <<gpuNum <<" "<<inFrames;
 		while(!gotFrame)
 			gotFrame = inFrames->getElem(&frame, frameNum);
-		//LOG(INFO) <<"encodeFrame got frame: " <<frame->streamNum << " " <<frame->frameNum;
+
+		if (frame->finished == true) {
+			outFrames->insert(frame, frameNum);
+			break;
+		}
 
 		void *frameDevice = nullptr;
 		if (frame->deviceNumDecompressed != gpuNum) {
@@ -138,9 +145,9 @@ void encodeFrame(NvPipe *encoder, PointerMap<Frame> *inFrames, PointerMap<Frame>
 		frame->frameSize = size;
  
 		// Insert the encoded frame into map for the main thread to mux.
-		outFrames->insert(frame, frameNum);
-		frameNum++;
+		outFrames->insert(frame, frameNum++);
 		cudaFree(frameDevice);
+		pthread_yield();
 	}
 }
 
@@ -263,7 +270,7 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	numStreams = std::min(numStreams, numPhysicalGPUs);
+	//numStreams = std::min(numStreams, numPhysicalGPUs);
 	FFmpegStreamer *muxers[numStreams];
 	NvPipe* encoders[numStreams];
 	NvPipe* decoders[numStreams];
@@ -358,7 +365,7 @@ int main(int argc, char* argv[])
 
 	std::vector<DrawingThread> drawingThreads(numPhysicalGPUs);
 	for (int i = 0; i < numPhysicalGPUs; i++){
-		drawingThreads[i].Init(i, codec, &completionQueue, detectedFrameMaps, bitrateMbps, fps, inWidth, inHeight);
+		drawingThreads[i].Init(i, codec, &completionQueue, detectedFrameMaps, bitrateMbps, fps, inWidth, inHeight, numStreams);
 	}
 
 	std::vector<ResizeThread> resizeThreads(numPhysicalGPUs);
@@ -369,12 +376,12 @@ int main(int argc, char* argv[])
 	std::vector<std::thread> decodeThreads(numStreams);
 	for(int i = 0; i < numStreams; i++) {
 		decodeThreads[i] = std::thread(&decodeFrame, decoders[i], &compressedFramesQueues[i],
-			&decompressedFramesQueue, inWidth, inHeight, fps, i, frameNum-1);
+			&decompressedFramesQueue, inWidth, inHeight, fps, i, frameNum-1, numPhysicalGPUs);
 	}
 
 	// Try to clean up the FrameMap
 	uint64_t outFrameNum = 1;
-	while(outFrameNum < frameNum) {
+	while(outFrameNum < frameNum-1) {
 		for(int i = 0; i < numStreams; i++){
 			Frame *compressedFrame = new Frame;
 			bool gotFrame = false;
@@ -382,7 +389,6 @@ int main(int argc, char* argv[])
 				gotFrame = encodedFrameMaps[i]->getElem(&compressedFrame, outFrameNum);
 			muxers[i]->Stream((uint8_t *)compressedFrame->data, compressedFrame->frameSize, outFrameNum);
 			encodedFrameMaps[i]->remove(outFrameNum);
-			delete [] compressedFrame->data;
 			LOG(INFO) << "Processing frame " <<compressedFrame->streamNum <<" " << compressedFrame->frameNum << " took "
 					<< compressedFrame->timer.getElapsedMicroseconds() << " us.";
 		}
@@ -392,10 +398,24 @@ int main(int argc, char* argv[])
 
 	LOG(INFO) << "Main thread done. Waiting for other threads to exit";
 
+	for (int i = 0; i < numStreams; i++)
+		decodeThreads[i].join();
+	LOG(INFO) << "decodeThreads joined!";
 	for (auto &thread: detectionThreads)
 		thread.join();
+	LOG(INFO) << "detectionThreads joined!";
 	for (auto &detector: detectors)
 		detector.Shutdown();
+	LOG(INFO) << "detector shutdown!";
+	for (int i = 0; i < numStreams; i++)
+		encoderThreads[i].join();
+	LOG(INFO) << "encodeThreads joined!";
+	for (int i = 0; i < numPhysicalGPUs; i++)
+		resizeThreads[i].ShutDown();
+	LOG(INFO) << "resizerThreads joined!";
+	for (int i = 0; i < numPhysicalGPUs; i++)
+		drawingThreads[i].ShutDown();
+	LOG(INFO) << "drawThreads joined!";
 	for (auto muxer : muxers)
 		delete muxer;
 	for (auto map : encodedFrameMaps)

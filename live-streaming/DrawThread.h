@@ -14,7 +14,7 @@ class DrawingThread {
 public:
 	void Init(int gpuNum, NvPipe_Codec codec, MutexQueue<WorkRequest> *completionQueue,
 				std::vector<PointerMap<Frame> *> &detectedFrameMaps,
-				float bitrateMbps, int targetFPS, int inWidth, int inHeight)
+				float bitrateMbps, int targetFPS, int inWidth, int inHeight, int numStreams)
 	{
 		this->completionQueue = completionQueue;
 		this->detectedFrameMaps = detectedFrameMaps;
@@ -22,10 +22,16 @@ public:
 		this->inWidth = inWidth;
 		this->inHeight = inHeight;
 		this->gpuNum = gpuNum;
+		this->numStreams = numStreams;
 
 		cudaSetDevice(gpuNum);
 
 		this->thread = std::thread(&DrawingThread::DrawBoxes, this);
+	}
+
+	void ShutDown()
+	{
+		thread.join();
 	}
 
 	float4 scale_box(box bbox, int width, int height)
@@ -53,8 +59,11 @@ public:
 			WorkRequest work;
 			completionQueue->pop_front(work);
 			// Break out of the loop if this is the completion signal.
-			if(work.finished == true)
+			if(work.finished == true) {
+				Frame *frame = (Frame *)work.tag;
 				break;
+			}
+
 			assert(work.done == true);
 			assert(work.dets != nullptr);
 
@@ -143,6 +152,7 @@ public:
 			detectedFrameMaps[frame->streamNum]->insert(frame, frame->frameNum);
 			pthread_yield();
 		}
+		LOG(INFO) <<"Draw Threds done. Exiting";
 	}
 
 private:
@@ -151,6 +161,7 @@ private:
 	int targetFPS;
 	int inWidth;
 	int inHeight;
+	int numStreams;
 	std::thread thread;
 
 	// Objects (or pointers to)
