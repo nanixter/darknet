@@ -155,7 +155,8 @@ void printUsage(char *binaryName) {
 	LOG(ERROR) << "Usage:" << std::endl
 			<< binaryName << " <cfg_file> <weights_file> -v <vid_file> <Opt Args>" <<std::endl
 			<< "Optional Arguments:" <<std::endl
-			<<	"-s number of video streams (default=1; valid range: 1 to 4)" <<std::endl
+			<<	"-s number of video streams (default=1; valid range: 1 to number of GPUs)" <<std::endl
+			<<	"-n number of GPUs to use (default=cudaGetDeviceCount; valid range: 1 to cudaGetDeviceCount)" <<std::endl
 			<<	"-f fps (default=30fps; valid range: 1 to 120)" <<std::endl
 			<<	"-r per_client_max_outstanding_requests (default=90; valid range = 1 to 1000)" <<std::endl
 			<<	"-b bit rate of output video (in Mbps; default=2; valid range = 1 to 6;)" <<std::endl;
@@ -193,6 +194,10 @@ int main(int argc, char* argv[])
 			bitrateMbps = atof(argv[i+1]);
 		} else if (0 == strcmp(argv[i], "-s")) {
 			numStreams = atoi(argv[i+1]);
+		} else if (0 == strcmp(argv[i], "-n")) {
+			int temp = atoi(argv[i+1]);
+			if (temp < numPhysicalGPUs)
+				numPhysicalGPUs = temp;
 		}
 	}
 
