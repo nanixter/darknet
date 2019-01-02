@@ -47,7 +47,7 @@ public:
 	}
 
 	void doDetection(WorkRequest &elem) {
-		cuda_set_device(gpuNo);
+		cuda_set_device(gpuNum);
 		timer_gpu.reset();
 
 		float nms = .4;

@@ -13,7 +13,7 @@ class GPUThread {
 public:
 	void Init(NvPipe_Codec codec, MutexQueue<Frame> *frames,
 			std::vector<PointerMap<Frame> *> &completedFramesMap,
-			Detector *detector, int firstGPU, int detectorGPU,
+			int firstGPU, int detectorGPU,
 			int targetFPS, int inWidth, int inHeight, int numStreams,
 			int argc, char** argv)
 	{
@@ -27,7 +27,7 @@ public:
 		this->numStreams = numStreams;
 
 		// Initialize Darknet Detector
-		detector.init(argc, argv, detectorGPU);
+		detector.Init(argc, argv, detectorGPU);
 
 		// Launch GPUThread
 		this->thread = std::thread(&GPUThread::doGPUWork, this);
@@ -89,6 +89,8 @@ public:
 		scaledPaddedPlanar[2] = (float *)(scaledPaddedPlanarS+netWidth*netHeight*sizeof(float));
 
 		const float4 overlayColor = {75.0, 156.0, 211.0,120.0};
+		cudaError_t status;
+		NppStatus nppStatus;
 
 		while(true) {
 			Frame *frame = new Frame;
@@ -99,14 +101,12 @@ public:
 			if (frame->finished == true) {
 				// Add a completion WorkRequest to the completion queue to
 				// signal to the encoder thread to finish.
-				detector.ShutDown();
+				detector.Shutdown();
 				break;
 			}
 
 			cudaSetDevice(gpuNum);
 
-			cudaError_t status;
-			NppStatus nppStatus;
 
 			if (frame->deviceNumDecompressed != gpuNum) {
 				void *frameDevice = nullptr;
@@ -221,9 +221,6 @@ public:
 				boundingBoxes.push_back(scale_box(work.dets[i].bbox, inWidth, inHeight));
 				numObjects++;
 			}
-
-			cudaError_t status;
-			NppStatus nppStatus;
 
 			cudaSetDevice(gpuNum);
 			if (frame->deviceNumRGB != gpuNum) {

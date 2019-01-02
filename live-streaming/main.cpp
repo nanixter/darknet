@@ -364,7 +364,7 @@ int main(int argc, char* argv[])
 	}
 
 	std::vector<GPUThread> GPUThreads(numPhysicalGPUs);
-	int detectorGPUNo = [1,0,3,2];
+	int detectorGPUNo[4] = {1,0,3,2};
 	for (int i = 0; i < numPhysicalGPUs; i++) {
 		GPUThreads[i].Init(codec, &decompressedFramesQueue,
 						detectedFrameMaps, i, detectorGPUNo[i],
@@ -410,9 +410,6 @@ int main(int argc, char* argv[])
 	for (int i = 0; i < numPhysicalGPUs; i++)
 		GPUThreads[i].ShutDown();
 	LOG(INFO) << "resizerThreads joined!";
-	for (auto &detector: detectors)
-		detector.Shutdown();
-	LOG(INFO) << "detector shutdown!";
 	for (auto muxer : muxers)
 		delete muxer;
 	for (auto map : encodedFrameMaps)
