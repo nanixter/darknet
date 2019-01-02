@@ -12,9 +12,10 @@ using LiveStreamDetector::PointerMap;
 
 class DrawingThread {
 public:
-	void Init(int gpuNum, NvPipe_Codec codec, MutexQueue<WorkRequest> *completionQueue,
+	void Init(int gpuNum, NvPipe_Codec codec,
+				MutexQueue<WorkRequest> *completionQueue,
 				std::vector<PointerMap<Frame> *> &detectedFrameMaps,
-				float bitrateMbps, int targetFPS, int inWidth, int inHeight, int numStreams)
+				int targetFPS, int inWidth, int inHeight, int numStreams)
 	{
 		this->completionQueue = completionQueue;
 		this->detectedFrameMaps = detectedFrameMaps;
@@ -61,6 +62,7 @@ public:
 			// Break out of the loop if this is the completion signal.
 			if(work.finished == true) {
 				Frame *frame = (Frame *)work.tag;
+				detectedFrameMaps[frame->streamNum]->insert(frame, frame->frameNum);
 				break;
 			}
 

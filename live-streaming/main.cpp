@@ -56,13 +56,12 @@ simplelogger::Logger *logger = simplelogger::LoggerFactory::CreateConsoleLogger(
 using LiveStreamDetector::Frame;
 using LiveStreamDetector::WorkRequest;
 using LiveStreamDetector::MutexQueue;
-using DarknetWrapper::QueuedDetector;
 
-#include "DrawThread.h"
-#include "ResizeThread.h"
+#include "GPUThread.h"
 
-void decodeFrame(NvPipe* decoder, MutexQueue<Frame> *inFrames, MutexQueue<Frame> *outFrames,
-				int inWidth, int inHeight, int fps, int gpuNum, uint64_t lastFrameNum, int numDevices)
+void decodeFrame(NvPipe* decoder, MutexQueue<Frame> *inFrames,
+				MutexQueue<Frame> *outFrames,int inWidth, int inHeight,
+				int fps, int gpuNum, uint64_t lastFrameNum, int numDevices)
 {
 	uint64_t frameNum = 1;
 	cudaSetDevice(gpuNum);
@@ -85,13 +84,15 @@ void decodeFrame(NvPipe* decoder, MutexQueue<Frame> *inFrames, MutexQueue<Frame>
 		cudaMalloc(&frame.decompressedFrameDevice, frame.decompressedFrameSize);
 
 		// Decode the frame
-		uint64_t decompressedFrameSize = NvPipe_Decode(decoder, (const uint8_t *)frame.data,
-														frame.frameSize,
-														frame.decompressedFrameDevice,
-														inWidth, inHeight);
+		uint64_t decompressedFrameSize = NvPipe_Decode(decoder,
+												(const uint8_t *)frame.data,
+												frame.frameSize,
+												frame.decompressedFrameDevice,
+												inWidth, inHeight);
 
 		if (decompressedFrameSize <= frame.frameSize) {
-			std::cerr << "Decode error: " << NvPipe_GetError(decoder) << std::endl;
+			std::cerr << "Decode error: " << NvPipe_GetError(decoder)
+					<< std::endl;
 			exit(-1);
 		}
 
@@ -100,8 +101,9 @@ void decodeFrame(NvPipe* decoder, MutexQueue<Frame> *inFrames, MutexQueue<Frame>
 	}
 }
 
-void encodeFrame(NvPipe *encoder, PointerMap<Frame> *inFrames, PointerMap<Frame> *outFrames,
-				int inWidth, int inHeight,  int gpuNum, uint64_t lastFrameNum)
+void encodeFrame(NvPipe *encoder, PointerMap<Frame> *inFrames,
+				PointerMap<Frame> *outFrames, int inWidth, int inHeight,
+				int gpuNum, uint64_t lastFrameNum)
 {
 	uint64_t frameNum = 1;
 	cudaSetDevice(gpuNum);
@@ -122,9 +124,11 @@ void encodeFrame(NvPipe *encoder, PointerMap<Frame> *inFrames, PointerMap<Frame>
 			cudaMalloc(&frameDevice, frame->decompressedFrameSize);
 			cudaError_t status = cudaMemcpyPeer(frameDevice, gpuNum,
 									frame->decompressedFrameDevice,
-									frame->deviceNumDecompressed, frame->decompressedFrameSize);
+									frame->deviceNumDecompressed,
+									frame->decompressedFrameSize);
 			if (status != cudaSuccess)
-				std::cout << "EncodeFrame: " << frameNum <<" cudaMemcpyPeer Status = "
+				std::cout << "EncodeFrame: " << frameNum
+						<<" cudaMemcpyPeer Status = "
 						<< cudaGetErrorName(status)	<< std::endl;
 			cudaFree(frame->decompressedFrameDevice);
 		} else{
@@ -136,11 +140,12 @@ void encodeFrame(NvPipe *encoder, PointerMap<Frame> *inFrames, PointerMap<Frame>
 		frame->data = new uint8_t[500000];
 
 		// Encode the processed Frame
-		uint64_t size = NvPipe_Encode(encoder, frameDevice, inWidth*4, frame->data,
-					500000, inWidth, inHeight, false);
+		uint64_t size = NvPipe_Encode(encoder, frameDevice, inWidth*4,
+							frame->data, 500000, inWidth, inHeight, false);
 
 		if (0 == size)
-			std::cerr << "Encode error: " << NvPipe_GetError(encoder) << std::endl;
+			std::cerr << "Encode error: " << NvPipe_GetError(encoder)
+					<< std::endl;
 
 		frame->frameSize = size;
 
@@ -180,7 +185,8 @@ int main(int argc, char* argv[])
 	int numPhysicalGPUs;
 	cudaError_t status = cudaGetDeviceCount(&numPhysicalGPUs);
 	if (status != cudaSuccess)
-		std::cout << "cudaGetDeviceCount Status = " << cudaGetErrorName(status)	<< std::endl;
+		std::cout << "cudaGetDeviceCount Status = " << cudaGetErrorName(status)
+				<< std::endl;
 	assert(status == cudaSuccess);
 
 	for (int i = 1; i < argc-1; i=i+2) {
@@ -214,7 +220,8 @@ int main(int argc, char* argv[])
 	}
 
 	if (fps > 120) {
-		std::cout << "Max FPS supported = 120. Setting fps to 120"	<<std::endl;
+		std::cout << "Max FPS supported = 120. Setting fps to 120"
+				<<std::endl;
 		fps = 120;
 	}
 
@@ -229,10 +236,10 @@ int main(int argc, char* argv[])
 	}
 
 	LOG(INFO) << "video file: " << filename;
-	LOG(INFO) << "Creating " << numStreams << " threads, each producing frames at "
-				<< fps << " FPS.";
-	LOG(INFO) << "Each thread can have a maximum of " << maxOutstandingPerThread
-				<< " outstanding requests at any time. All other frames will be dropped.";
+	LOG(INFO) << "Creating " << numStreams
+				<< " threads, each producing frames at " << fps << " FPS.";
+	LOG(INFO) << "Each thread can have a maximum of "
+				<< maxOutstandingPerThread << " outstanding requests at any time. All other frames will be dropped.";
 	LOG(INFO) << "Each thread will encode at " << bitrateMbps << " Mbps.";
 	LOG(INFO) << "Press control-c to quit at any point";
 
@@ -251,7 +258,8 @@ int main(int argc, char* argv[])
 	// AV_CODEC_ID_MJPEG, AV_CODEC_ID_MPEG4, AV_CODEC_ID_VC1,
 	// AV_CODEC_ID_VP8, AV_CODEC_ID_VP9
 	// NvPipe only supports H264 and HEVC, though
-	LOG(INFO) << "Timebase numerator/denominator = " <<inTimeBase.num << "/" << inTimeBase.den;
+	LOG(INFO) << "Timebase numerator/denominator = " <<inTimeBase.num << "/"
+				<< inTimeBase.den;
 
 	switch(demuxer.GetVideoCodec())	{
 		case AV_CODEC_ID_H264:
@@ -283,18 +291,22 @@ int main(int argc, char* argv[])
 		// Create encoder
 		decoders[i] = NvPipe_CreateDecoder(NVPIPE_NV12, codec);
 		if (!decoders[i]) {
-			LOG(ERROR) << "Failed to create decoder: " << NvPipe_GetError(NULL);
+			LOG(ERROR) << "Failed to create decoder: "
+					<< NvPipe_GetError(NULL);
 			exit(EXIT_FAILURE);
 		}
 
-		encoders[i] = NvPipe_CreateEncoder(NVPIPE_RGBA32, codec, NVPIPE_LOSSY, bitrateMbps * 1000 * 1000, fps);
+		encoders[i] = NvPipe_CreateEncoder(NVPIPE_RGBA32, codec, NVPIPE_LOSSY,
+			bitrateMbps * 1000 * 1000, fps);
 		if (!encoders[i]) {
-			LOG(ERROR) << "Failed to create encoder: " << NvPipe_GetError(NULL);
+			LOG(ERROR) << "Failed to create encoder: "
+					<< NvPipe_GetError(NULL);
 			exit(EXIT_FAILURE);
 		}
 
 		std::string outfile = "./scaled" + std::to_string(i) + ".mp4";
-		muxers[i] = new FFmpegStreamer(AV_CODEC_ID_H264, inWidth, inHeight, fps, inTimeBase, outfile.c_str());
+		muxers[i] = new FFmpegStreamer(AV_CODEC_ID_H264, inWidth, inHeight,
+							fps, inTimeBase, outfile.c_str());
 		if (!muxers[i]) {
 			LOG(ERROR) << "Failed to create muxer ";
 			exit(EXIT_FAILURE);
@@ -307,14 +319,14 @@ int main(int argc, char* argv[])
 	std::vector<PointerMap<Frame> *> detectedFrameMaps(numStreams);
 	std::vector<PointerMap<Frame> *> encodedFrameMaps(numStreams);
 	for (int i = 0; i < numStreams; i++){
-		detectedFrameMaps[i] = new PointerMap<Frame>;
 		encodedFrameMaps[i] = new PointerMap<Frame>;
+		detectedFrameMaps[i] = new PointerMap<Frame>;
 	}
 
+	// Demux compressed frames, and insert them into the FrameMap
 	uint8_t *compressedFrame = nullptr;
 	int compressedFrameSize = 0;
 	uint64_t frameNum = 1;
-	// Grab compressed frames from the demuxer, and insert them into the FrameMap
 	while(demuxer.Demux(&compressedFrame, &compressedFrameSize)) {
 		for (int i = 0; i < numStreams; i++) {
 			Frame *frame = new Frame;
@@ -329,7 +341,7 @@ int main(int argc, char* argv[])
 		frameNum++;
 	}
 
-	// Insert completion frame->
+	// Insert completion frame
 	for(int i=0; i <numStreams; i++) {
 		Frame *frame = new Frame;
 		frame->frameNum = frameNum;
@@ -340,48 +352,30 @@ int main(int argc, char* argv[])
 		compressedFramesQueues[i].push_back(*frame);
 	}
 
-	// Launch the detector threads (1 per GPU)
-	int numDetectors = numPhysicalGPUs;
-	std::vector<std::thread> detectionThreads(numDetectors);
-	QueuedDetector detectors[numDetectors];
-	MutexQueue<WorkRequest> requestQueue;
-	MutexQueue<WorkRequest> completionQueue;
-	int cpuMapping[4] = {0,1,12,13};
-
-	// Initialize n detectors where n = numDetectors in the system.
-	// Initialization must be done before launching the detection thread.
-	// All detectors share one request and completion queue (because detection
-	// tends to be the longest part of the workflow)
-	for (int i = 0; i < numDetectors; i++) {
-		detectors[i].Init(argc, argv, &requestQueue, &completionQueue, i);
-		// start a Thread per GPU to run doDetection
-		detectionThreads[i] = std::thread(&QueuedDetector::doDetection, &detectors[i]);
-	}
-
 	cudaProfilerStart();
-	// Launch the pipeline stages in reverse order so the entire pipeline is ready to go
-	// (important for timing measurements)
+	// Launch the pipeline stages in reverse order so the entire pipeline is
+	// ready to go (important for timing measurements)
 
 	std::vector<std::thread> encoderThreads(numStreams);
 	for(int i = 0; i < numStreams; i++) {
-		encoderThreads[i] = std::thread(&encodeFrame, encoders[i], detectedFrameMaps[i],
-				encodedFrameMaps[i], inWidth, inHeight, i, frameNum-1);
+		encoderThreads[i] = std::thread(&encodeFrame, encoders[i],
+			detectedFrameMaps[i], encodedFrameMaps[i], inWidth, inHeight,
+			i, frameNum-1);
 	}
 
-	std::vector<DrawingThread> drawingThreads(numPhysicalGPUs);
-	for (int i = 0; i < numPhysicalGPUs; i++){
-		drawingThreads[i].Init(i, codec, &completionQueue, detectedFrameMaps, bitrateMbps, fps, inWidth, inHeight, numStreams);
+	std::vector<GPUThread> GPUThreads(numPhysicalGPUs);
+	int detectorGPUNo = [1,0,3,2];
+	for (int i = 0; i < numPhysicalGPUs; i++) {
+		GPUThreads[i].Init(codec, &decompressedFramesQueue,
+						detectedFrameMaps, i, detectorGPUNo[i],
+						fps, inWidth, inHeight, numStreams, argc, argv);
 	}
 
-	std::vector<ResizeThread> resizeThreads(numPhysicalGPUs);
-	for (int i = 0; i < numPhysicalGPUs; i++){
-		resizeThreads[i].Init(i, codec, &decompressedFramesQueue, &requestQueue, fps, inWidth, inHeight);
-	}
-
-	std::vector<std::thread> decodeThreads(numStreams);
+	std::vector<std::thread> decoderThreads(numStreams);
 	for(int i = 0; i < numStreams; i++) {
-		decodeThreads[i] = std::thread(&decodeFrame, decoders[i], &compressedFramesQueues[i],
-			&decompressedFramesQueue, inWidth, inHeight, fps, i, frameNum-1, numPhysicalGPUs);
+		decoderThreads[i] = std::thread(&decodeFrame, decoders[i],
+			&compressedFramesQueues[i],	&decompressedFramesQueue,
+			inWidth, inHeight, fps, i, frameNum-1, numPhysicalGPUs);
 	}
 
 	// Try to clean up the FrameMap
@@ -391,11 +385,15 @@ int main(int argc, char* argv[])
 			Frame *compressedFrame = new Frame;
 			bool gotFrame = false;
 			while(!gotFrame)
-				gotFrame = encodedFrameMaps[i]->getElem(&compressedFrame, outFrameNum);
-			muxers[i]->Stream((uint8_t *)compressedFrame->data, compressedFrame->frameSize, outFrameNum);
+				gotFrame = encodedFrameMaps[i]->getElem(&compressedFrame,
+														outFrameNum);
+			muxers[i]->Stream((uint8_t *)compressedFrame->data,
+								compressedFrame->frameSize, outFrameNum);
 			encodedFrameMaps[i]->remove(outFrameNum);
-			LOG(INFO) << "Processing frame " <<compressedFrame->streamNum <<" " << compressedFrame->frameNum << " took "
-					<< compressedFrame->timer.getElapsedMicroseconds() << " us.";
+			LOG(INFO) << "Processing frame " <<compressedFrame->streamNum <<" "
+						<< compressedFrame->frameNum << " took "
+						<< compressedFrame->timer.getElapsedMicroseconds()
+						<< " us.";
 		}
 		outFrameNum++;
 	}
@@ -404,23 +402,17 @@ int main(int argc, char* argv[])
 	LOG(INFO) << "Main thread done. Waiting for other threads to exit";
 
 	for (int i = 0; i < numStreams; i++)
-		decodeThreads[i].join();
-	LOG(INFO) << "decodeThreads joined!";
-	for (auto &thread: detectionThreads)
-		thread.join();
-	LOG(INFO) << "detectionThreads joined!";
-	for (auto &detector: detectors)
-		detector.Shutdown();
-	LOG(INFO) << "detector shutdown!";
+		decoderThreads[i].join();
+	LOG(INFO) << "decoderThreads joined!";
 	for (int i = 0; i < numStreams; i++)
 		encoderThreads[i].join();
 	LOG(INFO) << "encodeThreads joined!";
 	for (int i = 0; i < numPhysicalGPUs; i++)
-		resizeThreads[i].ShutDown();
+		GPUThreads[i].ShutDown();
 	LOG(INFO) << "resizerThreads joined!";
-	for (int i = 0; i < numPhysicalGPUs; i++)
-		drawingThreads[i].ShutDown();
-	LOG(INFO) << "drawThreads joined!";
+	for (auto &detector: detectors)
+		detector.Shutdown();
+	LOG(INFO) << "detector shutdown!";
 	for (auto muxer : muxers)
 		delete muxer;
 	for (auto map : encodedFrameMaps)
