@@ -175,7 +175,7 @@ public:
 			pthread_yield();
 			// Account for the time spent processing the packet...
 			// usleep((1000000/targetFPS));//- frame->timer.getElapsedMicroseconds());
-		} 
+		}
 		LOG(INFO) << "ResizeThread is done. Freeing memory and returning";
 		cudaFree(scaledFrameNoPad);
 		cudaFree(scaledFramePadded);

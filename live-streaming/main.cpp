@@ -143,7 +143,7 @@ void encodeFrame(NvPipe *encoder, PointerMap<Frame> *inFrames, PointerMap<Frame>
 			std::cerr << "Encode error: " << NvPipe_GetError(encoder) << std::endl;
 
 		frame->frameSize = size;
- 
+
 		// Insert the encoded frame into map for the main thread to mux.
 		outFrames->insert(frame, frameNum++);
 		cudaFree(frameDevice);
@@ -208,7 +208,7 @@ int main(int argc, char* argv[])
 	}
 
 	if (numStreams > numPhysicalGPUs) {
-		LOG(INFO) << "Max concurrent streams supported = " <<numPhysicalGPUs 
+		LOG(INFO) << "Max concurrent streams supported = " <<numPhysicalGPUs
 					<<". Setting numStreams to " <<numPhysicalGPUs;
 		numStreams = numPhysicalGPUs;
 	}
@@ -360,11 +360,11 @@ int main(int argc, char* argv[])
 
 	cudaProfilerStart();
 	// Launch the pipeline stages in reverse order so the entire pipeline is ready to go
-	// (important to for timing measurements)
+	// (important for timing measurements)
 
 	std::vector<std::thread> encoderThreads(numStreams);
 	for(int i = 0; i < numStreams; i++) {
-		encoderThreads[i] = std::thread(&encodeFrame, encoders[i], detectedFrameMaps[i], 
+		encoderThreads[i] = std::thread(&encodeFrame, encoders[i], detectedFrameMaps[i],
 				encodedFrameMaps[i], inWidth, inHeight, i, frameNum-1);
 	}
 
