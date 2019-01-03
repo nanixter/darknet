@@ -285,7 +285,6 @@ public:
 			completedFramesMap[frame->streamNum]->insert(frame,
 														frame->frameNum);
 
-			delete frame;
 			pthread_yield();
 			// Account for the time spent processing the packet...
 			// usleep((1000000/targetFPS));//- frame->timer.getElapsedMicroseconds());

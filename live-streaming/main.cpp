@@ -371,6 +371,8 @@ int main(int argc, char* argv[])
 						fps, inWidth, inHeight, numStreams, argc, argv);
 	}
 
+	Timer elapsedTime;
+
 	std::vector<std::thread> decoderThreads(numStreams);
 	for(int i = 0; i < numStreams; i++) {
 		decoderThreads[i] = std::thread(&decodeFrame, decoders[i],
@@ -395,6 +397,7 @@ int main(int argc, char* argv[])
 						<< compressedFrame->timer.getElapsedMicroseconds()
 						<< " us.";
 		}
+		LOG(INFO) << "Throughput: " << (outFrameNum*numStreams)/(elapsedTime.getElapsedMicroseconds()/1000000.0);
 		outFrameNum++;
 	}
 	cudaProfilerStop();
