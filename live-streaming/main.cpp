@@ -97,7 +97,7 @@ void decodeFrame(NvPipe* decoder, MutexQueue<Frame> *inFrames,
 		}
 
 		outFrames->push_back(frame);
-		usleep(1000000.0/fps);
+		usleep(900000.0/fps);
 	}
 }
 
@@ -365,6 +365,7 @@ int main(int argc, char* argv[])
 
 	std::vector<GPUThread> GPUThreads(numPhysicalGPUs);
 	int detectorGPUNo[4] = {1,0,3,2};
+	//int detectorGPUNo[4] = {0,1,2,3};
 	for (int i = 0; i < numPhysicalGPUs; i++) {
 		GPUThreads[i].Init(codec, &decompressedFramesQueue,
 						detectedFrameMaps, i, detectorGPUNo[i],

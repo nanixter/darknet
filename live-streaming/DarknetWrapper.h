@@ -70,8 +70,8 @@ public:
 		//std::cout << l.classes <<std::endl;
 		elem.done = true;
 
-		LOG(INFO) << " GPU processing: transfer_needed: " <<transfer <<" took " << timer_gpu.getElapsedMicroseconds()
-					<< " microseconds. numDetections =" <<elem.nboxes;
+	//	LOG(INFO) << " GPU processing: transfer_needed: " <<transfer <<" took " << timer_gpu.getElapsedMicroseconds()
+	//				<< " microseconds. numDetections =" <<elem.nboxes;
 	}
 
 	float * getOutput() {
