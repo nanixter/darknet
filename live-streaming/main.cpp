@@ -156,6 +156,26 @@ void encodeFrame(NvPipe *encoder, PointerMap<Frame> *inFrames,
 	}
 }
 
+void muxThread(int streamID, int lastFrameNum, PointerMap<Frame> *encodedFrameMap,
+				FFmpegStreamer *muxer)
+{
+	uint64_t outFrameNum = 1;
+	while(outFrameNum < lastFrameNum) {
+		Frame *compressedFrame = new Frame;
+		bool gotFrame = false;
+		while(!gotFrame)
+			gotFrame = encodedFrameMap->getElem(&compressedFrame,outFrameNum);
+		muxer->Stream((uint8_t *)compressedFrame->data,compressedFrame->frameSize, outFrameNum);
+		encodedFrameMap->remove(outFrameNum);
+		LOG(INFO) << "Processing frame " <<compressedFrame->streamNum <<" "
+					<< compressedFrame->frameNum << " took "
+					<< compressedFrame->timer.getElapsedMicroseconds()
+					<< " us.";
+		LOG(INFO) << "Stream " <<streamID <<": Throughput: " << (outFrameNum)/(elapsedTime.getElapsedMicroseconds()/1000000.0);
+		outFrameNum++;
+	}
+}
+
 void printUsage(char *binaryName) {
 	LOG(ERROR) << "Usage:" << std::endl
 			<< binaryName << " <cfg_file> <weights_file> -v <vid_file> <Opt Args>" <<std::endl
@@ -356,6 +376,11 @@ int main(int argc, char* argv[])
 	// Launch the pipeline stages in reverse order so the entire pipeline is
 	// ready to go (important for timing measurements)
 
+	std::vector<std::thread> muxerThreads(numStreams);
+	for(int i = 0; i < numStreams; i++) {
+		muxerThreads[i] = std::thread(&muxThread, i, frameNum-1, encodedFrameMaps[i], muxers[i]);
+	}
+
 	std::vector<std::thread> encoderThreads(numStreams);
 	for(int i = 0; i < numStreams; i++) {
 		encoderThreads[i] = std::thread(&encodeFrame, encoders[i],
@@ -381,26 +406,6 @@ int main(int argc, char* argv[])
 			inWidth, inHeight, fps, i, frameNum-1, numPhysicalGPUs);
 	}
 
-	// Try to clean up the FrameMap
-	uint64_t outFrameNum = 1;
-	while(outFrameNum < frameNum-1) {
-		for(int i = 0; i < numStreams; i++){
-			Frame *compressedFrame = new Frame;
-			bool gotFrame = false;
-			while(!gotFrame)
-				gotFrame = encodedFrameMaps[i]->getElem(&compressedFrame,
-														outFrameNum);
-			muxers[i]->Stream((uint8_t *)compressedFrame->data,
-								compressedFrame->frameSize, outFrameNum);
-			encodedFrameMaps[i]->remove(outFrameNum);
-			LOG(INFO) << "Processing frame " <<compressedFrame->streamNum <<" "
-						<< compressedFrame->frameNum << " took "
-						<< compressedFrame->timer.getElapsedMicroseconds()
-						<< " us.";
-		}
-		LOG(INFO) << "Throughput: " << (outFrameNum*numStreams)/(elapsedTime.getElapsedMicroseconds()/1000000.0);
-		outFrameNum++;
-	}
 	cudaProfilerStop();
 
 	LOG(INFO) << "Main thread done. Waiting for other threads to exit";
