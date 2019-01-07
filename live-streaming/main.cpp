@@ -160,6 +160,7 @@ void muxThread(int streamID, int lastFrameNum, PointerMap<Frame> *encodedFrameMa
 				FFmpegStreamer *muxer)
 {
 	uint64_t outFrameNum = 1;
+	Timer elapsedTime;
 	while(outFrameNum < lastFrameNum) {
 		Frame *compressedFrame = new Frame;
 		bool gotFrame = false;
@@ -376,11 +377,6 @@ int main(int argc, char* argv[])
 	// Launch the pipeline stages in reverse order so the entire pipeline is
 	// ready to go (important for timing measurements)
 
-	std::vector<std::thread> muxerThreads(numStreams);
-	for(int i = 0; i < numStreams; i++) {
-		muxerThreads[i] = std::thread(&muxThread, i, frameNum-1, encodedFrameMaps[i], muxers[i]);
-	}
-
 	std::vector<std::thread> encoderThreads(numStreams);
 	for(int i = 0; i < numStreams; i++) {
 		encoderThreads[i] = std::thread(&encodeFrame, encoders[i],
@@ -397,7 +393,10 @@ int main(int argc, char* argv[])
 						fps, inWidth, inHeight, numStreams, argc, argv);
 	}
 
-	Timer elapsedTime;
+	std::vector<std::thread> muxerThreads(numStreams);
+	for(int i = 0; i < numStreams; i++) {
+		muxerThreads[i] = std::thread(&muxThread, i, frameNum-1, encodedFrameMaps[i], muxers[i]);
+	}
 
 	std::vector<std::thread> decoderThreads(numStreams);
 	for(int i = 0; i < numStreams; i++) {
