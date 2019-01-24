@@ -254,7 +254,8 @@ public:
 												inHeight,
 												(float4 *)boundingBoxesDevice,
 												numObjects,
-												overlayColor);
+												overlayColor,
+												RDstream);
 
 				if (status != cudaSuccess)
 					std::cout << "cudaRectOutlineOverlay Status = " << cudaGetErrorName(status)	<< std::endl;
@@ -282,7 +283,8 @@ public:
 			status = cudaRGBToBGRA8(
 						(float3 *)frame->decompressedFrameRGBDevice,
 						(uchar4*)frame->decompressedFrameDevice,
-						inWidth, inHeight);
+						inWidth, inHeight,
+						RDstream);
 
 			if (status != cudaSuccess)
 				std::cout << "cudaRGBToRGBA8 Status = "
