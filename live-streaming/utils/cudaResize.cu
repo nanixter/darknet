@@ -84,7 +84,7 @@ cudaError_t cudaResizeRGB( float3* input,  size_t inputWidth, size_t inputHeight
 	const dim3 blockDim(8, 8);
 	const dim3 gridDim(iDivUp(outputWidth,blockDim.x), iDivUp(outputHeight,blockDim.y));
 
-	gpuResize<float3><<<gridDim, blockDim, stream>>>(scale, input, inputWidth, output, outputWidth, outputHeight);
+	gpuResize<float3><<<gridDim, blockDim, 0, stream>>>(scale, input, inputWidth, output, outputWidth, outputHeight);
 
 	return CUDA(cudaGetLastError());
 }
