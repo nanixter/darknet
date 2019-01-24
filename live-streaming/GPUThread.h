@@ -137,7 +137,7 @@ public:
 							frame->decompressedFrameRGBDevice),
 						(size_t)inWidth,
 						(size_t)inHeight,
-						RDstream);
+						&RDstream);
 			if (status != cudaSuccess)
 				LOG(ERROR) << "cudaNV12ToRGBf Status = "
 						<< cudaGetErrorName(status);
@@ -152,7 +152,7 @@ public:
 						static_cast<float3 *>(scaledFrameNoPad),
 						noPadWidth,
 						noPadHeight,
-						RDstream);
+						&RDstream);
 
 			if (status != cudaSuccess)
 				std::cout << "cudaResizeRGB Status = " << cudaGetErrorName(status) << std::endl;
@@ -255,7 +255,7 @@ public:
 												(float4 *)boundingBoxesDevice,
 												numObjects,
 												overlayColor,
-												RDstream);
+												&RDstream);
 
 				if (status != cudaSuccess)
 					std::cout << "cudaRectOutlineOverlay Status = " << cudaGetErrorName(status)	<< std::endl;
@@ -284,7 +284,7 @@ public:
 						(float3 *)frame->decompressedFrameRGBDevice,
 						(uchar4*)frame->decompressedFrameDevice,
 						inWidth, inHeight,
-						RDstream);
+						&RDstream);
 
 			if (status != cudaSuccess)
 				std::cout << "cudaRGBToRGBA8 Status = "

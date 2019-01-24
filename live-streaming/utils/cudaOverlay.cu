@@ -77,7 +77,7 @@ __global__ void gpuRectOutlines( T* input, T* output, int width, int height,
 }
 
 
-cudaError_t cudaRectOutlineOverlay( float3* input, float3* output, uint32_t width, uint32_t height, float4* boundingBoxes, int numBoxes, const float4& color, cudaStream_t stream)
+cudaError_t cudaRectOutlineOverlay( float3* input, float3* output, uint32_t width, uint32_t height, float4* boundingBoxes, int numBoxes, const float4& color, cudaStream_t *stream)
 {
 	if( !input || !output || width == 0 || height == 0 || !boundingBoxes || numBoxes == 0 )
 		return cudaErrorInvalidValue;
@@ -86,7 +86,7 @@ cudaError_t cudaRectOutlineOverlay( float3* input, float3* output, uint32_t widt
 	const dim3 blockDim(8, 8);
 	const dim3 gridDim(iDivUp(width,blockDim.x), iDivUp(height,blockDim.y));
 
-	gpuRectOutlines<float3><<<gridDim, blockDim, 0, stream>>>(input, output, width, height, boundingBoxes, numBoxes, color);
+	gpuRectOutlines<float3><<<gridDim, blockDim, 0, *stream>>>(input, output, width, height, boundingBoxes, numBoxes, color);
 
 	return cudaGetLastError();
 }
