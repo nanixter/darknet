@@ -22,7 +22,7 @@ public:
 		this->targetFPS = targetFPS;
 		this->inWidth = inWidth;
 		this->inHeight = inHeight;
-		this->gpuNum = gpuNum;
+		this->gpuNum = firstGPU;
 		this->detectorGPU = detectorGPU;
 		this->numStreams = numStreams;
 

@@ -168,11 +168,13 @@ void muxThread(int streamID, int lastFrameNum, PointerMap<Frame> *encodedFrameMa
 			gotFrame = encodedFrameMap->getElem(&compressedFrame,outFrameNum);
 		muxer->Stream((uint8_t *)compressedFrame->data,compressedFrame->frameSize, outFrameNum);
 		encodedFrameMap->remove(outFrameNum);
-		LOG(INFO) << "Processing frame " <<compressedFrame->streamNum <<" "
+		if (outFrameNum%20 == 0){
+			LOG(INFO) << "Processing frame " <<compressedFrame->streamNum <<" "
 					<< compressedFrame->frameNum << " took "
 					<< compressedFrame->timer.getElapsedMicroseconds()
 					<< " us.";
-		LOG(INFO) << "Stream " <<streamID <<": Throughput: " << (outFrameNum)/(elapsedTime.getElapsedMicroseconds()/1000000.0);
+			LOG(INFO) << "Stream " <<streamID <<": Throughput: " << (outFrameNum)/(elapsedTime.getElapsedMicroseconds()/1000000.0);
+		}
 		outFrameNum++;
 	}
 }
@@ -405,8 +407,6 @@ int main(int argc, char* argv[])
 			inWidth, inHeight, fps, i, frameNum-1, numPhysicalGPUs);
 	}
 
-	cudaProfilerStop();
-
 	LOG(INFO) << "Main thread done. Waiting for other threads to exit";
 
 	for (int i = 0; i < numStreams; i++)
@@ -417,7 +417,10 @@ int main(int argc, char* argv[])
 	LOG(INFO) << "encodeThreads joined!";
 	for (int i = 0; i < numPhysicalGPUs; i++)
 		GPUThreads[i].ShutDown();
-	LOG(INFO) << "resizerThreads joined!";
+	for(int i = 0; i < numStreams; i++)
+		muxerThreads[i].join(); 
+	LOG(INFO) << "muxerThreads joined!";
+	cudaProfilerStop();
 	for (auto muxer : muxers)
 		delete muxer;
 	for (auto map : encodedFrameMaps)
