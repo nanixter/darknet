@@ -133,8 +133,8 @@ cudaError_t cudaNV12ToRGBA( uint8_t* input, size_t inputPitch, uchar4* output, s
 cudaError_t cudaNV12ToRGBA( uint8_t* input, uchar4* output, size_t width, size_t height );
 
 // These convert to RGB not RGBA
-cudaError_t cudaNV12ToRGBf( uint8_t* input, size_t inputPitch, float3* output, size_t outputPitch, size_t width, size_t height );
-cudaError_t cudaNV12ToRGBf( uint8_t* input, float3* output, size_t width, size_t height );
+cudaError_t cudaNV12ToRGBf( uint8_t* input, size_t inputPitch, float3* output, size_t outputPitch, size_t width, size_t height, cudaStream_t stream);
+cudaError_t cudaNV12ToRGBf( uint8_t* input, float3* output, size_t width, size_t height, cudaStream_t stream);
 
 /**
  * Setup NV12 color conversion constants.

@@ -92,6 +92,9 @@ public:
 		cudaError_t status;
 		NppStatus nppStatus;
 
+		cudaStream_t RDstream;
+		cudaStreamCreateWithFlags(&RDstream,cudaStreamNonBlocking);
+
 		while(true) {
 			Frame *frame = new Frame;
 
@@ -106,7 +109,6 @@ public:
 			}
 
 			cudaSetDevice(gpuNum);
-
 
 			if (frame->deviceNumDecompressed != gpuNum) {
 				void *frameDevice = nullptr;
@@ -134,7 +136,8 @@ public:
 						static_cast<float3 *>(
 							frame->decompressedFrameRGBDevice),
 						(size_t)inWidth,
-						(size_t)inHeight);
+						(size_t)inHeight,
+						RDstream);
 			if (status != cudaSuccess)
 				LOG(ERROR) << "cudaNV12ToRGBf Status = "
 						<< cudaGetErrorName(status);
@@ -148,11 +151,15 @@ public:
 						(size_t)inHeight,
 						static_cast<float3 *>(scaledFrameNoPad),
 						noPadWidth,
-						noPadHeight);
+						noPadHeight,
+						RDstream);
 
 			if (status != cudaSuccess)
 				std::cout << "cudaResizeRGB Status = " << cudaGetErrorName(status) << std::endl;
 			assert(status == cudaSuccess);
+
+			if (nppGetStream() != RDstream)
+				nppSetStream(RDstream);
 
 			// Pad the image with black border if needed
 			nppStatus = nppiCopyConstBorder_32f_C3R(

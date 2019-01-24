@@ -379,7 +379,7 @@ __global__ void NV12ToRGBf(uint32_t* srcImage,  size_t nSourcePitch,
 
 
 // cudaNV12ToRGBA
-cudaError_t cudaNV12ToRGBf( uint8_t* srcDev, size_t srcPitch, float3* destDev, size_t destPitch, size_t width, size_t height )
+cudaError_t cudaNV12ToRGBf( uint8_t* srcDev, size_t srcPitch, float3* destDev, size_t destPitch, size_t width, size_t height, cudaStream_t stream)
 {
 	if( !srcDev || !destDev )
 		return cudaErrorInvalidDevicePointer;
@@ -393,14 +393,14 @@ cudaError_t cudaNV12ToRGBf( uint8_t* srcDev, size_t srcPitch, float3* destDev, s
 	const dim3 blockDim(8,8,1);
 	const dim3 gridDim(iDivUp(width,blockDim.x), iDivUp(height, blockDim.y), 1);
 
-	NV12ToRGBf<<<gridDim, blockDim>>>( (uint32_t*)srcDev, srcPitch, destDev, destPitch, width, height );
+	NV12ToRGBf<<<gridDim, blockDim, 0, stream>>>( (uint32_t*)srcDev, srcPitch, destDev, destPitch, width, height );
 
 	return CUDA(cudaGetLastError());
 }
 
-cudaError_t cudaNV12ToRGBf( uint8_t* srcDev, float3* destDev, size_t width, size_t height )
+cudaError_t cudaNV12ToRGBf( uint8_t* srcDev, float3* destDev, size_t width, size_t height, cudaStream_t stream)
 {
-	return cudaNV12ToRGBf(srcDev, width * sizeof(uint8_t), destDev, width * sizeof(float3), width, height);
+	return cudaNV12ToRGBf(srcDev, width * sizeof(uint8_t), destDev, width * sizeof(float3), width, height, stream);
 }
 
 

@@ -40,7 +40,8 @@ cudaError_t cudaResize( float* input,  size_t inputWidth,  size_t inputHeight,
  * @ingroup util
  */
 cudaError_t cudaResizeRGB( float3* input,  size_t inputWidth,  size_t inputHeight,
-				        float3* output, size_t outputWidth, size_t outputHeight );
+				        float3* output, size_t outputWidth, size_t outputHeight,
+				        cudaStream_t stream);
 
 #endif
 
