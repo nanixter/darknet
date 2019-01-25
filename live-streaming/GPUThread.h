@@ -92,6 +92,7 @@ public:
 		cudaError_t status;
 		NppStatus nppStatus;
 
+		cudaSetDevice(gpuNum);
 		cudaStream_t RDstream;
 		cudaStreamCreateWithFlags(&RDstream,cudaStreamNonBlocking);
 

@@ -105,7 +105,7 @@ cudaError_t cudaRGBToBGRA8( float3* srcDev, uchar4* destDev, size_t width, size_
 
 cudaError_t cudaRGBToBGRA8( float3* srcDev, uchar4* destDev, size_t width, size_t height, cudaStream_t *stream)
 {
-	return cudaRGBToBGRA8(srcDev, destDev, width, height, make_float2(0.0f, 255.0f), *stream);
+	return cudaRGBToBGRA8(srcDev, destDev, width, height, make_float2(0.0f, 255.0f), stream);
 }
 
 
