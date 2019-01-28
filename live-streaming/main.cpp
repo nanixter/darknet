@@ -66,15 +66,15 @@ void decodeFrame(NvPipe* decoder, MutexQueue<Frame> *inFrames,
 	uint64_t frameNum = 1;
 	cudaSetDevice(gpuNum);
 
-	while( frameNum < lastFrameNum ) {
+	while( frameNum <= lastFrameNum ) {
 		Frame frame;
 		inFrames->pop_front(frame);
 
-		if (frame.finished == true) {
-			for (int i = 0; i < numDevices; i++)
-				outFrames->push_back(frame);
-			break;
-		}
+		// if (frame.finished == true) {
+		// 	for (int i = 0; i < numDevices; i++)
+		// 		outFrames->push_back(frame);
+		// 	break;
+		// }
 
 		frame.timer.reset();
 		frame.streamNum = gpuNum;
@@ -108,16 +108,16 @@ void encodeFrame(NvPipe *encoder, PointerMap<Frame> *inFrames,
 	uint64_t frameNum = 1;
 	cudaSetDevice(gpuNum);
 
-	while( frameNum < lastFrameNum ) {
+	while( frameNum <= lastFrameNum ) {
 		Frame *frame = new Frame;
 		bool gotFrame = false;
 		while(!gotFrame)
 			gotFrame = inFrames->getElem(&frame, frameNum);
 
-		if (frame->finished == true) {
-			outFrames->insert(frame, frameNum);
-			break;
-		}
+		// if (frame->finished == true) {
+		// 	outFrames->insert(frame, frameNum);
+		// 	break;
+		// }
 
 		void *frameDevice = nullptr;
 		if (frame->deviceNumDecompressed != gpuNum) {
@@ -161,7 +161,7 @@ void muxThread(int streamID, int lastFrameNum, PointerMap<Frame> *encodedFrameMa
 {
 	uint64_t outFrameNum = 1;
 	Timer elapsedTime;
-	while(outFrameNum < lastFrameNum) {
+	while(outFrameNum <= lastFrameNum) {
 		Frame *compressedFrame = new Frame;
 		bool gotFrame = false;
 		while(!gotFrame)
@@ -365,15 +365,15 @@ int main(int argc, char* argv[])
 	}
 
 	// Insert completion frame
-	for(int i=0; i <numStreams; i++) {
-		Frame *frame = new Frame;
-		frame->frameNum = frameNum;
-		frame->data = nullptr;
-		frame->frameSize = -1;
-		frame->finished = true;
-		frame->streamNum = i;
-		compressedFramesQueues[i].push_back(*frame);
-	}
+	// for(int i=0; i <numStreams; i++) {
+	// 	Frame *frame = new Frame;
+	// 	frame->frameNum = frameNum;
+	// 	frame->data = nullptr;
+	// 	frame->frameSize = -1;
+	// 	frame->finished = true;
+	// 	frame->streamNum = i;
+	// 	compressedFramesQueues[i].push_back(*frame);
+	// }
 
 	cudaProfilerStart();
 	// Launch the pipeline stages in reverse order so the entire pipeline is
@@ -383,7 +383,7 @@ int main(int argc, char* argv[])
 	for(int i = 0; i < numStreams; i++) {
 		encoderThreads[i] = std::thread(&encodeFrame, encoders[i],
 			detectedFrameMaps[i], encodedFrameMaps[i], inWidth, inHeight,
-			i, frameNum-1);
+			i, frameNum);
 	}
 
 	std::vector<GPUThread> GPUThreads(numPhysicalGPUs);
@@ -397,14 +397,14 @@ int main(int argc, char* argv[])
 
 	std::vector<std::thread> muxerThreads(numStreams);
 	for(int i = 0; i < numStreams; i++) {
-		muxerThreads[i] = std::thread(&muxThread, i, frameNum-1, encodedFrameMaps[i], muxers[i]);
+		muxerThreads[i] = std::thread(&muxThread, i, frameNum, encodedFrameMaps[i], muxers[i]);
 	}
 
 	std::vector<std::thread> decoderThreads(numStreams);
 	for(int i = 0; i < numStreams; i++) {
 		decoderThreads[i] = std::thread(&decodeFrame, decoders[i],
 			&compressedFramesQueues[i],	&decompressedFramesQueue,
-			inWidth, inHeight, fps, i, frameNum-1, numPhysicalGPUs);
+			inWidth, inHeight, fps, i, frameNum, numPhysicalGPUs);
 	}
 
 	LOG(INFO) << "Main thread done. Waiting for other threads to exit";
@@ -418,7 +418,7 @@ int main(int argc, char* argv[])
 	for (int i = 0; i < numPhysicalGPUs; i++)
 		GPUThreads[i].ShutDown();
 	for(int i = 0; i < numStreams; i++)
-		muxerThreads[i].join(); 
+		muxerThreads[i].join();
 	LOG(INFO) << "muxerThreads joined!";
 	cudaProfilerStop();
 	for (auto muxer : muxers)
