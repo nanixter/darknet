@@ -1,12 +1,12 @@
 # LiveStreamDarknet Makefile.
 GPU=1
 
-CXX = g++
+CXX = clang++
 NVCC = nvcc
 DARKNET_HEADER_PATH = ../include/
 CPPFLAGS += `pkg-config libavformat libavcodec` -g -O4
 CXXFLAGS += -std=c++11 -I $(DARKNET_HEADER_PATH) -Invpipe/src/NvCodec/Utils -Iutils
-LDFLAGS += -L/usr/local/lib `pkg-config --libs libavformat libavcodec opencv` -lNvPipe \
+LDFLAGS += -L/usr/local/lib `pkg-config --libs libavformat libavcodec` -lNvPipe \
 			-Wl,--as-needed -ldl -lpthread \
 			-L../ -Wl,--as-needed -ldarknet
 
