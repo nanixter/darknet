@@ -23,6 +23,7 @@ public:
 		this->inWidth = inWidth;
 		this->inHeight = inHeight;
 		this->gpuNum = firstGPU;
+		this->threadID = firstGPU;
 		this->detectorGPU = detectorGPU;
 		this->numStreams = numStreams;
 
@@ -62,8 +63,8 @@ public:
 		void *scaledFramePadded = nullptr;
 		void *scaledPaddedPlanarS = nullptr;
 
-		size_t noPadWidth = netWidth;
-		size_t noPadHeight = netHeight;
+		int noPadWidth = netWidth;
+		int noPadHeight = netHeight;
 
 		// Keep aspect ratio
 		double h1 = netWidth * (inHeight/(double)inWidth);
@@ -85,8 +86,8 @@ public:
 		cudaMalloc(&scaledPaddedPlanarS, netWidth*netHeight*sizeof(float)*3);
 
 		scaledPaddedPlanar[0] = (float *)scaledPaddedPlanarS;
-		scaledPaddedPlanar[1] = (float *)(scaledPaddedPlanarS+netWidth*netHeight*sizeof(float));
-		scaledPaddedPlanar[2] = (float *)(scaledPaddedPlanarS+netWidth*netHeight*sizeof(float));
+		scaledPaddedPlanar[1] = ((float *)scaledPaddedPlanarS)+netWidth*netHeight;
+		scaledPaddedPlanar[2] = ((float *)scaledPaddedPlanarS)+netWidth*netHeight;
 
 		const float4 overlayColor = {75.0, 156.0, 211.0,120.0};
 		cudaError_t status;
@@ -190,6 +191,7 @@ public:
 				std::cout << "nppiCopy_32f_C3P3R Status = " << status << std::endl;
 			assert(nppStatus == NPP_SUCCESS);
 
+			cudaStreamSynchronize(RDstream);
 			// Copy image data into image struct
 			image img;
 			img.w = netWidth;
@@ -316,6 +318,7 @@ private:
 	int gpuNum;
 	int detectorGPU;
 	int numStreams;
+	int threadID;
 
 	// Objects (or pointers to)
 	MutexQueue<Frame> *frames;
