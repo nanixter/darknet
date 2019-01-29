@@ -68,7 +68,7 @@ void decodeFrame(NvPipe* decoder, MutexQueue<Frame> *inFrames,
 
 	while( frameNum < lastFrameNum ) {
 		Frame frame;
-		inFrames->pop_front(frame);
+		while(!inFrames->pop_front(frame));
 
 		// if (frame.finished == true) {
 		// 	for (int i = 0; i < numDevices; i++)
