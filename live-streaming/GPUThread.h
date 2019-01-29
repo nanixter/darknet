@@ -40,7 +40,7 @@ public:
 	{
 		// Ensure we aren't modifying the variable while our pal is also checking it...
 		this->done.store(true, std::memory_order_release);
-		frames->notify_all();
+		frames->setDone();
 		thread.join();
 	}
 
@@ -104,13 +104,13 @@ public:
 
 		while(true) {
 			Frame *frame = new Frame;
-			frames->pop_front(*frame);
-
-			// Check whether we've been signalled to shut down.
-			if (this->done.load(std::memory_order_acquire) == true || frame->data == nullptr) {
-				detector.Shutdown();
-				break;
-			} 
+			while (frames->pop_front(*frame) == false) {
+				// Check whether we've been signalled to shut down.
+				if (this->done.load(std::memory_order_acquire) == true || frame->data == nullptr) {
+					detector.Shutdown();
+					goto cleanup;
+				}
+			}
 
 			cudaSetDevice(gpuNum);
 
@@ -303,6 +303,7 @@ public:
 			// Account for the time spent processing the packet...
 			// usleep((1000000/targetFPS));//- frame->timer.getElapsedMicroseconds());
 		}
+	cleanup:
 		LOG(INFO) << "GPUThread is done. Freeing memory and returning";
 		cudaFree(scaledFrameNoPad);
 		cudaFree(scaledFramePadded);

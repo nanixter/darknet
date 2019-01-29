@@ -338,9 +338,9 @@ int main(int argc, char* argv[])
 	}
 
 	MutexQueue<Frame> compressedFramesQueues[numStreams];
-	for (int i = 0; i < numStreams; i++) 
+	for (int i = 0; i < numStreams; i++)
 		compressedFramesQueues[i].Init();
-		
+
 	MutexQueue<Frame> decompressedFramesQueue;
 	decompressedFramesQueue.Init();
 
