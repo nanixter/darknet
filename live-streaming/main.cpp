@@ -130,8 +130,8 @@ void encodeFrame(NvPipe *encoder, PointerMap<Frame> *inFrames,
 		frame->data = new uint8_t[500000];
 
 		// Encode the processed Frame
-		uint64_t size = NvPipe_Encode(encoder, frameDevice, inWidth*4,
-							frame->data, 500000, inWidth, inHeight, false);
+		uint64_t size = NvPipe_Encode(encoder, frame->decompressedFrameDevice,
+							inWidth*4, frame->data, 500000, inWidth, inHeight, false);
 
 		if (0 == size)
 			std::cerr << "Encode error: " << NvPipe_GetError(encoder)
@@ -350,7 +350,6 @@ int main(int argc, char* argv[])
 			frame->data = new uint8_t[compressedFrameSize];
 			std::memcpy(frame->data, compressedFrame, compressedFrameSize);
 			frame->frameSize = compressedFrameSize;
-			frame->finished = false;
 			frame->streamNum = i;
 			compressedFramesQueues[i].push_back(*frame);
 		}

@@ -112,7 +112,7 @@ public:
 
 		int decompressedFrameRGBSize = inWidth*inHeight*sizeof(float3);
 		void *decompressedFrameRGBDevice = nullptr;
-		cudaMalloc(decompressedFrameRGBDevice, inWidth*inHeight*sizeof(float3));
+		cudaMalloc(&decompressedFrameRGBDevice, inWidth*inHeight*sizeof(float3));
 
 		while(true) {
 			Frame *frame = new Frame;
@@ -127,7 +127,7 @@ public:
 			cudaSetDevice(gpuNum);
 
 			bool copyBackNeeded = false;
-			void localDecompressedFrameDevice = nullptr;
+			void *localDecompressedFrameDevice = nullptr;
 			if (frame->deviceNumDecompressed != gpuNum) {
 				copyBackNeeded = true;
 				status = cudaMemcpyPeer(frameDevice, gpuNum,
