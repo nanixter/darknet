@@ -106,7 +106,7 @@ public:
 			Frame *frame = new Frame;
 			while (frames->pop_front(*frame) == false) {
 				// Check whether we've been signalled to shut down.
-				if (this->done.load(std::memory_order_acquire) == true || frame->data == nullptr) {
+				if (this->done.load(std::memory_order_acquire) == true) {
 					detector.Shutdown();
 					goto cleanup;
 				}
