@@ -9,6 +9,9 @@ namespace LiveStreamDetector {
 	template <class T>
 	class MutexQueue {
 	public:
+		void Init() {
+			this->done.store(false, std::memory_order_release);
+		}
 
 		void push_back(T &elem) {
 			std::lock_guard<std::mutex> lock(this->mutex);
@@ -24,11 +27,16 @@ namespace LiveStreamDetector {
 			this->cv.notify_one();
 		}
 
+		void notify_all() {
+			this->done.store(true, std::memory_order_release);
+			this->cv.notify_all();
+		}
+
 		// pops 1 element
 		void pop_front(T &elem) {
 			std::unique_lock<std::mutex> lock(this->mutex);
 			if(this->queue.empty())
-				cv.wait(lock, [this](){ return !this->queue.empty(); });
+				cv.wait(lock, [this](){ return (!this->queue.empty())||this->done.load(std::memory_order_acquire); });
 
 			// Once the cv wakes us up....
 			if(!this->queue.empty()) {
@@ -41,7 +49,7 @@ namespace LiveStreamDetector {
 		void pop_front(std::vector<T> &elems, int &numElems) {
 			std::unique_lock<std::mutex> lock(this->mutex);
 			if(this->queue.empty())
-				cv.wait(lock, [this](){ return !this->queue.empty(); });
+				cv.wait(lock, [this](){ return (!this->queue.empty())||this->done.load(std::memory_order_acquire); });
 
 			// Once the cv wakes us up....
 			int numPopped = 0;
@@ -54,6 +62,7 @@ namespace LiveStreamDetector {
 		}
 
 	private:
+		std::atomic_bool done;
 		std::queue<T> queue;
 		std::mutex mutex;
 		std::condition_variable cv;

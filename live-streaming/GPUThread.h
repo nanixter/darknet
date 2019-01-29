@@ -3,6 +3,7 @@
 
 #include "utils/Types.h"
 #include "utils/Queue.h"
+#include <atomic>
 
 using LiveStreamDetector::Frame;
 using LiveStreamDetector::WorkRequest;
@@ -26,6 +27,7 @@ public:
 		this->threadID = firstGPU;
 		this->detectorGPU = detectorGPU;
 		this->numStreams = numStreams;
+		this->done.store(false, std::memory_order_release);
 
 		// Initialize Darknet Detector
 		detector.Init(argc, argv, detectorGPU);
@@ -36,6 +38,9 @@ public:
 
 	void ShutDown()
 	{
+		// Ensure we aren't modifying the variable while our pal is also checking it...
+		this->done.store(true, std::memory_order_release);
+		frames->notify_all();
 		thread.join();
 	}
 
@@ -99,16 +104,13 @@ public:
 
 		while(true) {
 			Frame *frame = new Frame;
-
 			frames->pop_front(*frame);
-			// Check if this is a frame that was inserted to indicate that
-			// there is no more work.
-			if (frame->finished == true) {
-				// Add a completion WorkRequest to the completion queue to
-				// signal to the encoder thread to finish.
+
+			// Check whether we've been signalled to shut down.
+			if (this->done.load(std::memory_order_acquire) == true || frame->data == nullptr) {
 				detector.Shutdown();
 				break;
-			}
+			} 
 
 			cudaSetDevice(gpuNum);
 
@@ -323,6 +325,7 @@ private:
 	// Objects (or pointers to)
 	MutexQueue<Frame> *frames;
 	std::vector<PointerMap<Frame> *> completedFramesMap;
+	std::atomic_bool done;
 	Detector detector;
 	std::thread thread;
 };

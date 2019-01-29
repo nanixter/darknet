@@ -63,10 +63,10 @@ void decodeFrame(NvPipe* decoder, MutexQueue<Frame> *inFrames,
 				MutexQueue<Frame> *outFrames,int inWidth, int inHeight,
 				int fps, int gpuNum, uint64_t lastFrameNum, int numDevices)
 {
-	uint64_t frameNum = 1;
+	uint64_t frameNum = 0;
 	cudaSetDevice(gpuNum);
 
-	while( frameNum <= lastFrameNum ) {
+	while( frameNum < lastFrameNum ) {
 		Frame frame;
 		inFrames->pop_front(frame);
 
@@ -97,6 +97,7 @@ void decodeFrame(NvPipe* decoder, MutexQueue<Frame> *inFrames,
 		}
 
 		outFrames->push_back(frame);
+		frameNum++;
 		usleep(900000.0/fps);
 	}
 }
@@ -105,10 +106,10 @@ void encodeFrame(NvPipe *encoder, PointerMap<Frame> *inFrames,
 				PointerMap<Frame> *outFrames, int inWidth, int inHeight,
 				int gpuNum, uint64_t lastFrameNum)
 {
-	uint64_t frameNum = 1;
+	uint64_t frameNum = 0;
 	cudaSetDevice(gpuNum);
 
-	while( frameNum <= lastFrameNum ) {
+	while( frameNum < lastFrameNum ) {
 		Frame *frame = new Frame;
 		bool gotFrame = false;
 		while(!gotFrame)
@@ -159,16 +160,16 @@ void encodeFrame(NvPipe *encoder, PointerMap<Frame> *inFrames,
 void muxThread(int streamID, int lastFrameNum, PointerMap<Frame> *encodedFrameMap,
 				FFmpegStreamer *muxer)
 {
-	uint64_t outFrameNum = 1;
+	uint64_t outFrameNum = 0;
 	Timer elapsedTime;
-	while(outFrameNum <= lastFrameNum) {
+	while(outFrameNum < lastFrameNum) {
 		Frame *compressedFrame = new Frame;
 		bool gotFrame = false;
 		while(!gotFrame)
 			gotFrame = encodedFrameMap->getElem(&compressedFrame,outFrameNum);
 		muxer->Stream((uint8_t *)compressedFrame->data,compressedFrame->frameSize, outFrameNum);
 		encodedFrameMap->remove(outFrameNum);
-		if (outFrameNum%20 == 0){
+		if (outFrameNum%10 == 0){
 			LOG(INFO) << "Processing frame " <<compressedFrame->streamNum <<" "
 					<< compressedFrame->frameNum << " took "
 					<< compressedFrame->timer.getElapsedMicroseconds()
@@ -337,7 +338,11 @@ int main(int argc, char* argv[])
 	}
 
 	MutexQueue<Frame> compressedFramesQueues[numStreams];
+	for (int i = 0; i < numStreams; i++) 
+		compressedFramesQueues[i].Init();
+		
 	MutexQueue<Frame> decompressedFramesQueue;
+	decompressedFramesQueue.Init();
 
 	std::vector<PointerMap<Frame> *> detectedFrameMaps(numStreams);
 	std::vector<PointerMap<Frame> *> encodedFrameMaps(numStreams);
@@ -349,7 +354,7 @@ int main(int argc, char* argv[])
 	// Demux compressed frames, and insert them into the FrameMap
 	uint8_t *compressedFrame = nullptr;
 	int compressedFrameSize = 0;
-	uint64_t frameNum = 1;
+	uint64_t frameNum = 0;
 	while(demuxer.Demux(&compressedFrame, &compressedFrameSize)) {
 		for (int i = 0; i < numStreams; i++) {
 			Frame *frame = new Frame;
@@ -375,6 +380,7 @@ int main(int argc, char* argv[])
 	// 	compressedFramesQueues[i].push_back(*frame);
 	// }
 
+	LOG(INFO) << "LAST FRAME = " << frameNum;
 	cudaProfilerStart();
 	// Launch the pipeline stages in reverse order so the entire pipeline is
 	// ready to go (important for timing measurements)
@@ -387,8 +393,8 @@ int main(int argc, char* argv[])
 	}
 
 	std::vector<GPUThread> GPUThreads(numPhysicalGPUs);
-	int detectorGPUNo[4] = {1,0,3,2};
-	//int detectorGPUNo[4] = {0,1,2,3};
+//	int detectorGPUNo[4] = {1,0,3,2};
+	int detectorGPUNo[4] = {0,1,2,3};
 	for (int i = 0; i < numPhysicalGPUs; i++) {
 		GPUThreads[i].Init(codec, &decompressedFramesQueue,
 						detectedFrameMaps, i, detectorGPUNo[i],
