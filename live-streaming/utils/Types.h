@@ -13,17 +13,12 @@ namespace LiveStreamDetector {
 		void *decompressedFrameDevice = nullptr;
 		int deviceNumDecompressed;
 		int decompressedFrameSize;
-		void *decompressedFrameRGBDevice = nullptr;
-		int decompressedFrameRGBSize;
-		int deviceNumRGB;
-		bool finished = 0;
 		int streamNum;
 	} Frame;
 
 	typedef struct
 	{
 		bool done;
-		bool finished;
 		image img;
 		detection *dets;
 		int nboxes;

@@ -70,12 +70,6 @@ void decodeFrame(NvPipe* decoder, MutexQueue<Frame> *inFrames,
 		Frame frame;
 		while(!inFrames->pop_front(frame));
 
-		// if (frame.finished == true) {
-		// 	for (int i = 0; i < numDevices; i++)
-		// 		outFrames->push_back(frame);
-		// 	break;
-		// }
-
 		frame.timer.reset();
 		frame.streamNum = gpuNum;
 		frame.decompressedFrameSize = inWidth*inHeight*4;
@@ -115,26 +109,21 @@ void encodeFrame(NvPipe *encoder, PointerMap<Frame> *inFrames,
 		while(!gotFrame)
 			gotFrame = inFrames->getElem(&frame, frameNum);
 
-		// if (frame->finished == true) {
-		// 	outFrames->insert(frame, frameNum);
-		// 	break;
+		// void *frameDevice = nullptr;
+		// if (frame->deviceNumDecompressed != gpuNum) {
+		// 	cudaMalloc(&frameDevice, frame->decompressedFrameSize);
+		// 	cudaError_t status = cudaMemcpyPeer(frameDevice, gpuNum,
+		// 							frame->decompressedFrameDevice,
+		// 							frame->deviceNumDecompressed,
+		// 							frame->decompressedFrameSize);
+		// 	if (status != cudaSuccess)
+		// 		std::cout << "EncodeFrame: " << frameNum
+		// 				<<" cudaMemcpyPeer Status = "
+		// 				<< cudaGetErrorName(status)	<< std::endl;
+		// 	cudaFree(frame->decompressedFrameDevice);
+		// } else{
+		// 	frameDevice = frame->decompressedFrameDevice;
 		// }
-
-		void *frameDevice = nullptr;
-		if (frame->deviceNumDecompressed != gpuNum) {
-			cudaMalloc(&frameDevice, frame->decompressedFrameSize);
-			cudaError_t status = cudaMemcpyPeer(frameDevice, gpuNum,
-									frame->decompressedFrameDevice,
-									frame->deviceNumDecompressed,
-									frame->decompressedFrameSize);
-			if (status != cudaSuccess)
-				std::cout << "EncodeFrame: " << frameNum
-						<<" cudaMemcpyPeer Status = "
-						<< cudaGetErrorName(status)	<< std::endl;
-			cudaFree(frame->decompressedFrameDevice);
-		} else{
-			frameDevice = frame->decompressedFrameDevice;
-		}
 
 		// NvPipe expects us to allocate a buffer for it to output to.. Sigh...
 		delete [] frame->data;
@@ -151,9 +140,8 @@ void encodeFrame(NvPipe *encoder, PointerMap<Frame> *inFrames,
 		frame->frameSize = size;
 
 		// Insert the encoded frame into map for the main thread to mux.
+		cudaFree(frame->decompressedFrameDevice);
 		outFrames->insert(frame, frameNum++);
-		cudaFree(frameDevice);
-		pthread_yield();
 	}
 }
 
@@ -187,7 +175,7 @@ void printUsage(char *binaryName) {
 			<<	"-s number of video streams (default=1; valid range: 1 to number of GPUs)" <<std::endl
 			<<	"-n number of GPUs to use (default=cudaGetDeviceCount; valid range: 1 to cudaGetDeviceCount)" <<std::endl
 			<<	"-f fps (default=30fps; valid range: 1 to 120)" <<std::endl
-			<<	"-r per_client_max_outstanding_requests (default=90; valid range = 1 to 1000)" <<std::endl
+			<<	"-r per_client_max_outstanding_frames (default=100; valid range = 1 to 200)" <<std::endl
 			<<	"-b bit rate of output video (in Mbps; default=2; valid range = 1 to 6;)" <<std::endl;
 }
 
@@ -203,7 +191,7 @@ int main(int argc, char* argv[])
 	char *filename;
 	int numStreams = 1;
 	int fps = 30;
-	int maxOutstandingPerThread = 90;
+	int maxOutstandingFrames = 100;
 	float bitrateMbps = 2;
 
 	int numPhysicalGPUs;
@@ -219,7 +207,7 @@ int main(int argc, char* argv[])
 		} else if (0 == strcmp(argv[i], "-f")) {
 			fps = atoi(argv[i+1]);
 		} else if (0 == strcmp(argv[i], "-r")) {
-			maxOutstandingPerThread = atoi(argv[i+1]);
+			maxOutstandingFrames = atoi(argv[i+1]);
 		} else if (0 == strcmp(argv[i], "-b")) {
 			bitrateMbps = atof(argv[i+1]);
 		} else if (0 == strcmp(argv[i], "-s")) {
@@ -249,9 +237,9 @@ int main(int argc, char* argv[])
 		fps = 120;
 	}
 
-	if (maxOutstandingPerThread > 1000) {
-		LOG(INFO) << "Max outstanding requests per thread supported = 1000. Setting to 1000";
-		maxOutstandingPerThread = 1000;
+	if (maxOutstandingFrames > 200) {
+		LOG(INFO) << "Max outstanding frames supported = 200. Setting to 200";
+		maxOutstandingFrames = 200;
 	}
 
 	if (bitrateMbps > 6) {
@@ -262,8 +250,8 @@ int main(int argc, char* argv[])
 	LOG(INFO) << "video file: " << filename;
 	LOG(INFO) << "Creating " << numStreams
 				<< " threads, each producing frames at " << fps << " FPS.";
-	LOG(INFO) << "Each thread can have a maximum of "
-				<< maxOutstandingPerThread << " outstanding requests at any time. All other frames will be dropped.";
+	LOG(INFO) << "The systems supports a maximum of "
+				<< maxOutstandingFrames << " outstanding requests at any time. All other frames will be dropped.";
 	LOG(INFO) << "Each thread will encode at " << bitrateMbps << " Mbps.";
 	LOG(INFO) << "Press control-c to quit at any point";
 
@@ -369,17 +357,6 @@ int main(int argc, char* argv[])
 		frameNum++;
 	}
 
-	// Insert completion frame
-	// for(int i=0; i <numStreams; i++) {
-	// 	Frame *frame = new Frame;
-	// 	frame->frameNum = frameNum;
-	// 	frame->data = nullptr;
-	// 	frame->frameSize = -1;
-	// 	frame->finished = true;
-	// 	frame->streamNum = i;
-	// 	compressedFramesQueues[i].push_back(*frame);
-	// }
-
 	LOG(INFO) << "LAST FRAME = " << frameNum;
 	cudaProfilerStart();
 	// Launch the pipeline stages in reverse order so the entire pipeline is
@@ -393,8 +370,8 @@ int main(int argc, char* argv[])
 	}
 
 	std::vector<GPUThread> GPUThreads(numPhysicalGPUs);
-//	int detectorGPUNo[4] = {1,0,3,2};
-	int detectorGPUNo[4] = {0,1,2,3};
+	int detectorGPUNo[4] = {1,0,3,2};
+	// int detectorGPUNo[4] = {0,1,2,3};
 	for (int i = 0; i < numPhysicalGPUs; i++) {
 		GPUThreads[i].Init(codec, &decompressedFramesQueue,
 						detectedFrameMaps, i, detectorGPUNo[i],

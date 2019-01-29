@@ -102,6 +102,18 @@ public:
 		cudaStream_t RDstream;
 		cudaStreamCreateWithFlags(&RDstream,cudaStreamNonBlocking);
 
+		int maxNumObjects = 20;
+		void *boundingBoxesDevice = nullptr;
+		cudaMalloc(&boundingBoxesDevice, maxNumObjects*sizeof(float4));
+
+		int decompressedFrameSize = inWidth*inHeight*4;
+		void *frameDevice = nullptr;
+		cudaMalloc(&frameDevice, decompressedFrameSize);
+
+		int decompressedFrameRGBSize = inWidth*inHeight*sizeof(float3);
+		void *decompressedFrameRGBDevice = nullptr;
+		cudaMalloc(decompressedFrameRGBDevice, inWidth*inHeight*sizeof(float3));
+
 		while(true) {
 			Frame *frame = new Frame;
 			while (frames->pop_front(*frame) == false) {
@@ -114,9 +126,10 @@ public:
 
 			cudaSetDevice(gpuNum);
 
+			bool copyBackNeeded = false;
+			void localDecompressedFrameDevice = nullptr;
 			if (frame->deviceNumDecompressed != gpuNum) {
-				void *frameDevice = nullptr;
-				cudaMalloc(&frameDevice, frame->decompressedFrameSize);
+				copyBackNeeded = true;
 				status = cudaMemcpyPeer(frameDevice, gpuNum,
 										frame->decompressedFrameDevice,
 										frame->deviceNumDecompressed,
@@ -124,33 +137,25 @@ public:
 				if (status != cudaSuccess)
 					std::cout << "GPUThread cudaMemcpyPeer Status = "<< cudaGetErrorName(status)
 							<< std::endl;
-				cudaFree(frame->decompressedFrameDevice);
-				frame->decompressedFrameDevice = frameDevice;
-				frame->deviceNumDecompressed = gpuNum;
+				localDecompressedFrameDevice = frameDevice;
+			} else {
+				localDecompressedFrameDevice = frame->decompressedFrameDevice;
 			}
-
-			cudaMalloc(&frame->decompressedFrameRGBDevice,
-							inWidth*inHeight*sizeof(float3));
-			frame->decompressedFrameRGBSize = inWidth*inHeight*sizeof(float3);
-			frame->deviceNumRGB = gpuNum;
 
 			// Convert to RGB from NV12
 			status = cudaNV12ToRGBf(
-						static_cast<uint8_t *>(frame->decompressedFrameDevice),
-						static_cast<float3 *>(
-							frame->decompressedFrameRGBDevice),
+						static_cast<uint8_t *>(localDecompressedFrameDevice),
+						static_cast<float3 *>(decompressedFrameRGBDevice),
 						(size_t)inWidth,
 						(size_t)inHeight,
 						&RDstream);
 			if (status != cudaSuccess)
-				LOG(ERROR) << "cudaNV12ToRGBf Status = "
-						<< cudaGetErrorName(status);
+				LOG(ERROR) << "cudaNV12ToRGBf Status = "<< cudaGetErrorName(status);
 			assert(status == cudaSuccess);
 
 			// Scale the frame to noPadWidth;noPadHeight
 			status = cudaResizeRGB(
-						static_cast<float3 *>(
-							frame->decompressedFrameRGBDevice),
+						static_cast<float3 *>(decompressedFrameRGBDevice),
 						(size_t)inWidth,
 						(size_t)inHeight,
 						static_cast<float3 *>(scaledFrameNoPad),
@@ -208,7 +213,6 @@ public:
 			work.dets = nullptr;
 			work.nboxes = 0;
 			work.classes = 0;
-			work.finished = false;
 			work.deviceNum = gpuNum;
 			work.tag = frame;
 
@@ -221,93 +225,89 @@ public:
 			int numObjects = 0;
 			std::vector<float4> boundingBoxes;
 			for (int i = 0; i < work.nboxes; i++) {
-				if(work.dets[i].objectness ==  0.0) continue;
-				// Fix this later by adding the COCO classes to the network.
-	/*			bool draw = false;
-				for (int j = 0; j < work.classes; j++) {
-					std::cout << "prob = " << work.dets[i].prob[j] <<std::endl;
-					if(work.dets[i].prob[j] > 0.5)
-						draw = true;
-				}
-	*/
+				if (numObjects == maxNumObjects) break;
+				if (work.dets[i].objectness ==  0.0) continue;
 				boundingBoxes.push_back(scale_box(work.dets[i].bbox, inWidth, inHeight));
 				numObjects++;
 			}
 
 			cudaSetDevice(gpuNum);
-			if (frame->deviceNumRGB != gpuNum) {
-				void *frameDevice = nullptr;
-				cudaMalloc(&frameDevice, frame->decompressedFrameRGBSize);
-				status = cudaMemcpyPeer(frameDevice, gpuNum, frame->decompressedFrameRGBDevice,
-								frame->deviceNumRGB, frame->decompressedFrameRGBSize);
-				if (status != cudaSuccess)
-					std::cout << "DrawThread1 cudaMemcpyPeer Status = "<< cudaGetErrorName(status)
-							<< std::endl;
-				cudaFree(frame->decompressedFrameRGBDevice);
-				frame->decompressedFrameRGBDevice = frameDevice;
-				frame->deviceNumRGB = gpuNum;
-			}
+			// if (frame->deviceNumRGB != gpuNum) {
+			// 	void *frameDevice = nullptr;
+			// 	cudaMalloc(&frameDevice, frame->decompressedFrameRGBSize);
+			// 	status = cudaMemcpyPeer(frameDevice, gpuNum, decompressedFrameRGBDevice,
+			// 					frame->deviceNumRGB, decompressedFrameRGBSize);
+			// 	if (status != cudaSuccess)
+			// 		std::cout << "DrawThread1 cudaMemcpyPeer Status = "<< cudaGetErrorName(status)
+			// 				<< std::endl;
+			// 	cudaFree(decompressedFrameRGBDevice);
+			// 	decompressedFrameRGBDevice = frameDevice;
+			// 	frame->deviceNumRGB = gpuNum;
+			// }
 
 			if (numObjects >0) {
-				void *boundingBoxesDevice = nullptr;
-				cudaMalloc(&boundingBoxesDevice, numObjects*sizeof(float4));
 				cudaMemcpy(boundingBoxesDevice, boundingBoxes.data(), numObjects*sizeof(float4), cudaMemcpyHostToDevice);
-
-				status = cudaRectOutlineOverlay((float3 *)frame->decompressedFrameRGBDevice,
-												(float3 *)frame->decompressedFrameRGBDevice,
+				status = cudaRectOutlineOverlay((float3 *)decompressedFrameRGBDevice,
+												(float3 *)decompressedFrameRGBDevice,
 												inWidth,
 												inHeight,
 												(float4 *)boundingBoxesDevice,
 												numObjects,
 												overlayColor,
 												&RDstream);
-
 				if (status != cudaSuccess)
 					std::cout << "cudaRectOutlineOverlay Status = " << cudaGetErrorName(status)	<< std::endl;
 				assert(status == cudaSuccess);
-				cudaFree(boundingBoxesDevice);
 			}
 
 			// Free the detections
 			free_detections(work.dets, work.nboxes);
 
-			if (frame->deviceNumDecompressed != gpuNum) {
-				void *frameDevice = nullptr;
-				cudaMalloc(&frameDevice, frame->decompressedFrameSize);
-				status = cudaMemcpyPeer(frameDevice, gpuNum, frame->decompressedFrameDevice,
-								frame->deviceNumDecompressed, frame->decompressedFrameSize);
-				if (status != cudaSuccess)
-					std::cout << "DrawThread2 cudaMemcpyPeer Status = "<< cudaGetErrorName(status)
-							<< std::endl;
-				cudaFree(frame->decompressedFrameDevice);
-				frame->decompressedFrameDevice = frameDevice;
-				frame->deviceNumDecompressed = gpuNum;
-			}
+			// if (frame->deviceNumDecompressed != gpuNum) {
+			// 	void *frameDevice = nullptr;
+			// 	cudaMalloc(&frameDevice, frame->decompressedFrameSize);
+			// 	status = cudaMemcpyPeer(frameDevice, gpuNum, frame->decompressedFrameDevice,
+			// 					frame->deviceNumDecompressed, frame->decompressedFrameSize);
+			// 	if (status != cudaSuccess)
+			// 		std::cout << "DrawThread2 cudaMemcpyPeer Status = "<< cudaGetErrorName(status)
+			// 				<< std::endl;
+			// 	cudaFree(frame->decompressedFrameDevice);
+			// 	frame->decompressedFrameDevice = frameDevice;
+			// 	frame->deviceNumDecompressed = gpuNum;
+			// }
 
 			// Convert to uchar4 BGRA8 that the Encoder wants
-			status = cudaRGBToBGRA8(
-						(float3 *)frame->decompressedFrameRGBDevice,
-						(uchar4*)frame->decompressedFrameDevice,
-						inWidth, inHeight,
-						&RDstream);
-
+			status = cudaRGBToBGRA8((float3 *) decompressedFrameRGBDevice,
+									(uchar4*) localDecompressedFrameDevice,
+									inWidth,
+									inHeight,
+									&RDstream);
 			if (status != cudaSuccess)
-				std::cout << "cudaRGBToRGBA8 Status = "
-							<< cudaGetErrorName(status)	<< std::endl;
+				std::cout << "cudaRGBToRGBA8 Status = "<< cudaGetErrorName(status)	<< std::endl;
 			assert(status == cudaSuccess);
-			cudaFree(frame->decompressedFrameRGBDevice);
-			completedFramesMap[frame->streamNum]->insert(frame,
-														frame->frameNum);
 
-			//pthread_yield();
-			// Account for the time spent processing the packet...
-			// usleep((1000000/targetFPS));//- frame->timer.getElapsedMicroseconds());
+			if (copyBackNeeded) {
+				status = cudaMemcpyPeer(frame->decompressedFrameDevice,
+										frame->deviceNumDecompressed,
+										localDecompressedFrameDevice,
+										gpuNum,
+										frame->decompressedFrameSize);
+				if (status != cudaSuccess)
+					std::cout << "GPUThread Copy Back cudaMemcpyPeer Status = "
+								<< cudaGetErrorName(status) << std::endl;
+			}
+
+			completedFramesMap[frame->streamNum]->insert(frame, frame->frameNum);
+
 		}
 	cleanup:
 		LOG(INFO) << "GPUThread is done. Freeing memory and returning";
 		cudaFree(scaledFrameNoPad);
 		cudaFree(scaledFramePadded);
 		cudaFree(scaledPaddedPlanarS);
+		cudaFree(decompressedFrameRGBDevice);
+		cudaFree(frameDevice);
+		cudaFree(boundingBoxesDevice);
 	}
 
 private:
