@@ -357,13 +357,14 @@ int main(int argc, char* argv[])
 	int numBuffers = fps*2;
 	size_t bufferSize = inWidth*inHeight*4;
 	size_t totalBufferSize = numBuffers*bufferSize;
-	void *largeBuffers[numPhysicalGPUs] = nullptr;
+	void *largeBuffers[numPhysicalGPUs];
 	MutexQueue<void *> gpuFrameBuffers[numPhysicalGPUs];
 	for (int i = 0; i < numPhysicalGPUs; i++) {
 		cudaSetDevice(i);
 		cudaMalloc(&largeBuffers[i], totalBufferSize);
 		for (int j = 0; j < numBuffers; j++) {
-			gpuFrameBuffers[i].push_back(largeBuffer+(bufferSize*j));
+			void *offset = (void *)((uint8_t *)largeBuffers[i]+(bufferSize*j));
+			gpuFrameBuffers[i].push_back(offset);
 		}
 	}
 
