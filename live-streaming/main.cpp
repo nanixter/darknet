@@ -133,7 +133,9 @@ void muxThread(int streamID, int lastFrameNum, PointerMap<Frame> *encodedFrameMa
 				FFmpegStreamer *muxer)
 {
 	uint64_t outFrameNum = 0;
+	uint64_t lastCompletedFrameNum = 0;
 	Timer elapsedTime;
+	double lastTimerValue = elapsedTime.getElapsedMicroseconds();
 	while(outFrameNum < lastFrameNum) {
 		Frame *compressedFrame = new Frame;
 		bool gotFrame = false;
@@ -146,7 +148,12 @@ void muxThread(int streamID, int lastFrameNum, PointerMap<Frame> *encodedFrameMa
 					<< compressedFrame->frameNum << " took "
 					<< compressedFrame->timer.getElapsedMicroseconds()
 					<< " us.";
-			LOG(INFO) << "Stream " <<streamID <<": Throughput: " << (outFrameNum)/(elapsedTime.getElapsedMicroseconds()/1000000.0);
+		}
+		if (outFrameNum%50 == 0) {
+			double elapsedTimeValue =  elapsedTime.getElapsedMicroseconds();
+			LOG(INFO) << "Stream " <<streamID <<": Throughput: " << (outFrameNum+1-lastCompletedFrameNum)/((elapsedTimeValue-lastTimerValue)/1000000.0);
+			lastTimerValue = elapsedTimeValue;
+			lastCompletedFrameNum = outFrameNum;
 		}
 		outFrameNum++;
 	}
