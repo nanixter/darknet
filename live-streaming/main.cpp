@@ -109,22 +109,6 @@ void encodeFrame(NvPipe *encoder, PointerMap<Frame> *inFrames,
 		while(!gotFrame)
 			gotFrame = inFrames->getElem(&frame, frameNum);
 
-		// void *frameDevice = nullptr;
-		// if (frame->deviceNumDecompressed != gpuNum) {
-		// 	cudaMalloc(&frameDevice, frame->decompressedFrameSize);
-		// 	cudaError_t status = cudaMemcpyPeer(frameDevice, gpuNum,
-		// 							frame->decompressedFrameDevice,
-		// 							frame->deviceNumDecompressed,
-		// 							frame->decompressedFrameSize);
-		// 	if (status != cudaSuccess)
-		// 		std::cout << "EncodeFrame: " << frameNum
-		// 				<<" cudaMemcpyPeer Status = "
-		// 				<< cudaGetErrorName(status)	<< std::endl;
-		// 	cudaFree(frame->decompressedFrameDevice);
-		// } else{
-		// 	frameDevice = frame->decompressedFrameDevice;
-		// }
-
 		// NvPipe expects us to allocate a buffer for it to output to.. Sigh...
 		delete [] frame->data;
 		frame->data = new uint8_t[500000];
@@ -326,11 +310,7 @@ int main(int argc, char* argv[])
 	}
 
 	MutexQueue<Frame> compressedFramesQueues[numStreams];
-	for (int i = 0; i < numStreams; i++)
-		compressedFramesQueues[i].Init();
-
 	MutexQueue<Frame> decompressedFramesQueue;
-	decompressedFramesQueue.Init();
 
 	std::vector<PointerMap<Frame> *> detectedFrameMaps(numStreams);
 	std::vector<PointerMap<Frame> *> encodedFrameMaps(numStreams);

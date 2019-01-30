@@ -40,7 +40,6 @@ public:
 	{
 		// Ensure we aren't modifying the variable while our pal is also checking it...
 		this->done.store(true, std::memory_order_release);
-		frames->setDone();
 		thread.join();
 	}
 
