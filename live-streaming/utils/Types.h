@@ -11,6 +11,7 @@ namespace LiveStreamDetector {
 		uint64_t frameNum;
 		Timer timer;
 		void *decompressedFrameDevice = nullptr;
+		bool needsCudaFree = false;
 		int deviceNumDecompressed;
 		int decompressedFrameSize;
 		int streamNum;
