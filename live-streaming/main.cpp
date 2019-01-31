@@ -144,7 +144,7 @@ void encodeFrame(NvPipe *encoder, PointerMap<Frame> *inFrames,
 }
 
 void muxThread(int streamID, int lastFrameNum, PointerMap<Frame> *encodedFrameMap,
-				FFmpegStreamer *muxer)
+				FFmpegStreamer *muxer, int fps)
 {
 	uint64_t outFrameNum = 0;
 	uint64_t lastCompletedFrameNum = 0;
@@ -164,7 +164,7 @@ void muxThread(int streamID, int lastFrameNum, PointerMap<Frame> *encodedFrameMa
 					<< compressedFrame->timer.getElapsedMicroseconds()
 					<< " us.";
 		}
-		if (outFrameNum%50 == 0) {
+		if (outFrameNum%(fps*2) == 0) {
 			double elapsedTimeValue =  elapsedTime.getElapsedMicroseconds();
 			LOG(INFO) << "Stream " <<streamID <<": Throughput: " << (outFrameNum+1-lastCompletedFrameNum)/((elapsedTimeValue-lastTimerValue)/1000000.0);
 			lastTimerValue = elapsedTimeValue;
@@ -395,7 +395,7 @@ int main(int argc, char* argv[])
 
 	std::vector<std::thread> muxerThreads(numStreams);
 	for(int i = 0; i < numStreams; i++) {
-		muxerThreads[i] = std::thread(&muxThread, i, frameNum, encodedFrameMaps[i], muxers[i]);
+		muxerThreads[i] = std::thread(&muxThread, i, frameNum, encodedFrameMaps[i], muxers[i], fps);
 	}
 
 	std::vector<std::thread> decoderThreads(numStreams);
