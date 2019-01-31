@@ -15,6 +15,7 @@ namespace LiveStreamDetector {
 		int deviceNumDecompressed;
 		int decompressedFrameSize;
 		int streamNum;
+		nvtxRangeId_t nvtxRangeID;
 	} Frame;
 
 	typedef struct

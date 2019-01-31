@@ -23,6 +23,7 @@
 #include <nppi.h>
 #include <npps.h>
 #include <nppversion.h>
+#include "nvToolsExt.h"
 
 #include <assert.h>
 
@@ -81,6 +82,8 @@ void decodeFrame(NvPipe* decoder, MutexQueue<Frame> *inFrames,
 			frame.needsCudaFree = true;
 		}
 
+		std::string frameNumString = "Frame " + std::to_string(frameNum);
+		frame.nvtxRangeID = nvtxRangeStartA(frameNumString.c_str());
 		// Decode the frame
 		uint64_t decompressedFrameSize = NvPipe_Decode(decoder,
 												(const uint8_t *)frame.data,
@@ -153,6 +156,7 @@ void muxThread(int streamID, int lastFrameNum, PointerMap<Frame> *encodedFrameMa
 		while(!gotFrame)
 			gotFrame = encodedFrameMap->getElem(&compressedFrame,outFrameNum);
 		muxer->Stream((uint8_t *)compressedFrame->data,compressedFrame->frameSize, outFrameNum);
+		nvtxRangeEnd(compressedFrame->nvtxRangeID);
 		encodedFrameMap->remove(outFrameNum);
 		if (outFrameNum%10 == 0){
 			LOG(INFO) << "Processing frame " <<compressedFrame->streamNum <<" "
