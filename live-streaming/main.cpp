@@ -203,10 +203,15 @@ int main(int argc, char* argv[])
 	int numPhysicalGPUs;
 	cudaError_t status = cudaGetDeviceCount(&numPhysicalGPUs);
 	if (status != cudaSuccess)
-		std::cout << "cudaGetDeviceCount Status = " << cudaGetErrorName(status)
-				<< std::endl;
+		std::cout << "cudaGetDeviceCount Status = " << cudaGetErrorName(status) << std::endl;
 	assert(status == cudaSuccess);
 
+	/*status = cudaSetDeviceFlags(cudaDeviceScheduleYield);
+	//status = cudaSetDeviceFlags(cudaDeviceScheduleSpin);
+	if (status != cudaSuccess)
+		std::cout << "cudaGetDeviceCount Status = " << cudaGetErrorName(status) << std::endl;
+	assert(status == cudaSuccess);
+	*/
 	for (int i = 1; i < argc-1; i=i+2) {
 		if(0==strcmp(argv[i], "-v")){
 			filename = argv[i+1];
