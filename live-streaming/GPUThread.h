@@ -14,6 +14,7 @@ class GPUThread {
 public:
 	void Init(NvPipe_Codec codec, MutexQueue<Frame> *frames,
 			std::vector<PointerMap<Frame> *> &completedFramesMap,
+			int threadID,
 			int firstGPU, int detectorGPU,
 			int targetFPS, int inWidth, int inHeight, int numStreams,
 			int argc, char** argv)
@@ -24,11 +25,12 @@ public:
 		this->inWidth = inWidth;
 		this->inHeight = inHeight;
 		this->gpuNum = firstGPU;
-		this->threadID = firstGPU;
+		this->threadID = threadID;
 		this->detectorGPU = detectorGPU;
 		this->numStreams = numStreams;
 		this->done.store(false, std::memory_order_release);
 
+		LOG(INFO) << "Init " << threadID << "thread.";
 		// Initialize Darknet Detector
 		detector.Init(argc, argv, detectorGPU);
 

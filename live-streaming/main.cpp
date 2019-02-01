@@ -62,8 +62,7 @@ using LiveStreamDetector::MutexQueue;
 
 void decodeFrame(NvPipe* decoder, MutexQueue<Frame> *inFrames,
 				MutexQueue<Frame> *outFrames, MutexQueue<void *> *gpuFramesQueue,
-				int inWidth, int inHeight,int fps, int gpuNum, uint64_t lastFrameNum,
-				int numDevices)
+				int inWidth, int inHeight,int fps, int gpuNum, uint64_t lastFrameNum)
 {
 	uint64_t frameNum = 0;
 	cudaSetDevice(gpuNum);
@@ -180,6 +179,7 @@ void printUsage(char *binaryName) {
 			<< "Optional Arguments:" <<std::endl
 			<<	"-s number of video streams (default=1; valid range: 1 to number of GPUs)" <<std::endl
 			<<	"-n number of GPUs to use (default=cudaGetDeviceCount; valid range: 1 to cudaGetDeviceCount)" <<std::endl
+			<<	"-t number of threads per GPU (default=1; valid range: 1 to 10)" <<std::endl
 			<<	"-f fps (default=30fps; valid range: 1 to 120)" <<std::endl
 			<<	"-r per_client_max_outstanding_frames (default=100; valid range = 1 to 200)" <<std::endl
 			<<	"-b bit rate of output video (in Mbps; default=2; valid range = 1 to 6;)" <<std::endl;
@@ -196,6 +196,7 @@ int main(int argc, char* argv[])
 	// TODO: support RTMP ingestion (or some other network ingestion)
 	char *filename;
 	int numStreams = 1;
+	int numThreadsPerGPU = 1;
 	int fps = 30;
 	int maxOutstandingFrames = 100;
 	float bitrateMbps = 2;
@@ -227,6 +228,8 @@ int main(int argc, char* argv[])
 			int temp = atoi(argv[i+1]);
 			if (temp < numPhysicalGPUs)
 				numPhysicalGPUs = temp;
+		} else if (0 == strcmp(argv[i], "-t")) {
+			numThreadsPerGPU = atoi(argv[i+1]);
 		}
 	}
 
@@ -246,6 +249,11 @@ int main(int argc, char* argv[])
 		std::cout << "Max FPS supported = 120. Setting fps to 120"
 				<<std::endl;
 		fps = 120;
+	}
+
+	if (numThreadsPerGPU > 10) {
+		std::cout << "Max numThreadsPerGPU = 10; setting to 10" << std::endl;
+		numThreadsPerGPU = 10;
 	}
 
 	if (maxOutstandingFrames > 200) {
@@ -306,7 +314,6 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	//numStreams = std::min(numStreams, numPhysicalGPUs);
 	FFmpegStreamer *muxers[numStreams];
 	NvPipe* encoders[numStreams];
 	NvPipe* decoders[numStreams];
@@ -366,14 +373,17 @@ int main(int argc, char* argv[])
 	int numBuffers = fps*2;
 	size_t bufferSize = inWidth*inHeight*4;
 	size_t totalBufferSize = numBuffers*bufferSize;
-	void *largeBuffers[numPhysicalGPUs];
-	MutexQueue<void *> gpuFrameBuffers[numPhysicalGPUs];
+	int numThreads = numThreadsPerGPU * numPhysicalGPUs;
+	void *largeBuffers[numThreads];
+	MutexQueue<void *> gpuFrameBuffers[numThreads];
 	for (int i = 0; i < numPhysicalGPUs; i++) {
 		cudaSetDevice(i);
-		cudaMalloc(&largeBuffers[i], totalBufferSize);
-		for (int j = 0; j < numBuffers; j++) {
-			void *offset = (void *)((uint8_t *)largeBuffers[i]+(bufferSize*j));
-			gpuFrameBuffers[i].push_back(offset);
+		for (int k = 0; k < numThreadsPerGPU; k++) {
+			cudaMalloc(&largeBuffers[i+k], totalBufferSize);
+			for (int j = 0; j < numBuffers; j++) {
+				void *offset = (void *)((uint8_t *)largeBuffers[i+k]+(bufferSize*j));
+				gpuFrameBuffers[i+k].push_back(offset);
+			}
 		}
 	}
 
@@ -389,13 +399,15 @@ int main(int argc, char* argv[])
 			i, frameNum);
 	}
 
-	std::vector<GPUThread> GPUThreads(numPhysicalGPUs);
+	std::vector<GPUThread> GPUThreads(numThreads);
 	int detectorGPUNo[4] = {1,0,3,2};
 	// int detectorGPUNo[4] = {0,1,2,3};
 	for (int i = 0; i < numPhysicalGPUs; i++) {
-		GPUThreads[i].Init(codec, &decompressedFramesQueue,
-						detectedFrameMaps, i, detectorGPUNo[i],
+		for (int j = 0; j < numThreadsPerGPU; j++) {
+			GPUThreads[i*numThreadsPerGPU+j].Init(codec, &decompressedFramesQueue,
+						detectedFrameMaps, i*numThreadsPerGPU+j, i, detectorGPUNo[i],
 						fps, inWidth, inHeight, numStreams, argc, argv);
+		}
 	}
 
 	std::vector<std::thread> muxerThreads(numStreams);
@@ -407,7 +419,7 @@ int main(int argc, char* argv[])
 	for(int i = 0; i < numStreams; i++) {
 		decoderThreads[i] = std::thread(&decodeFrame, decoders[i],
 			&compressedFramesQueues[i],	&decompressedFramesQueue, &gpuFrameBuffers[i],
-			inWidth, inHeight, fps, i, frameNum, numPhysicalGPUs);
+			inWidth, inHeight, fps, i, frameNum);
 	}
 
 	LOG(INFO) << "Main thread done. Waiting for other threads to exit";
@@ -418,7 +430,7 @@ int main(int argc, char* argv[])
 	for (int i = 0; i < numStreams; i++)
 		encoderThreads[i].join();
 	LOG(INFO) << "encodeThreads joined!";
-	for (int i = 0; i < numPhysicalGPUs; i++)
+	for (int i = 0; i < numThreads; i++)
 		GPUThreads[i].ShutDown();
 	for(int i = 0; i < numStreams; i++)
 		muxerThreads[i].join();
@@ -426,7 +438,7 @@ int main(int argc, char* argv[])
 	cudaProfilerStop();
 	for (auto muxer : muxers)
 		delete muxer;
-	for (int i = 0; i < numPhysicalGPUs; i++) {
+	for (int i = 0; i < numThreads; i++) {
 		cudaSetDevice(i);
 		cudaFree(largeBuffers[i]);
 	}
