@@ -843,6 +843,7 @@ void forward_network_gpu(network *netp)
         }
     }
     pull_network_output(netp);
+    cuda_stream_synchronize();
     calc_network_cost(netp);
 }
 
@@ -1182,7 +1183,7 @@ float train_networks(network **nets, int n, data d, int interval)
 void pull_network_output(network *net)
 {
     layer l = get_network_output_layer(net);
-    cuda_pull_array(l.output_gpu, l.output, l.outputs*l.batch);
+    cuda_pull_array_async(l.output_gpu, l.output, l.outputs*l.batch);
 }
 
 #endif

@@ -178,6 +178,19 @@ void cuda_pull_array(float *x_gpu, float *x, size_t n)
     check_error(status);
 }
 
+void cuda_pull_array_async(float *x_gpu, float *x, size_t n)
+{
+    size_t size = sizeof(float)*n;
+    cudaError_t status = cudaMemcpyAysnc(x, x_gpu, size, cudaMemcpyDeviceToHost);
+    check_error(status);
+}
+
+void cuda_stream_synchronize()
+{
+    cudaError_t status = cudaStreamSynchronize(0);
+    check_error(status);
+}
+
 float cuda_mag_array(float *x_gpu, size_t n)
 {
     float *temp = calloc(n, sizeof(float));
