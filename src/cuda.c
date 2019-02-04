@@ -181,7 +181,7 @@ void cuda_pull_array(float *x_gpu, float *x, size_t n)
 void cuda_pull_array_async(float *x_gpu, float *x, size_t n)
 {
     size_t size = sizeof(float)*n;
-    cudaError_t status = cudaMemcpyAysnc(x, x_gpu, size, cudaMemcpyDeviceToHost);
+    cudaError_t status = cudaMemcpyAsync(x, x_gpu, size, cudaMemcpyDeviceToHost, 0);
     check_error(status);
 }
 
