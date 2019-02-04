@@ -49,7 +49,7 @@ layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int 
     l.backward = backward_yolo_layer;
 #ifdef GPU
     free(l.output);
-    cuda_malloc_host(&(l.output), (size_t)(batch*l.outputs*sizeof(float)));
+    cuda_malloc_host((void **)&(l.output), (size_t)(batch*l.outputs*sizeof(float)));
     l.forward_gpu = forward_yolo_layer_gpu;
     l.backward_gpu = backward_yolo_layer_gpu;
     l.output_gpu = cuda_make_array(l.output, batch*l.outputs);
