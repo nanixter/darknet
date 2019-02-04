@@ -199,6 +199,12 @@ float cuda_mag_array(float *x_gpu, size_t n)
     free(temp);
     return m;
 }
+
+void cuda_malloc_host(void **ptr, size_t  size) {
+    cudaError_t status = cudaMallocHost(ptr, size);
+    check_error(status);
+}
+
 #else
 void cuda_set_device(int n){}
 
