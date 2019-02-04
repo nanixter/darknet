@@ -150,6 +150,12 @@ void cuda_free(float *x_gpu)
     check_error(status);
 }
 
+void cuda_free_host(void *x)
+{
+    cudaError_t status = cudaFreeHost(x);
+    check_error(status);
+}
+
 void cuda_push_arrayD2D(float *x_gpu, float *y_gpu, size_t n)
 {
     size_t size = sizeof(float)*n;

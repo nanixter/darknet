@@ -34,7 +34,6 @@ void free_layer(layer l)
     if(l.weights)            free(l.weights);
     if(l.weight_updates)     free(l.weight_updates);
     if(l.delta)              free(l.delta);
-    if(l.output)             free(l.output);
     if(l.squared)            free(l.squared);
     if(l.norms)              free(l.norms);
     if(l.spatial_mean)       free(l.spatial_mean);
@@ -94,4 +93,14 @@ void free_layer(layer l)
     if(l.squared_gpu)             cuda_free(l.squared_gpu);
     if(l.norms_gpu)               cuda_free(l.norms_gpu);
 #endif
+
+    if (l.type == YOLO) {
+#ifdef GPU
+        if(l.output)              cuda_free_host(l.output)
+#else
+        if(l.output)              free(l.output);
+#endif
+    } else {
+        if(l.output)              free(l.output);
+    }
 }

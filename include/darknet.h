@@ -636,6 +636,7 @@ void copy_gpu(int N, float * X, int INCX, float * Y, int INCY);
 
 void cuda_set_device(int n);
 void cuda_free(float *x_gpu);
+void cuda_free_host(void *x_gpu);
 void cuda_stream_synchronize();
 void cuda_malloc_host(void **ptr, size_t  size);
 float *cuda_make_array(float *x, size_t n);
