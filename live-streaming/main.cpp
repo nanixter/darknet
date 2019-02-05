@@ -14,7 +14,14 @@
 #include <unordered_map>
 #include <thread>
 #include <cmath>
+#include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <functional>
+#include <fcntl.h>
+#include <unistd.h>
+#include <signal.h>
 
 #include <cuda_runtime_api.h>
 #include <cuda_profiler_api.h>
@@ -60,6 +67,7 @@ using LiveStreamDetector::MutexQueue;
 
 #include "GPUThread.h"
 
+
 void decodeFrame(NvPipe* decoder, MutexQueue<Frame> *inFrames,
 				MutexQueue<Frame> *outFrames, MutexQueue<void *> *gpuFramesQueue,
 				int inWidth, int inHeight,int fps, int gpuNum, uint64_t lastFrameNum)
@@ -79,7 +87,11 @@ void decodeFrame(NvPipe* decoder, MutexQueue<Frame> *inFrames,
 			LOG(INFO) << "Ran out of buffers. Calling cudaMalloc...";
 			cudaMalloc(&frame.decompressedFrameDevice, frame.decompressedFrameSize);
 			frame.needsCudaFree = true;
-		}
+		} 
+		/*else {
+			cudaMemset(frame.decompressedFrameDevice, 0, frame.decompressedFrameSize);
+			cudaStreamSynchronize(0);
+		}*/
 
 		std::string frameNumString = "Frame " + std::to_string(frameNum);
 		frame.nvtxRangeID = nvtxRangeStartA(frameNumString.c_str());
@@ -134,7 +146,6 @@ void encodeFrame(NvPipe *encoder, PointerMap<Frame> *inFrames,
 			frame->needsCudaFree = false;
 		}
 		else {
-			cudaMemset(frame->decompressedFrameDevice, 0, frame->decompressedFrameSize);
 			gpuFrameBuffers->push_back(frame->decompressedFrameDevice);
 			frame->decompressedFrameDevice = nullptr;
 		}
@@ -373,17 +384,14 @@ int main(int argc, char* argv[])
 	int numBuffers = fps*2;
 	size_t bufferSize = inWidth*inHeight*4;
 	size_t totalBufferSize = numBuffers*bufferSize;
-	int numThreads = numThreadsPerGPU * numPhysicalGPUs;
-	void *largeBuffers[numThreads];
-	MutexQueue<void *> gpuFrameBuffers[numThreads];
-	for (int i = 0; i < numPhysicalGPUs; i++) {
+	void *largeBuffers[numStreams];
+	MutexQueue<void *> gpuFrameBuffers[numStreams];
+	for (int i = 0; i < numStreams; i++) {
 		cudaSetDevice(i);
-		for (int k = 0; k < numThreadsPerGPU; k++) {
-			cudaMalloc(&largeBuffers[i+k], totalBufferSize);
-			for (int j = 0; j < numBuffers; j++) {
-				void *offset = (void *)((uint8_t *)largeBuffers[i+k]+(bufferSize*j));
-				gpuFrameBuffers[i+k].push_back(offset);
-			}
+		cudaMalloc(&largeBuffers[i], totalBufferSize);
+		for (int j = 0; j < numBuffers; j++) {
+			void *offset = (void *)((uint8_t *)largeBuffers[i]+(bufferSize*j));
+			gpuFrameBuffers[i].push_back(offset);
 		}
 	}
 
@@ -399,6 +407,7 @@ int main(int argc, char* argv[])
 			i, frameNum);
 	}
 
+	int numThreads = numThreadsPerGPU * numStreams;
 	std::vector<GPUThread> GPUThreads(numThreads);
 	int detectorGPUNo[4] = {1,0,3,2};
 	// int detectorGPUNo[4] = {0,1,2,3};
@@ -414,6 +423,16 @@ int main(int argc, char* argv[])
 	for(int i = 0; i < numStreams; i++) {
 		muxerThreads[i] = std::thread(&muxThread, i, frameNum, encodedFrameMaps[i], muxers[i], fps);
 	}
+
+#ifdef PROFILE
+	// Launch profiler
+	std::stringstream s;
+	s << getpid();
+	pid_t pid = fork();
+	if (pid == 0) {
+		exit(execl("/usr/bin/perf","perf","record","-o","perf.data","-p",s.str().c_str(),nullptr));
+	} 
+#endif
 
 	std::vector<std::thread> decoderThreads(numStreams);
 	for(int i = 0; i < numStreams; i++) {
@@ -438,7 +457,7 @@ int main(int argc, char* argv[])
 	cudaProfilerStop();
 	for (auto muxer : muxers)
 		delete muxer;
-	for (int i = 0; i < numThreads; i++) {
+	for (int i = 0; i < numStreams; i++) {
 		cudaSetDevice(i);
 		cudaFree(largeBuffers[i]);
 	}
@@ -446,6 +465,12 @@ int main(int argc, char* argv[])
 		delete map;
 	for (auto map : detectedFrameMaps)
 		delete map;
+
+#ifdef PROFILE
+	// Kill profiler
+	kill(pid,SIGINT);
+	waitpid(pid,nullptr,0);
+#endif
 
 	return 0;
 }

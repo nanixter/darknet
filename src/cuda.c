@@ -150,6 +150,12 @@ void cuda_free(float *x_gpu)
     check_error(status);
 }
 
+void cuda_free_host(void *x)
+{
+    cudaError_t status = cudaFreeHost(x);
+    check_error(status);
+}
+
 void cuda_push_arrayD2D(float *x_gpu, float *y_gpu, size_t n)
 {
     size_t size = sizeof(float)*n;
@@ -178,6 +184,19 @@ void cuda_pull_array(float *x_gpu, float *x, size_t n)
     check_error(status);
 }
 
+void cuda_pull_array_async(float *x_gpu, float *x, size_t n)
+{
+    size_t size = sizeof(float)*n;
+    cudaError_t status = cudaMemcpyAsync(x, x_gpu, size, cudaMemcpyDeviceToHost, 0);
+    check_error(status);
+}
+
+void cuda_stream_synchronize()
+{
+    cudaError_t status = cudaStreamSynchronize(0);
+    check_error(status);
+}
+
 float cuda_mag_array(float *x_gpu, size_t n)
 {
     float *temp = calloc(n, sizeof(float));
@@ -186,6 +205,12 @@ float cuda_mag_array(float *x_gpu, size_t n)
     free(temp);
     return m;
 }
+
+void cuda_malloc_host(void **ptr, size_t  size) {
+    cudaError_t status = cudaMallocHost(ptr, size);
+    check_error(status);
+}
+
 #else
 void cuda_set_device(int n){}
 

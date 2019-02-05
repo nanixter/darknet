@@ -805,7 +805,6 @@ void forward_network_gpubuffer(network *netp, int bufferDeviceNum)
         if(l.delta_gpu){
             fill_gpu(l.outputs * l.batch, 0, l.delta_gpu, 1);
         }
-        //printf("Node no %d\n", i);
 		l.forward_gpu(l, net);
         net.input_gpu = l.output_gpu;
         net.input = l.output;
@@ -815,6 +814,7 @@ void forward_network_gpubuffer(network *netp, int bufferDeviceNum)
         }
     }
     pull_network_output(netp);
+    cuda_stream_synchronize();
     calc_network_cost(netp);
 }
 
@@ -843,6 +843,7 @@ void forward_network_gpu(network *netp)
         }
     }
     pull_network_output(netp);
+    cuda_stream_synchronize();
     calc_network_cost(netp);
 }
 
@@ -1182,7 +1183,7 @@ float train_networks(network **nets, int n, data d, int interval)
 void pull_network_output(network *net)
 {
     layer l = get_network_output_layer(net);
-    cuda_pull_array(l.output_gpu, l.output, l.outputs*l.batch);
+    cuda_pull_array_async(l.output_gpu, l.output, l.outputs*l.batch);
 }
 
 #endif

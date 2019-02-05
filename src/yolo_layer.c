@@ -48,6 +48,8 @@ layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int 
     l.forward = forward_yolo_layer;
     l.backward = backward_yolo_layer;
 #ifdef GPU
+    free(l.output);
+    cuda_malloc_host((void **)&(l.output), (size_t)(batch*l.outputs*sizeof(float)));
     l.forward_gpu = forward_yolo_layer_gpu;
     l.backward_gpu = backward_yolo_layer_gpu;
     l.output_gpu = cuda_make_array(l.output, batch*l.outputs);
@@ -68,16 +70,20 @@ void resize_yolo_layer(layer *l, int w, int h)
     l->outputs = h*w*l->n*(l->classes + 4 + 1);
     l->inputs = l->outputs;
 
-    l->output = realloc(l->output, l->batch*l->outputs*sizeof(float));
     l->delta = realloc(l->delta, l->batch*l->outputs*sizeof(float));
 
 #ifdef GPU
     cuda_free(l->delta_gpu);
     cuda_free(l->output_gpu);
+    cuda_free_host(l->output);
 
-    l->delta_gpu =     cuda_make_array(l->delta, l->batch*l->outputs);
-    l->output_gpu =    cuda_make_array(l->output, l->batch*l->outputs);
+    l->delta_gpu = cuda_make_array(l->delta, l->batch*l->outputs);
+    l->output_gpu = cuda_make_array(l->output, l->batch*l->outputs);
+    cuda_malloc_host((void **)&(l->output), (size_t)(l->batch*l->outputs*sizeof(float)));
+#else
+    l->output = realloc(l->output, l->batch*l->outputs*sizeof(float));
 #endif
+
 }
 
 box get_yolo_box(float *x, float *biases, int n, int index, int i, int j, int lw, int lh, int w, int h, int stride)
@@ -258,8 +264,8 @@ void correct_yolo_boxes(detection *dets, int n, int w, int h, int netw, int neth
     }
     for (i = 0; i < n; ++i){
         box b = dets[i].bbox;
-        b.x =  (b.x - (netw - new_w)/2./netw) / ((float)new_w/netw); 
-        b.y =  (b.y - (neth - new_h)/2./neth) / ((float)new_h/neth); 
+        b.x =  (b.x - (netw - new_w)/2./netw) / ((float)new_w/netw);
+        b.y =  (b.y - (neth - new_h)/2./neth) / ((float)new_h/neth);
         b.w *= (float)netw/new_w;
         b.h *= (float)neth/new_h;
         if(!relative){
@@ -357,7 +363,7 @@ void forward_yolo_layer_gpu(const layer l, network net)
         }
     }
     if(!net.train || l.onlyforward){
-        cuda_pull_array(l.output_gpu, l.output, l.batch*l.outputs);
+        cuda_pull_array_async(l.output_gpu, l.output, l.batch*l.outputs);
         return;
     }
 
