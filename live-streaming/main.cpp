@@ -14,7 +14,14 @@
 #include <unordered_map>
 #include <thread>
 #include <cmath>
+#include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <functional>
+#include <fcntl.h>
+#include <unistd.h>
+#include <signal.h>
 
 #include <cuda_runtime_api.h>
 #include <cuda_profiler_api.h>
@@ -53,12 +60,14 @@ simplelogger::Logger *logger = simplelogger::LoggerFactory::CreateConsoleLogger(
 #include "utils/PointerMap.h"
 #include "utils/Types.h"
 #include "utils/Queue.h"
+#include "utils/Profiler.h"
 
 using LiveStreamDetector::Frame;
 using LiveStreamDetector::WorkRequest;
 using LiveStreamDetector::MutexQueue;
 
 #include "GPUThread.h"
+
 
 void decodeFrame(NvPipe* decoder, MutexQueue<Frame> *inFrames,
 				MutexQueue<Frame> *outFrames, MutexQueue<void *> *gpuFramesQueue,
@@ -377,6 +386,19 @@ int main(int argc, char* argv[])
 		}
 	}
 
+	// Launch profiler
+	std::string filename = "perf.data";
+	pid_t pid;
+	std::stringstream s;
+	s << getpid();
+	pid = fork();
+	if (pid == 0) {
+		auto fd=open("/dev/null",O_RDWR);
+		dup2(fd,1);
+		dup2(fd,2);
+		exit(execl("/usr/bin/perf","perf","record","-o",filename.c_str(),"-p",s.str().c_str(),nullptr));
+	}
+
 	LOG(INFO) << "LAST FRAME = " << frameNum;
 	cudaProfilerStart();
 	// Launch the pipeline stages in reverse order so the entire pipeline is
@@ -434,6 +456,10 @@ int main(int argc, char* argv[])
 		delete map;
 	for (auto map : detectedFrameMaps)
 		delete map;
+
+	// Kill profiler
+	kill(pid,SIGINT);
+	waitpid(pid,nullptr,0);
 
 	return 0;
 }
