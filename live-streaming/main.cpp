@@ -60,7 +60,6 @@ simplelogger::Logger *logger = simplelogger::LoggerFactory::CreateConsoleLogger(
 #include "utils/PointerMap.h"
 #include "utils/Types.h"
 #include "utils/Queue.h"
-#include "utils/Profiler.h"
 
 using LiveStreamDetector::Frame;
 using LiveStreamDetector::WorkRequest;
@@ -390,7 +389,6 @@ int main(int argc, char* argv[])
 	}
 
 	// Launch profiler
-	std::string filename = "perf.data";
 	pid_t pid;
 	std::stringstream s;
 	s << getpid();
@@ -399,7 +397,7 @@ int main(int argc, char* argv[])
 		auto fd=open("/dev/null",O_RDWR);
 		dup2(fd,1);
 		dup2(fd,2);
-		exit(execl("/usr/bin/perf","perf","record","-o",filename.c_str(),"-p",s.str().c_str(),nullptr));
+		exit(execl("/usr/bin/perf","perf","record","-o","perf.data","-p",s.str().c_str(),nullptr));
 	}
 
 	LOG(INFO) << "LAST FRAME = " << frameNum;
