@@ -381,7 +381,7 @@ int main(int argc, char* argv[])
 		frameNum++;
 	}
 
-	int numBuffers = fps*2;
+	int numBuffers = fps*4;
 	size_t bufferSize = inWidth*inHeight*4;
 	size_t totalBufferSize = numBuffers*bufferSize;
 	void *largeBuffers[numStreams];
