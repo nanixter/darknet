@@ -85,6 +85,7 @@ void decodeFrame(NvPipe* decoder, MutexQueue<Frame> *inFrames,
 		frame.decompressedFrameSize = inWidth*inHeight*4;
 		frame.deviceNumDecompressed = gpuNum;
 		if(!gpuFramesQueue->pop_front(frame.decompressedFrameDevice)){
+			
 			LOG(INFO) << "Ran out of buffers. Calling cudaMalloc...";
 			cudaMalloc(&frame.decompressedFrameDevice, frame.decompressedFrameSize);
 			frame.needsCudaFree = true;
@@ -193,6 +194,7 @@ void printUsage(char *binaryName) {
 			<<	"-n number of GPUs to use (default=cudaGetDeviceCount; valid range: 1 to cudaGetDeviceCount)" <<std::endl
 			<<	"-f fps (default=30fps; valid range: 1 to 120)" <<std::endl
 			<<	"-r per_client_max_outstanding_frames (default=100; valid range = 1 to 200)" <<std::endl
+			<<	"-m mem_to_burn_in_bytes" <<std::endl
 			<<	"-b bit rate of output video (in Mbps; default=2; valid range = 1 to 6;)" <<std::endl;
 }
 
@@ -210,6 +212,7 @@ int main(int argc, char* argv[])
 	int fps = 30;
 	int maxOutstandingFrames = 100;
 	float bitrateMbps = 2;
+	size_t memToBurn = 0*1024*1024;
 
 	int numPhysicalGPUs;
 	cudaError_t status = cudaGetDeviceCount(&numPhysicalGPUs);
@@ -230,6 +233,8 @@ int main(int argc, char* argv[])
 			fps = atoi(argv[i+1]);
 		} else if (0 == strcmp(argv[i], "-r")) {
 			maxOutstandingFrames = atoi(argv[i+1]);
+		} else if (0 == strcmp(argv[i], "-m")) {
+			memToBurn = atoi(argv[i+1]);
 		} else if (0 == strcmp(argv[i], "-b")) {
 			bitrateMbps = atof(argv[i+1]);
 		} else if (0 == strcmp(argv[i], "-s")) {
@@ -316,6 +321,9 @@ int main(int argc, char* argv[])
 			cudaDeviceEnablePeerAccess(j, 0);
 		}
 	}
+
+	void * reservedMem;
+	cudaMallocHost(&reservedMem, memToBurn);
 
 	//numStreams = std::min(numStreams, numPhysicalGPUs);
 	FFmpegStreamer *muxers[numStreams];
@@ -451,6 +459,7 @@ int main(int argc, char* argv[])
 		cudaSetDevice(i);
 		cudaFree(largeBuffers[i]);
 	}
+	cudaFreeHost(reservedMem);
 	for (auto map : encodedFrameMaps)
 		delete map;
 	for (auto map : detectedFrameMaps)
