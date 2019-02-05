@@ -388,18 +388,6 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	// Launch profiler
-	pid_t pid;
-	std::stringstream s;
-	s << getpid();
-	pid = fork();
-	if (pid == 0) {
-		auto fd=open("/dev/null",O_RDWR);
-		dup2(fd,1);
-		dup2(fd,2);
-		exit(execl("/usr/bin/perf","perf","record","-o","perf.data","-p",s.str().c_str(),nullptr));
-	}
-
 	LOG(INFO) << "LAST FRAME = " << frameNum;
 	cudaProfilerStart();
 	// Launch the pipeline stages in reverse order so the entire pipeline is
@@ -425,6 +413,14 @@ int main(int argc, char* argv[])
 	for(int i = 0; i < numStreams; i++) {
 		muxerThreads[i] = std::thread(&muxThread, i, frameNum, encodedFrameMaps[i], muxers[i], fps);
 	}
+
+	// Launch profiler
+	std::stringstream s;
+	s << getpid();
+	pid_t pid = fork();
+	if (pid == 0) {
+		exit(execl("/usr/bin/perf","perf","record","-o","perf.data","-p",s.str().c_str(),nullptr));
+	} 
 
 	std::vector<std::thread> decoderThreads(numStreams);
 	for(int i = 0; i < numStreams; i++) {
