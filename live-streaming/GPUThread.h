@@ -166,8 +166,10 @@ public:
 				std::cout << "cudaResizeRGB Status = " << cudaGetErrorName(status) << std::endl;
 			assert(status == cudaSuccess);
 
-			if (nppGetStream() != RDstream)
+			if (nppGetStream() != RDstream) {
+				cudaDeviceSynchronize();
 				nppSetStream(RDstream);
+			}
 
 			// Pad the image with black border if needed
 			nppStatus = nppiCopyConstBorder_32f_C3R(
@@ -296,6 +298,7 @@ public:
 								<< cudaGetErrorName(status) << std::endl;
 			}
 
+			cudaStreamSynchronize(RDstream);
 			completedFramesMap[frame->streamNum]->insert(frame, frame->frameNum);
 
 		}
