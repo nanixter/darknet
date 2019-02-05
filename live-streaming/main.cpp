@@ -89,7 +89,11 @@ void decodeFrame(NvPipe* decoder, MutexQueue<Frame> *inFrames,
 			LOG(INFO) << "Ran out of buffers. Calling cudaMalloc...";
 			cudaMalloc(&frame.decompressedFrameDevice, frame.decompressedFrameSize);
 			frame.needsCudaFree = true;
-		}
+		} 
+		/*else {
+			cudaMemset(frame.decompressedFrameDevice, 0, frame.decompressedFrameSize);
+			cudaStreamSynchronize(0);
+		}*/
 
 		std::string frameNumString = "Frame " + std::to_string(frameNum);
 		frame.nvtxRangeID = nvtxRangeStartA(frameNumString.c_str());
@@ -144,7 +148,6 @@ void encodeFrame(NvPipe *encoder, PointerMap<Frame> *inFrames,
 			frame->needsCudaFree = false;
 		}
 		else {
-			cudaMemset(frame->decompressedFrameDevice, 0, frame->decompressedFrameSize);
 			gpuFrameBuffers->push_back(frame->decompressedFrameDevice);
 			frame->decompressedFrameDevice = nullptr;
 		}
@@ -375,9 +378,9 @@ int main(int argc, char* argv[])
 	int numBuffers = fps*2;
 	size_t bufferSize = inWidth*inHeight*4;
 	size_t totalBufferSize = numBuffers*bufferSize;
-	void *largeBuffers[numPhysicalGPUs];
-	MutexQueue<void *> gpuFrameBuffers[numPhysicalGPUs];
-	for (int i = 0; i < numPhysicalGPUs; i++) {
+	void *largeBuffers[numStreams];
+	MutexQueue<void *> gpuFrameBuffers[numStreams];
+	for (int i = 0; i < numStreams; i++) {
 		cudaSetDevice(i);
 		cudaMalloc(&largeBuffers[i], totalBufferSize);
 		for (int j = 0; j < numBuffers; j++) {
