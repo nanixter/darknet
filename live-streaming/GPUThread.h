@@ -19,6 +19,7 @@ public:
 			int targetFPS, int inWidth, int inHeight, int numStreams,
 			int argc, char** argv)
 	{
+		LOG(INFO) << "Init " << threadID << "thread on GPU" << firstGPU;
 		this->completedFramesMap = completedFramesMap;
 		this->frames = frames;
 		this->targetFPS = targetFPS;
@@ -30,7 +31,6 @@ public:
 		this->numStreams = numStreams;
 		this->done.store(false, std::memory_order_release);
 
-		LOG(INFO) << "Init " << threadID << "thread.";
 		// Initialize Darknet Detector
 		detector.Init(argc, argv, detectorGPU);
 

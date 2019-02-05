@@ -407,7 +407,7 @@ int main(int argc, char* argv[])
 			i, frameNum);
 	}
 
-	int numThreads = numThreadsPerGPU * numStreams;
+	int numThreads = numThreadsPerGPU * numPhysicalGPUs;
 	std::vector<GPUThread> GPUThreads(numThreads);
 	int detectorGPUNo[4] = {1,0,3,2};
 	// int detectorGPUNo[4] = {0,1,2,3};

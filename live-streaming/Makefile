@@ -2,14 +2,14 @@
 GPU=1
 PROFILE=0
 
-CXX = clang++
+CXX = clang++-libc++
 NVCC = nvcc
 DARKNET_HEADER_PATH = ../include/
-CPPFLAGS += `pkg-config libavformat libavcodec` -g -O3
+CPPFLAGS += `pkg-config libavformat libavcodec` -g -O0
 CXXFLAGS += -std=c++11 -I $(DARKNET_HEADER_PATH) -Invpipe/src/NvCodec/Utils -Iutils
 LDFLAGS += -L/usr/local/lib `pkg-config --libs libavformat libavcodec` -lNvPipe \
 			-Wl,--as-needed -ldl -lpthread \
-			-L../ -Wl,--as-needed -ldarknet
+			-ljemalloc -L../ -Wl,--as-needed -ldarknet
 
 ifeq ($(GPU), 1)
 CXXFLAGS+= -DGPU -I/usr/local/cuda/include/
