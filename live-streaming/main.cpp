@@ -414,6 +414,7 @@ int main(int argc, char* argv[])
 		muxerThreads[i] = std::thread(&muxThread, i, frameNum, encodedFrameMaps[i], muxers[i], fps);
 	}
 
+#ifdef PROFILE
 	// Launch profiler
 	std::stringstream s;
 	s << getpid();
@@ -421,6 +422,7 @@ int main(int argc, char* argv[])
 	if (pid == 0) {
 		exit(execl("/usr/bin/perf","perf","record","-o","perf.data","-p",s.str().c_str(),nullptr));
 	} 
+#endif
 
 	std::vector<std::thread> decoderThreads(numStreams);
 	for(int i = 0; i < numStreams; i++) {
@@ -454,9 +456,11 @@ int main(int argc, char* argv[])
 	for (auto map : detectedFrameMaps)
 		delete map;
 
+#ifdef PROFILE
 	// Kill profiler
 	kill(pid,SIGINT);
 	waitpid(pid,nullptr,0);
+#endif
 
 	return 0;
 }

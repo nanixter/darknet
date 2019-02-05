@@ -1,5 +1,6 @@
 # LiveStreamDarknet Makefile.
 GPU=1
+PROFILE=0
 
 CXX = clang++
 NVCC = nvcc
@@ -13,6 +14,10 @@ LDFLAGS += -L/usr/local/lib `pkg-config --libs libavformat libavcodec` -lNvPipe 
 ifeq ($(GPU), 1)
 CXXFLAGS+= -DGPU -I/usr/local/cuda/include/
 LDFLAGS+= -L/usr/local/cuda/lib64 -Wl,--as-needed -lcuda -lcudart -lcublas -lcurand -lcudnn -lnppisu -lnppicom -lnppig -lnppc -lnppidei -lnvToolsExt
+endif
+
+ifeq ($(PROFILE), 1)
+CXXFLAGS += -DPROFILE
 endif
 
 all: server
