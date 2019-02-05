@@ -96,7 +96,7 @@ void free_layer(layer l)
 
     if (l.type == YOLO) {
 #ifdef GPU
-        if(l.output)              cuda_free_host(l.output)
+        if(l.output)              cuda_free_host(l.output);
 #else
         if(l.output)              free(l.output);
 #endif
