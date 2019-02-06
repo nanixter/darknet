@@ -125,7 +125,7 @@ struct layer{
     void (*update)    (struct layer, update_args);
     void (*forward_gpu)   (struct layer, struct network);
     void (*backward_gpu)  (struct layer, struct network);
-    void (*update_gpu)    (struct layer, update_args);
+    void (*update_gpu)    (struct layer, update_args, cudaStream_t *stream);
     int batch_normalize;
     int shortcut;
     int batch;
@@ -691,7 +691,7 @@ char *option_find_str(list *l, char *key, char *def);
 int option_find_int(list *l, char *key, int def);
 int option_find_int_quiet(list *l, char *key, int def);
 
-network *parse_network_cfg(char *filename);
+network *parse_network_cfg(char *filename, cudaStream_t *stream);
 void save_weights(network *net, char *filename);
 void load_weights(network *net, char *filename);
 void save_weights_upto(network *net, char *filename, int cutoff);
