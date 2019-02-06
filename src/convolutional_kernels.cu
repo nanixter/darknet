@@ -182,7 +182,7 @@ void backward_convolutional_layer_gpu(convolutional_layer l, network net)
         smooth_layer(l, 5, l.smooth);
     }
     //constrain_gpu(l.outputs*l.batch, 1, l.delta_gpu, 1);
-    gradient_array_gpu(l.output_gpu, l.outputs*l.batch, l.activation, l.delta_gpu);
+    gradient_array_gpu(l.output_gpu, l.outputs*l.batch, l.activation, l.delta_gpu, net.stream);
 
 
     if(l.batch_normalize){
@@ -225,7 +225,7 @@ void backward_convolutional_layer_gpu(convolutional_layer l, network net)
                 l.dsrcTensorDesc,
                 net.delta_gpu);
         if(l.binary || l.xnor) swap_binary(&l);
-        if(l.xnor) gradient_array_gpu(original_input, l.batch*l.c*l.h*l.w, HARDTAN, net.delta_gpu);
+        if(l.xnor) gradient_array_gpu(original_input, l.batch*l.c*l.h*l.w, HARDTAN, net.delta_gpu, net.stream);
     }
 
 #else
@@ -264,7 +264,7 @@ void backward_convolutional_layer_gpu(convolutional_layer l, network net)
                     swap_binary(&l);
                 }
             }
-            if(l.xnor) gradient_array_gpu(original_input + i*l.c*l.h*l.w, l.c*l.h*l.w, HARDTAN, net.delta_gpu + i*l.c*l.h*l.w);
+            if(l.xnor) gradient_array_gpu(original_input + i*l.c*l.h*l.w, l.c*l.h*l.w, HARDTAN, net.delta_gpu + i*l.c*l.h*l.w, net.stream);
         }
     }
 #endif

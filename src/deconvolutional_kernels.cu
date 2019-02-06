@@ -46,7 +46,7 @@ extern "C" void backward_deconvolutional_layer_gpu(layer l, network net)
     int i;
 
     //constrain_gpu(l.outputs*l.batch, 1, l.delta_gpu, 1);
-    gradient_array_gpu(l.output_gpu, l.outputs*l.batch, l.activation, l.delta_gpu);
+    gradient_array_gpu(l.output_gpu, l.outputs*l.batch, l.activation, l.delta_gpu, net.stream);
 
     if(l.batch_normalize){
         backward_batchnorm_layer_gpu(l, net);

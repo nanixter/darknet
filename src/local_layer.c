@@ -219,7 +219,7 @@ void backward_local_layer_gpu(local_layer l, network net)
     int i, j;
     int locations = l.out_w*l.out_h;
 
-    gradient_array_gpu(l.output_gpu, l.outputs*l.batch, l.activation, l.delta_gpu);
+    gradient_array_gpu(l.output_gpu, l.outputs*l.batch, l.activation, l.delta_gpu, net.stream);
     for(i = 0; i < l.batch; ++i){
         axpy_gpu(l.outputs, 1, l.delta_gpu + i*l.outputs, 1, l.bias_updates_gpu, 1);
     }
