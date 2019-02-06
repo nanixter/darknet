@@ -39,7 +39,7 @@ public:
 		char *cfgfile = argv[1];
 		char *weightfile = argv[2];
 
-		this->net = load_network(cfgfile, weightfile, 0);
+		this->net = load_network(cfgfile, weightfile, 0, stream);
 		this->net->stream = &DNNStream;
 	}
 

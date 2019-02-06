@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-layer make_activation_layer(int batch, int inputs, ACTIVATION activation)
+layer make_activation_layer(int batch, int inputs, ACTIVATION activation, cudaStream_t *stream)
 {
     layer l = {0};
     l.type = ACTIVE;
@@ -27,8 +27,8 @@ layer make_activation_layer(int batch, int inputs, ACTIVATION activation)
     l.forward_gpu = forward_activation_layer_gpu;
     l.backward_gpu = backward_activation_layer_gpu;
 
-    l.output_gpu = cuda_make_array(l.output, inputs*batch);
-    l.delta_gpu = cuda_make_array(l.delta, inputs*batch);
+    l.output_gpu = cuda_make_array(l.output, inputs*batch, stream);
+    l.delta_gpu = cuda_make_array(l.delta, inputs*batch, stream);
 #endif
     l.activation = activation;
     fprintf(stderr, "Activation Layer: %d inputs\n", inputs);
@@ -51,13 +51,13 @@ void backward_activation_layer(layer l, network net)
 
 void forward_activation_layer_gpu(layer l, network net)
 {
-    copy_gpu(l.outputs*l.batch, net.input_gpu, 1, l.output_gpu, 1);
+    copy_gpu(l.outputs*l.batch, net.input_gpu, 1, l.output_gpu, 1, net.stream);
     activate_array_gpu(l.output_gpu, l.outputs*l.batch, l.activation, net.stream);
 }
 
 void backward_activation_layer_gpu(layer l, network net)
 {
     gradient_array_gpu(l.output_gpu, l.outputs*l.batch, l.activation, l.delta_gpu, net.stream);
-    copy_gpu(l.outputs*l.batch, l.delta_gpu, 1, net.delta_gpu, 1);
+    copy_gpu(l.outputs*l.batch, l.delta_gpu, 1, net.delta_gpu, 1, net.stream);
 }
 #endif

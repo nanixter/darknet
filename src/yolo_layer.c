@@ -10,7 +10,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int classes)
+layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int classes, cudaStream_t *stream)
 {
     int i;
     layer l = {0};
@@ -52,8 +52,8 @@ layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int 
     cuda_malloc_host((void **)&(l.output), (size_t)(batch*l.outputs*sizeof(float)));
     l.forward_gpu = forward_yolo_layer_gpu;
     l.backward_gpu = backward_yolo_layer_gpu;
-    l.output_gpu = cuda_make_array(l.output, batch*l.outputs);
-    l.delta_gpu = cuda_make_array(l.delta, batch*l.outputs);
+    l.output_gpu = cuda_make_array(l.output, batch*l.outputs, stream);
+    l.delta_gpu = cuda_make_array(l.delta, batch*l.outputs, stream);
 #endif
 
     fprintf(stderr, "yolo\n");
@@ -62,7 +62,7 @@ layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int 
     return l;
 }
 
-void resize_yolo_layer(layer *l, int w, int h)
+void resize_yolo_layer(layer *l, int w, int h, cudaStream_t *stream)
 {
     l->w = w;
     l->h = h;
@@ -77,8 +77,8 @@ void resize_yolo_layer(layer *l, int w, int h)
     cuda_free(l->output_gpu);
     cuda_free_host(l->output);
 
-    l->delta_gpu = cuda_make_array(l->delta, l->batch*l->outputs);
-    l->output_gpu = cuda_make_array(l->output, l->batch*l->outputs);
+    l->delta_gpu = cuda_make_array(l->delta, l->batch*l->outputs, stream);
+    l->output_gpu = cuda_make_array(l->output, l->batch*l->outputs, stream);
     cuda_malloc_host((void **)&(l->output), (size_t)(l->batch*l->outputs*sizeof(float)));
 #else
     l->output = realloc(l->output, l->batch*l->outputs*sizeof(float));
@@ -352,7 +352,7 @@ int get_yolo_detections(layer l, int w, int h, int netw, int neth, float thresh,
 
 void forward_yolo_layer_gpu(const layer l, network net)
 {
-    copy_gpu(l.batch*l.inputs, net.input_gpu, 1, l.output_gpu, 1);
+    copy_gpu(l.batch*l.inputs, net.input_gpu, 1, l.output_gpu, 1, net.stream);
     int b, n;
     for (b = 0; b < l.batch; ++b){
         for(n = 0; n < l.n; ++n){
@@ -374,7 +374,7 @@ void forward_yolo_layer_gpu(const layer l, network net)
 
 void backward_yolo_layer_gpu(const layer l, network net)
 {
-    axpy_gpu(l.batch*l.inputs, 1, l.delta_gpu, 1, net.delta_gpu, 1);
+    axpy_gpu(l.batch*l.inputs, 1, l.delta_gpu, 1, net.delta_gpu, 1, net.stream);
 }
 #endif
 

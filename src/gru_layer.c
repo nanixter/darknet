@@ -26,7 +26,7 @@ static void increment_layer(layer *l, int steps)
 #endif
 }
 
-layer make_gru_layer(int batch, int inputs, int outputs, int steps, int batch_normalize, int adam)
+layer make_gru_layer(int batch, int inputs, int outputs, int steps, int batch_normalize, int adam, cudaStream_t *stream)
 {
     fprintf(stderr, "GRU Layer: %d inputs, %d outputs\n", inputs, outputs);
     batch = batch / steps;
@@ -38,34 +38,34 @@ layer make_gru_layer(int batch, int inputs, int outputs, int steps, int batch_no
 
     l.uz = malloc(sizeof(layer));
     fprintf(stderr, "\t\t");
-    *(l.uz) = make_connected_layer(batch*steps, inputs, outputs, LINEAR, batch_normalize, adam);
+    *(l.uz) = make_connected_layer(batch*steps, inputs, outputs, LINEAR, batch_normalize, adam, stream);
     l.uz->batch = batch;
 
     l.wz = malloc(sizeof(layer));
     fprintf(stderr, "\t\t");
-    *(l.wz) = make_connected_layer(batch*steps, outputs, outputs, LINEAR, batch_normalize, adam);
+    *(l.wz) = make_connected_layer(batch*steps, outputs, outputs, LINEAR, batch_normalize, adam, stream);
     l.wz->batch = batch;
 
     l.ur = malloc(sizeof(layer));
     fprintf(stderr, "\t\t");
-    *(l.ur) = make_connected_layer(batch*steps, inputs, outputs, LINEAR, batch_normalize, adam);
+    *(l.ur) = make_connected_layer(batch*steps, inputs, outputs, LINEAR, batch_normalize, adam, stream);
     l.ur->batch = batch;
 
     l.wr = malloc(sizeof(layer));
     fprintf(stderr, "\t\t");
-    *(l.wr) = make_connected_layer(batch*steps, outputs, outputs, LINEAR, batch_normalize, adam);
+    *(l.wr) = make_connected_layer(batch*steps, outputs, outputs, LINEAR, batch_normalize, adam, stream);
     l.wr->batch = batch;
 
 
 
     l.uh = malloc(sizeof(layer));
     fprintf(stderr, "\t\t");
-    *(l.uh) = make_connected_layer(batch*steps, inputs, outputs, LINEAR, batch_normalize, adam);
+    *(l.uh) = make_connected_layer(batch*steps, inputs, outputs, LINEAR, batch_normalize, adam, stream);
     l.uh->batch = batch;
 
     l.wh = malloc(sizeof(layer));
     fprintf(stderr, "\t\t");
-    *(l.wh) = make_connected_layer(batch*steps, outputs, outputs, LINEAR, batch_normalize, adam);
+    *(l.wh) = make_connected_layer(batch*steps, outputs, outputs, LINEAR, batch_normalize, adam, stream);
     l.wh->batch = batch;
 
     l.batch_normalize = batch_normalize;
@@ -92,15 +92,15 @@ layer make_gru_layer(int batch, int inputs, int outputs, int steps, int batch_no
     l.backward_gpu = backward_gru_layer_gpu;
     l.update_gpu = update_gru_layer_gpu;
 
-    l.forgot_state_gpu = cuda_make_array(0, batch*outputs);
-    l.forgot_delta_gpu = cuda_make_array(0, batch*outputs);
-    l.prev_state_gpu = cuda_make_array(0, batch*outputs);
-    l.state_gpu = cuda_make_array(0, batch*outputs);
-    l.output_gpu = cuda_make_array(0, batch*outputs*steps);
-    l.delta_gpu = cuda_make_array(0, batch*outputs*steps);
-    l.r_gpu = cuda_make_array(0, batch*outputs);
-    l.z_gpu = cuda_make_array(0, batch*outputs);
-    l.h_gpu = cuda_make_array(0, batch*outputs);
+    l.forgot_state_gpu = cuda_make_array(0, batch*outputs, stream);
+    l.forgot_delta_gpu = cuda_make_array(0, batch*outputs, stream);
+    l.prev_state_gpu = cuda_make_array(0, batch*outputs, stream);
+    l.state_gpu = cuda_make_array(0, batch*outputs, stream);
+    l.output_gpu = cuda_make_array(0, batch*outputs*steps, stream);
+    l.delta_gpu = cuda_make_array(0, batch*outputs*steps, stream);
+    l.r_gpu = cuda_make_array(0, batch*outputs, stream);
+    l.z_gpu = cuda_make_array(0, batch*outputs, stream);
+    l.h_gpu = cuda_make_array(0, batch*outputs, stream);
 
 #ifdef CUDNN
     cudnnSetTensor4dDescriptor(l.uz->dstTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, batch, l.uz->out_c, l.uz->out_h, l.uz->out_w);
@@ -215,14 +215,14 @@ void push_gru_layer(layer l)
 {
 }
 
-void update_gru_layer_gpu(layer l, update_args a)
+void update_gru_layer_gpu(layer l, update_args a, cudaStream_t *stream)
 {
-    update_connected_layer_gpu(*(l.ur), a);
-    update_connected_layer_gpu(*(l.uz), a);
-    update_connected_layer_gpu(*(l.uh), a);
-    update_connected_layer_gpu(*(l.wr), a);
-    update_connected_layer_gpu(*(l.wz), a);
-    update_connected_layer_gpu(*(l.wh), a);
+    update_connected_layer_gpu(*(l.ur), a, stream);
+    update_connected_layer_gpu(*(l.uz), a, stream);
+    update_connected_layer_gpu(*(l.uh), a, stream);
+    update_connected_layer_gpu(*(l.wr), a, stream);
+    update_connected_layer_gpu(*(l.wz), a, stream);
+    update_connected_layer_gpu(*(l.wh), a, stream);
 }
 
 void forward_gru_layer_gpu(layer l, network net)
@@ -238,16 +238,16 @@ void forward_gru_layer_gpu(layer l, network net)
     layer wr = *(l.wr);
     layer wh = *(l.wh);
 
-    fill_gpu(l.outputs * l.batch * l.steps, 0, uz.delta_gpu, 1);
-    fill_gpu(l.outputs * l.batch * l.steps, 0, ur.delta_gpu, 1);
-    fill_gpu(l.outputs * l.batch * l.steps, 0, uh.delta_gpu, 1);
+    fill_gpu(l.outputs * l.batch * l.steps, 0, uz.delta_gpu, 1, net.stream);
+    fill_gpu(l.outputs * l.batch * l.steps, 0, ur.delta_gpu, 1, net.stream);
+    fill_gpu(l.outputs * l.batch * l.steps, 0, uh.delta_gpu, 1, net.stream);
 
-    fill_gpu(l.outputs * l.batch * l.steps, 0, wz.delta_gpu, 1);
-    fill_gpu(l.outputs * l.batch * l.steps, 0, wr.delta_gpu, 1);
-    fill_gpu(l.outputs * l.batch * l.steps, 0, wh.delta_gpu, 1);
+    fill_gpu(l.outputs * l.batch * l.steps, 0, wz.delta_gpu, 1, net.stream);
+    fill_gpu(l.outputs * l.batch * l.steps, 0, wr.delta_gpu, 1, net.stream);
+    fill_gpu(l.outputs * l.batch * l.steps, 0, wh.delta_gpu, 1, net.stream);
     if(net.train) {
-        fill_gpu(l.outputs * l.batch * l.steps, 0, l.delta_gpu, 1);
-        copy_gpu(l.outputs*l.batch, l.state_gpu, 1, l.prev_state_gpu, 1);
+        fill_gpu(l.outputs * l.batch * l.steps, 0, l.delta_gpu, 1, net.stream);
+        copy_gpu(l.outputs*l.batch, l.state_gpu, 1, l.prev_state_gpu, 1, net.stream);
     }
 
     for (i = 0; i < l.steps; ++i) {
@@ -260,23 +260,23 @@ void forward_gru_layer_gpu(layer l, network net)
         forward_connected_layer_gpu(ur, s);
         forward_connected_layer_gpu(uh, s);
 
-        copy_gpu(l.outputs*l.batch, uz.output_gpu, 1, l.z_gpu, 1);
-        axpy_gpu(l.outputs*l.batch, 1, wz.output_gpu, 1, l.z_gpu, 1);
+        copy_gpu(l.outputs*l.batch, uz.output_gpu, 1, l.z_gpu, 1, net.stream);
+        axpy_gpu(l.outputs*l.batch, 1, wz.output_gpu, 1, l.z_gpu, 1, net.stream);
 
-        copy_gpu(l.outputs*l.batch, ur.output_gpu, 1, l.r_gpu, 1);
-        axpy_gpu(l.outputs*l.batch, 1, wr.output_gpu, 1, l.r_gpu, 1);
+        copy_gpu(l.outputs*l.batch, ur.output_gpu, 1, l.r_gpu, 1, net.stream);
+        axpy_gpu(l.outputs*l.batch, 1, wr.output_gpu, 1, l.r_gpu, 1, net.stream);
 
         activate_array_gpu(l.z_gpu, l.outputs*l.batch, LOGISTIC, net.stream);
         activate_array_gpu(l.r_gpu, l.outputs*l.batch, LOGISTIC, net.stream);
 
-        copy_gpu(l.outputs*l.batch, l.state_gpu, 1, l.forgot_state_gpu, 1);
-        mul_gpu(l.outputs*l.batch, l.r_gpu, 1, l.forgot_state_gpu, 1);
+        copy_gpu(l.outputs*l.batch, l.state_gpu, 1, l.forgot_state_gpu, 1, net.stream);
+        mul_gpu(l.outputs*l.batch, l.r_gpu, 1, l.forgot_state_gpu, 1, net.stream);
 
         s.input_gpu = l.forgot_state_gpu;
         forward_connected_layer_gpu(wh, s);
 
-        copy_gpu(l.outputs*l.batch, uh.output_gpu, 1, l.h_gpu, 1);
-        axpy_gpu(l.outputs*l.batch, 1, wh.output_gpu, 1, l.h_gpu, 1);
+        copy_gpu(l.outputs*l.batch, uh.output_gpu, 1, l.h_gpu, 1, net.stream);
+        axpy_gpu(l.outputs*l.batch, 1, wh.output_gpu, 1, l.h_gpu, 1, net.stream);
 
         if(l.tanh){
             activate_array_gpu(l.h_gpu, l.outputs*l.batch, TANH, net.stream);
@@ -284,8 +284,8 @@ void forward_gru_layer_gpu(layer l, network net)
             activate_array_gpu(l.h_gpu, l.outputs*l.batch, LOGISTIC, net.stream);
         }
 
-        weighted_sum_gpu(l.state_gpu, l.h_gpu, l.z_gpu, l.outputs*l.batch, l.output_gpu);
-        copy_gpu(l.outputs*l.batch, l.output_gpu, 1, l.state_gpu, 1);
+        weighted_sum_gpu(l.state_gpu, l.h_gpu, l.z_gpu, l.outputs*l.batch, l.output_gpu, net.stream);
+        copy_gpu(l.outputs*l.batch, l.output_gpu, 1, l.state_gpu, 1, net.stream);
 
         net.input_gpu += l.inputs*l.batch;
         l.output_gpu += l.outputs*l.batch;
@@ -326,21 +326,21 @@ void backward_gru_layer_gpu(layer l, network net)
     l.delta_gpu += l.outputs*l.batch*(l.steps-1);
     float *end_state = l.output_gpu;
     for (i = l.steps-1; i >= 0; --i) {
-        if(i != 0) copy_gpu(l.outputs*l.batch, l.output_gpu - l.outputs*l.batch, 1, l.state_gpu, 1);
-        else copy_gpu(l.outputs*l.batch, l.prev_state_gpu, 1, l.state_gpu, 1);
+        if(i != 0) copy_gpu(l.outputs*l.batch, l.output_gpu - l.outputs*l.batch, 1, l.state_gpu, 1, net.stream);
+        else copy_gpu(l.outputs*l.batch, l.prev_state_gpu, 1, l.state_gpu, 1, net.stream);
         float *prev_delta_gpu = (i == 0) ? 0 : l.delta_gpu - l.outputs*l.batch;
 
-        copy_gpu(l.outputs*l.batch, uz.output_gpu, 1, l.z_gpu, 1);
-        axpy_gpu(l.outputs*l.batch, 1, wz.output_gpu, 1, l.z_gpu, 1);
+        copy_gpu(l.outputs*l.batch, uz.output_gpu, 1, l.z_gpu, 1, net.stream);
+        axpy_gpu(l.outputs*l.batch, 1, wz.output_gpu, 1, l.z_gpu, 1, net.stream);
 
-        copy_gpu(l.outputs*l.batch, ur.output_gpu, 1, l.r_gpu, 1);
-        axpy_gpu(l.outputs*l.batch, 1, wr.output_gpu, 1, l.r_gpu, 1);
+        copy_gpu(l.outputs*l.batch, ur.output_gpu, 1, l.r_gpu, 1, net.stream);
+        axpy_gpu(l.outputs*l.batch, 1, wr.output_gpu, 1, l.r_gpu, 1, net.stream);
 
         activate_array_gpu(l.z_gpu, l.outputs*l.batch, LOGISTIC, net.stream);
         activate_array_gpu(l.r_gpu, l.outputs*l.batch, LOGISTIC, net.stream);
 
-        copy_gpu(l.outputs*l.batch, uh.output_gpu, 1, l.h_gpu, 1);
-        axpy_gpu(l.outputs*l.batch, 1, wh.output_gpu, 1, l.h_gpu, 1);
+        copy_gpu(l.outputs*l.batch, uh.output_gpu, 1, l.h_gpu, 1, net.stream);
+        axpy_gpu(l.outputs*l.batch, 1, wh.output_gpu, 1, l.h_gpu, 1, net.stream);
 
         if(l.tanh){
             activate_array_gpu(l.h_gpu, l.outputs*l.batch, TANH, net.stream);
@@ -348,7 +348,7 @@ void backward_gru_layer_gpu(layer l, network net)
             activate_array_gpu(l.h_gpu, l.outputs*l.batch, LOGISTIC, net.stream);
         }
 
-        weighted_delta_gpu(l.state_gpu, l.h_gpu, l.z_gpu, prev_delta_gpu, uh.delta_gpu, uz.delta_gpu, l.outputs*l.batch, l.delta_gpu);
+        weighted_delta_gpu(l.state_gpu, l.h_gpu, l.z_gpu, prev_delta_gpu, uh.delta_gpu, uz.delta_gpu, l.outputs*l.batch, l.delta_gpu, net.stream);
 
         if(l.tanh){
             gradient_array_gpu(l.h_gpu, l.outputs*l.batch, TANH, uh.delta_gpu, net.stream);
@@ -356,24 +356,24 @@ void backward_gru_layer_gpu(layer l, network net)
             gradient_array_gpu(l.h_gpu, l.outputs*l.batch, LOGISTIC, uh.delta_gpu, net.stream);
         }
 
-        copy_gpu(l.outputs*l.batch, uh.delta_gpu, 1, wh.delta_gpu, 1);
+        copy_gpu(l.outputs*l.batch, uh.delta_gpu, 1, wh.delta_gpu, 1, net.stream);
 
-        copy_gpu(l.outputs*l.batch, l.state_gpu, 1, l.forgot_state_gpu, 1);
-        mul_gpu(l.outputs*l.batch, l.r_gpu, 1, l.forgot_state_gpu, 1);
-        fill_gpu(l.outputs*l.batch, 0, l.forgot_delta_gpu, 1);
+        copy_gpu(l.outputs*l.batch, l.state_gpu, 1, l.forgot_state_gpu, 1, net.stream);
+        mul_gpu(l.outputs*l.batch, l.r_gpu, 1, l.forgot_state_gpu, 1, net.stream);
+        fill_gpu(l.outputs*l.batch, 0, l.forgot_delta_gpu, 1, net.stream);
 
         s.input_gpu = l.forgot_state_gpu;
         s.delta_gpu = l.forgot_delta_gpu;
 
         backward_connected_layer_gpu(wh, s);
-        if(prev_delta_gpu) mult_add_into_gpu(l.outputs*l.batch, l.forgot_delta_gpu, l.r_gpu, prev_delta_gpu);
-        mult_add_into_gpu(l.outputs*l.batch, l.forgot_delta_gpu, l.state_gpu, ur.delta_gpu);
+        if(prev_delta_gpu) mult_add_into_gpu(l.outputs*l.batch, l.forgot_delta_gpu, l.r_gpu, prev_delta_gpu, net.stream);
+        mult_add_into_gpu(l.outputs*l.batch, l.forgot_delta_gpu, l.state_gpu, ur.delta_gpu, net.stream);
 
         gradient_array_gpu(l.r_gpu, l.outputs*l.batch, LOGISTIC, ur.delta_gpu, net.stream);
-        copy_gpu(l.outputs*l.batch, ur.delta_gpu, 1, wr.delta_gpu, 1);
+        copy_gpu(l.outputs*l.batch, ur.delta_gpu, 1, wr.delta_gpu, 1, net.stream);
 
         gradient_array_gpu(l.z_gpu, l.outputs*l.batch, LOGISTIC, uz.delta_gpu, net.stream);
-        copy_gpu(l.outputs*l.batch, uz.delta_gpu, 1, wz.delta_gpu, 1);
+        copy_gpu(l.outputs*l.batch, uz.delta_gpu, 1, wz.delta_gpu, 1, net.stream);
 
         s.input_gpu = l.state_gpu;
         s.delta_gpu = prev_delta_gpu;
@@ -401,6 +401,6 @@ void backward_gru_layer_gpu(layer l, network net)
         increment_layer(&wr, -1);
         increment_layer(&wh, -1);
     }
-    copy_gpu(l.outputs*l.batch, end_state, 1, l.state_gpu, 1);
+    copy_gpu(l.outputs*l.batch, end_state, 1, l.state_gpu, 1, net.stream);
 }
 #endif

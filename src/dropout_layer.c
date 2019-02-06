@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-dropout_layer make_dropout_layer(int batch, int inputs, float probability)
+dropout_layer make_dropout_layer(int batch, int inputs, float probability, cudaStream_t *stream)
 {
     dropout_layer l = {0};
     l.type = DROPOUT;
@@ -19,19 +19,19 @@ dropout_layer make_dropout_layer(int batch, int inputs, float probability)
     #ifdef GPU
     l.forward_gpu = forward_dropout_layer_gpu;
     l.backward_gpu = backward_dropout_layer_gpu;
-    l.rand_gpu = cuda_make_array(l.rand, inputs*batch);
+    l.rand_gpu = cuda_make_array(l.rand, inputs*batch, stream);
     #endif
     fprintf(stderr, "dropout       p = %.2f               %4d  ->  %4d\n", probability, inputs, inputs);
     return l;
-} 
+}
 
-void resize_dropout_layer(dropout_layer *l, int inputs)
+void resize_dropout_layer(dropout_layer *l, int inputs, cudaStream_t *stream)
 {
     l->rand = realloc(l->rand, l->inputs*l->batch*sizeof(float));
     #ifdef GPU
     cuda_free(l->rand_gpu);
 
-    l->rand_gpu = cuda_make_array(l->rand, inputs*l->batch);
+    l->rand_gpu = cuda_make_array(l->rand, inputs*l->batch, stream);
     #endif
 }
 

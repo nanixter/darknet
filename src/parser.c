@@ -129,7 +129,7 @@ typedef struct size_params{
     network *net;
 } size_params;
 
-local_layer parse_local(list *options, size_params params)
+local_layer parse_local(list *options, size_params params, cudaStream_t *stream)
 {
     int n = option_find_int(options, "filters",1);
     int size = option_find_int(options, "size",1);
@@ -145,12 +145,12 @@ local_layer parse_local(list *options, size_params params)
     batch=params.batch;
     if(!(h && w && c)) error("Layer before local layer must output image.");
 
-    local_layer layer = make_local_layer(batch,h,w,c,n,size,stride,pad,activation);
+    local_layer layer = make_local_layer(batch,h,w,c,n,size,stride,pad,activation, stream);
 
     return layer;
 }
 
-layer parse_deconvolutional(list *options, size_params params)
+layer parse_deconvolutional(list *options, size_params params, cudaStream_t *stream)
 {
     int n = option_find_int(options, "filters",1);
     int size = option_find_int(options, "size",1);
@@ -176,7 +176,7 @@ layer parse_deconvolutional(list *options, size_params params)
 }
 
 
-convolutional_layer parse_convolutional(list *options, size_params params)
+convolutional_layer parse_convolutional(list *options, size_params params, cudaStream_t *stream)
 {
     int n = option_find_int(options, "filters",1);
     int size = option_find_int(options, "size",1);
@@ -199,14 +199,14 @@ convolutional_layer parse_convolutional(list *options, size_params params)
     int binary = option_find_int_quiet(options, "binary", 0);
     int xnor = option_find_int_quiet(options, "xnor", 0);
 
-    convolutional_layer layer = make_convolutional_layer(batch,h,w,c,n,groups,size,stride,padding,activation, batch_normalize, binary, xnor, params.net->adam);
+    convolutional_layer layer = make_convolutional_layer(batch,h,w,c,n,groups,size,stride,padding,activation, batch_normalize, binary, xnor, params.net->adam, stream);
     layer.flipped = option_find_int_quiet(options, "flipped", 0);
     layer.dot = option_find_float_quiet(options, "dot", 0);
 
     return layer;
 }
 
-layer parse_crnn(list *options, size_params params)
+layer parse_crnn(list *options, size_params params, cudaStream_t *stream)
 {
     int output_filters = option_find_int(options, "output_filters",1);
     int hidden_filters = option_find_int(options, "hidden_filters",1);
@@ -221,56 +221,56 @@ layer parse_crnn(list *options, size_params params)
     return l;
 }
 
-layer parse_rnn(list *options, size_params params)
+layer parse_rnn(list *options, size_params params, cudaStream_t *stream)
 {
     int output = option_find_int(options, "output",1);
     char *activation_s = option_find_str(options, "activation", "logistic");
     ACTIVATION activation = get_activation(activation_s);
     int batch_normalize = option_find_int_quiet(options, "batch_normalize", 0);
 
-    layer l = make_rnn_layer(params.batch, params.inputs, output, params.time_steps, activation, batch_normalize, params.net->adam);
+    layer l = make_rnn_layer(params.batch, params.inputs, output, params.time_steps, activation, batch_normalize, params.net->adam, stream);
 
     l.shortcut = option_find_int_quiet(options, "shortcut", 0);
 
     return l;
 }
 
-layer parse_gru(list *options, size_params params)
+layer parse_gru(list *options, size_params params, cudaStream_t *stream, cudaStream_t *stream)
 {
     int output = option_find_int(options, "output",1);
     int batch_normalize = option_find_int_quiet(options, "batch_normalize", 0);
 
-    layer l = make_gru_layer(params.batch, params.inputs, output, params.time_steps, batch_normalize, params.net->adam);
+    layer l = make_gru_layer(params.batch, params.inputs, output, params.time_steps, batch_normalize, params.net->adam, stream);
     l.tanh = option_find_int_quiet(options, "tanh", 0);
 
     return l;
 }
 
-layer parse_lstm(list *options, size_params params)
+layer parse_lstm(list *options, size_params params, cudaStream_t *stream, cudaStream_t *stream)
 {
     int output = option_find_int(options, "output", 1);
     int batch_normalize = option_find_int_quiet(options, "batch_normalize", 0);
 
-    layer l = make_lstm_layer(params.batch, params.inputs, output, params.time_steps, batch_normalize, params.net->adam);
+    layer l = make_lstm_layer(params.batch, params.inputs, output, params.time_steps, batch_normalize, params.net->adam, stream);
 
     return l;
 }
 
-layer parse_connected(list *options, size_params params)
+layer parse_connected(list *options, size_params params, cudaStream_t *stream, cudaStream_t *stream)
 {
     int output = option_find_int(options, "output",1);
     char *activation_s = option_find_str(options, "activation", "logistic");
     ACTIVATION activation = get_activation(activation_s);
     int batch_normalize = option_find_int_quiet(options, "batch_normalize", 0);
 
-    layer l = make_connected_layer(params.batch, params.inputs, output, activation, batch_normalize, params.net->adam);
+    layer l = make_connected_layer(params.batch, params.inputs, output, activation, batch_normalize, params.net->adam, stream);
     return l;
 }
 
-layer parse_softmax(list *options, size_params params)
+layer parse_softmax(list *options, size_params params, cudaStream_t *stream)
 {
     int groups = option_find_int_quiet(options, "groups",1);
-    layer l = make_softmax_layer(params.batch, params.inputs, groups);
+    layer l = make_softmax_layer(params.batch, params.inputs, groups, stream);
     l.temperature = option_find_float_quiet(options, "temperature", 1);
     char *tree_file = option_find_str(options, "tree", 0);
     if (tree_file) l.softmax_tree = read_tree(tree_file);
@@ -303,7 +303,7 @@ int *parse_yolo_mask(char *a, int *num)
     return mask;
 }
 
-layer parse_yolo(list *options, size_params params)
+layer parse_yolo(list *options, size_params params, cudaStream_t *stream, cudaStream_t *stream)
 {
     int classes = option_find_int(options, "classes", 20);
     int total = option_find_int(options, "num", 1);
@@ -311,7 +311,7 @@ layer parse_yolo(list *options, size_params params)
 
     char *a = option_find_str(options, "mask", 0);
     int *mask = parse_yolo_mask(a, &num);
-    layer l = make_yolo_layer(params.batch, params.w, params.h, num, total, mask, classes);
+    layer l = make_yolo_layer(params.batch, params.w, params.h, num, total, mask, classes, stream);
     assert(l.outputs == params.inputs);
 
     l.max_boxes = option_find_int_quiet(options, "max",90);
@@ -341,22 +341,22 @@ layer parse_yolo(list *options, size_params params)
     return l;
 }
 
-layer parse_iseg(list *options, size_params params)
+layer parse_iseg(list *options, size_params params, cudaStream_t *stream)
 {
     int classes = option_find_int(options, "classes", 20);
     int ids = option_find_int(options, "ids", 32);
-    layer l = make_iseg_layer(params.batch, params.w, params.h, classes, ids);
+    layer l = make_iseg_layer(params.batch, params.w, params.h, classes, ids, stream);
     assert(l.outputs == params.inputs);
     return l;
 }
 
-layer parse_region(list *options, size_params params)
+layer parse_region(list *options, size_params params, cudaStream_t *stream)
 {
     int coords = option_find_int(options, "coords", 4);
     int classes = option_find_int(options, "classes", 20);
     int num = option_find_int(options, "num", 1);
 
-    layer l = make_region_layer(params.batch, params.w, params.h, num, classes, coords);
+    layer l = make_region_layer(params.batch, params.w, params.h, num, classes, coords, stream);
     assert(l.outputs == params.inputs);
 
     l.log = option_find_int_quiet(options, "log", 0);
@@ -402,14 +402,14 @@ layer parse_region(list *options, size_params params)
     return l;
 }
 
-detection_layer parse_detection(list *options, size_params params)
+detection_layer parse_detection(list *options, size_params params, cudaStream_t *stream)
 {
     int coords = option_find_int(options, "coords", 1);
     int classes = option_find_int(options, "classes", 1);
     int rescore = option_find_int(options, "rescore", 0);
     int num = option_find_int(options, "num", 1);
     int side = option_find_int(options, "side", 7);
-    detection_layer layer = make_detection_layer(params.batch, params.inputs, num, side, classes, coords, rescore);
+    detection_layer layer = make_detection_layer(params.batch, params.inputs, num, side, classes, coords, rescore, stream);
 
     layer.softmax = option_find_int(options, "softmax", 0);
     layer.sqrt = option_find_int(options, "sqrt", 0);
@@ -426,19 +426,19 @@ detection_layer parse_detection(list *options, size_params params)
     return layer;
 }
 
-cost_layer parse_cost(list *options, size_params params)
+cost_layer parse_cost(list *options, size_params params, cudaStream_t *stream)
 {
     char *type_s = option_find_str(options, "type", "sse");
     COST_TYPE type = get_cost_type(type_s);
     float scale = option_find_float_quiet(options, "scale",1);
-    cost_layer layer = make_cost_layer(params.batch, params.inputs, type, scale);
+    cost_layer layer = make_cost_layer(params.batch, params.inputs, type, scale, stream);
     layer.ratio =  option_find_float_quiet(options, "ratio",0);
     layer.noobject_scale =  option_find_float_quiet(options, "noobj", 1);
     layer.thresh =  option_find_float_quiet(options, "thresh",0);
     return layer;
 }
 
-crop_layer parse_crop(list *options, size_params params)
+crop_layer parse_crop(list *options, size_params params, cudaStream_t *stream)
 {
     int crop_height = option_find_int(options, "crop_height",1);
     int crop_width = option_find_int(options, "crop_width",1);
@@ -456,13 +456,13 @@ crop_layer parse_crop(list *options, size_params params)
 
     int noadjust = option_find_int_quiet(options, "noadjust",0);
 
-    crop_layer l = make_crop_layer(batch,h,w,c,crop_height,crop_width,flip, angle, saturation, exposure);
+    crop_layer l = make_crop_layer(batch,h,w,c,crop_height,crop_width,flip, angle, saturation, exposure, stream);
     l.shift = option_find_float(options, "shift", 0);
     l.noadjust = noadjust;
     return l;
 }
 
-layer parse_reorg(list *options, size_params params)
+layer parse_reorg(list *options, size_params params, cudaStream_t *stream)
 {
     int stride = option_find_int(options, "stride",1);
     int reverse = option_find_int_quiet(options, "reverse",0);
@@ -476,11 +476,11 @@ layer parse_reorg(list *options, size_params params)
     batch=params.batch;
     if(!(h && w && c)) error("Layer before reorg layer must output image.");
 
-    layer layer = make_reorg_layer(batch,w,h,c,stride,reverse, flatten, extra);
+    layer layer = make_reorg_layer(batch,w,h,c,stride,reverse, flatten, extra, stream);
     return layer;
 }
 
-maxpool_layer parse_maxpool(list *options, size_params params)
+maxpool_layer parse_maxpool(list *options, size_params params, cudaStream_t *stream)
 {
     int stride = option_find_int(options, "stride",1);
     int size = option_find_int(options, "size",stride);
@@ -493,11 +493,11 @@ maxpool_layer parse_maxpool(list *options, size_params params)
     batch=params.batch;
     if(!(h && w && c)) error("Layer before maxpool layer must output image.");
 
-    maxpool_layer layer = make_maxpool_layer(batch,h,w,c,size,stride,padding);
+    maxpool_layer layer = make_maxpool_layer(batch,h,w,c,size,stride,padding,stream);
     return layer;
 }
 
-avgpool_layer parse_avgpool(list *options, size_params params)
+avgpool_layer parse_avgpool(list *options, size_params params, cudaStream_t *stream, cudaStream_t *stream)
 {
     int batch,w,h,c;
     w = params.w;
@@ -506,37 +506,37 @@ avgpool_layer parse_avgpool(list *options, size_params params)
     batch=params.batch;
     if(!(h && w && c)) error("Layer before avgpool layer must output image.");
 
-    avgpool_layer layer = make_avgpool_layer(batch,w,h,c);
+    avgpool_layer layer = make_avgpool_layer(batch,w,h,c,stream);
     return layer;
 }
 
-dropout_layer parse_dropout(list *options, size_params params)
+dropout_layer parse_dropout(list *options, size_params params, cudaStream_t *stream)
 {
     float probability = option_find_float(options, "probability", .5);
-    dropout_layer layer = make_dropout_layer(params.batch, params.inputs, probability);
+    dropout_layer layer = make_dropout_layer(params.batch, params.inputs, probability, stream);
     layer.out_w = params.w;
     layer.out_h = params.h;
     layer.out_c = params.c;
     return layer;
 }
 
-layer parse_normalization(list *options, size_params params)
+layer parse_normalization(list *options, size_params params, cudaStream_t *stream)
 {
     float alpha = option_find_float(options, "alpha", .0001);
     float beta =  option_find_float(options, "beta" , .75);
     float kappa = option_find_float(options, "kappa", 1);
     int size = option_find_int(options, "size", 5);
-    layer l = make_normalization_layer(params.batch, params.w, params.h, params.c, size, alpha, beta, kappa);
+    layer l = make_normalization_layer(params.batch, params.w, params.h, params.c, size, alpha, beta, kappa, stream);
     return l;
 }
 
-layer parse_batchnorm(list *options, size_params params)
+layer parse_batchnorm(list *options, size_params params, cudaStream_t *stream)
 {
-    layer l = make_batchnorm_layer(params.batch, params.w, params.h, params.c);
+    layer l = make_batchnorm_layer(params.batch, params.w, params.h, params.c, stream);
     return l;
 }
 
-layer parse_shortcut(list *options, size_params params, network *net)
+layer parse_shortcut(list *options, size_params params, network *net, cudaStream_t *stream)
 {
     char *l = option_find(options, "from");
     int index = atoi(l);
@@ -545,7 +545,7 @@ layer parse_shortcut(list *options, size_params params, network *net)
     int batch = params.batch;
     layer from = net->layers[index];
 
-    layer s = make_shortcut_layer(batch, index, params.w, params.h, params.c, from.out_w, from.out_h, from.out_c);
+    layer s = make_shortcut_layer(batch, index, params.w, params.h, params.c, from.out_w, from.out_h, from.out_c, stream);
 
     char *activation_s = option_find_str(options, "activation", "linear");
     ACTIVATION activation = get_activation(activation_s);
@@ -556,9 +556,9 @@ layer parse_shortcut(list *options, size_params params, network *net)
 }
 
 
-layer parse_l2norm(list *options, size_params params)
+layer parse_l2norm(list *options, size_params params, cudaStream_t *stream)
 {
-    layer l = make_l2norm_layer(params.batch, params.inputs);
+    layer l = make_l2norm_layer(params.batch, params.inputs, stream);
     l.h = l.out_h = params.h;
     l.w = l.out_w = params.w;
     l.c = l.out_c = params.c;
@@ -566,21 +566,21 @@ layer parse_l2norm(list *options, size_params params)
 }
 
 
-layer parse_logistic(list *options, size_params params)
+layer parse_logistic(list *options, size_params params, cudaStream_t *stream)
 {
-    layer l = make_logistic_layer(params.batch, params.inputs);
+    layer l = make_logistic_layer(params.batch, params.inputs, stream);
     l.h = l.out_h = params.h;
     l.w = l.out_w = params.w;
     l.c = l.out_c = params.c;
     return l;
 }
 
-layer parse_activation(list *options, size_params params)
+layer parse_activation(list *options, size_params params, cudaStream_t *stream)
 {
     char *activation_s = option_find_str(options, "activation", "linear");
     ACTIVATION activation = get_activation(activation_s);
 
-    layer l = make_activation_layer(params.batch, params.inputs, activation);
+    layer l = make_activation_layer(params.batch, params.inputs, activation, stream);
 
     l.h = l.out_h = params.h;
     l.w = l.out_w = params.w;
@@ -593,7 +593,7 @@ layer parse_upsample(list *options, size_params params, network *net)
 {
 
     int stride = option_find_int(options, "stride",2);
-    layer l = make_upsample_layer(params.batch, params.w, params.h, params.c, stride);
+    layer l = make_upsample_layer(params.batch, params.w, params.h, params.c, stride, net->stream);
     l.scale = option_find_float_quiet(options, "scale", 1);
     return l;
 }
@@ -620,7 +620,7 @@ route_layer parse_route(list *options, size_params params, network *net)
     }
     int batch = params.batch;
 
-    route_layer layer = make_route_layer(batch, n, layers, sizes);
+    route_layer layer = make_route_layer(batch, n, layers, sizes, net->stream);
 
     convolutional_layer first = net->layers[layers[0]];
     layer.out_w = first.out_w;
@@ -739,12 +739,13 @@ int is_network(section *s)
             || strcmp(s->type, "[network]")==0);
 }
 
-network *parse_network_cfg(char *filename)
+network *parse_network_cfg(char *filename, cudaStream_t *stream)
 {
     list *sections = read_cfg(filename);
     node *n = sections->front;
     if(!n) error("Config file has no sections");
     network *net = make_network(sections->size - 1);
+    net->stream = stream;
     net->gpu_index = gpu_index;
     size_params params;
 
@@ -774,60 +775,60 @@ network *parse_network_cfg(char *filename)
         layer l = {0};
         LAYER_TYPE lt = string_to_layer_type(s->type);
         if(lt == CONVOLUTIONAL){
-            l = parse_convolutional(options, params);
+            l = parse_convolutional(options, params, stream);
         }else if(lt == DECONVOLUTIONAL){
-            l = parse_deconvolutional(options, params);
+            l = parse_deconvolutional(options, params, stream);
         }else if(lt == LOCAL){
-            l = parse_local(options, params);
+            l = parse_local(options, params, stream);
         }else if(lt == ACTIVE){
-            l = parse_activation(options, params);
+            l = parse_activation(options, params, stream);
         }else if(lt == LOGXENT){
-            l = parse_logistic(options, params);
+            l = parse_logistic(options, params, stream);
         }else if(lt == L2NORM){
-            l = parse_l2norm(options, params);
+            l = parse_l2norm(options, params, stream);
         }else if(lt == RNN){
-            l = parse_rnn(options, params);
+            l = parse_rnn(options, params, stream);
         }else if(lt == GRU){
-            l = parse_gru(options, params);
+            l = parse_gru(options, params, stream);
         }else if (lt == LSTM) {
-            l = parse_lstm(options, params);
+            l = parse_lstm(options, params, stream);
         }else if(lt == CRNN){
-            l = parse_crnn(options, params);
+            l = parse_crnn(options, params, stream);
         }else if(lt == CONNECTED){
-            l = parse_connected(options, params);
+            l = parse_connected(options, params, stream);
         }else if(lt == CROP){
-            l = parse_crop(options, params);
+            l = parse_crop(options, params, stream);
         }else if(lt == COST){
-            l = parse_cost(options, params);
+            l = parse_cost(options, params, stream);
         }else if(lt == REGION){
-            l = parse_region(options, params);
+            l = parse_region(options, params, stream);
         }else if(lt == YOLO){
-            l = parse_yolo(options, params);
+            l = parse_yolo(options, params, stream);
         }else if(lt == ISEG){
-            l = parse_iseg(options, params);
+            l = parse_iseg(options, params, stream);
         }else if(lt == DETECTION){
-            l = parse_detection(options, params);
+            l = parse_detection(options, params, stream);
         }else if(lt == SOFTMAX){
-            l = parse_softmax(options, params);
+            l = parse_softmax(options, params, stream);
             net->hierarchy = l.softmax_tree;
         }else if(lt == NORMALIZATION){
-            l = parse_normalization(options, params);
+            l = parse_normalization(options, params, stream);
         }else if(lt == BATCHNORM){
-            l = parse_batchnorm(options, params);
+            l = parse_batchnorm(options, params, stream);
         }else if(lt == MAXPOOL){
-            l = parse_maxpool(options, params);
+            l = parse_maxpool(options, params, stream);
         }else if(lt == REORG){
-            l = parse_reorg(options, params);
+            l = parse_reorg(options, params, stream);
         }else if(lt == AVGPOOL){
-            l = parse_avgpool(options, params);
+            l = parse_avgpool(options, params, stream);
         }else if(lt == ROUTE){
-            l = parse_route(options, params, net);
+            l = parse_route(options, params, net, stream);
         }else if(lt == UPSAMPLE){
-            l = parse_upsample(options, params, net);
+            l = parse_upsample(options, params, net, stream);
         }else if(lt == SHORTCUT){
-            l = parse_shortcut(options, params, net);
+            l = parse_shortcut(options, params, net, stream);
         }else if(lt == DROPOUT){
-            l = parse_dropout(options, params);
+            l = parse_dropout(options, params, stream);
             l.output = net->layers[count-1].output;
             l.delta = net->layers[count-1].delta;
 #ifdef GPU
@@ -870,14 +871,14 @@ network *parse_network_cfg(char *filename)
     net->truth = calloc(net->truths*net->batch, sizeof(float));
 #ifdef GPU
     net->output_gpu = out.output_gpu;
-    net->input_gpu = cuda_make_array(net->input, net->inputs*net->batch);
-    net->truth_gpu = cuda_make_array(net->truth, net->truths*net->batch);
+    net->input_gpu = cuda_make_array(net->input, net->inputs*net->batch, net.stream);
+    net->truth_gpu = cuda_make_array(net->truth, net->truths*net->batch, net.stream);
 #endif
     if(workspace_size){
         //printf("%ld\n", workspace_size);
 #ifdef GPU
         if(gpu_index >= 0){
-            net->workspace = cuda_make_array(0, (workspace_size-1)/sizeof(float)+1);
+            net->workspace = cuda_make_array(0, (workspace_size-1)/sizeof(float)+1, net.stream);
         }else {
             net->workspace = calloc(1, workspace_size);
         }

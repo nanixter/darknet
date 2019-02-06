@@ -3,7 +3,7 @@
 #include "layer.h"
 #include "network.h"
 
-layer make_logistic_layer(int batch, int inputs);
+layer make_logistic_layer(int batch, int inputs, cudaStream_t *stream);
 void forward_logistic_layer(const layer l, network net);
 void backward_logistic_layer(const layer l, network net);
 

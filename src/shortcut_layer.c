@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <assert.h>
 
-layer make_shortcut_layer(int batch, int index, int w, int h, int c, int w2, int h2, int c2)
+layer make_shortcut_layer(int batch, int index, int w, int h, int c, int w2, int h2, int c2, cudaStream_t *stream)
 {
     fprintf(stderr, "res  %3d                %4d x%4d x%4d   ->  %4d x%4d x%4d\n",index, w2,h2,c2, w,h,c);
     layer l = {0};
@@ -32,13 +32,13 @@ layer make_shortcut_layer(int batch, int index, int w, int h, int c, int w2, int
     l.forward_gpu = forward_shortcut_layer_gpu;
     l.backward_gpu = backward_shortcut_layer_gpu;
 
-    l.delta_gpu =  cuda_make_array(l.delta, l.outputs*batch);
-    l.output_gpu = cuda_make_array(l.output, l.outputs*batch);
+    l.delta_gpu =  cuda_make_array(l.delta, l.outputs*batch, stream);
+    l.output_gpu = cuda_make_array(l.output, l.outputs*batch, stream);
     #endif
     return l;
 }
 
-void resize_shortcut_layer(layer *l, int w, int h)
+void resize_shortcut_layer(layer *l, int w, int h, cudaStream_t *stream)
 {
     assert(l->w == l->out_w);
     assert(l->h == l->out_h);
@@ -52,8 +52,8 @@ void resize_shortcut_layer(layer *l, int w, int h)
 #ifdef GPU
     cuda_free(l->output_gpu);
     cuda_free(l->delta_gpu);
-    l->output_gpu  = cuda_make_array(l->output, l->outputs*l->batch);
-    l->delta_gpu   = cuda_make_array(l->delta,  l->outputs*l->batch);
+    l->output_gpu  = cuda_make_array(l->output, l->outputs*l->batch, stream);
+    l->delta_gpu   = cuda_make_array(l->delta,  l->outputs*l->batch, stream);
 #endif
 
 }
@@ -76,15 +76,15 @@ void backward_shortcut_layer(const layer l, network net)
 #ifdef GPU
 void forward_shortcut_layer_gpu(const layer l, network net)
 {
-    copy_gpu(l.outputs*l.batch, net.input_gpu, 1, l.output_gpu, 1);
-    shortcut_gpu(l.batch, l.w, l.h, l.c, net.layers[l.index].output_gpu, l.out_w, l.out_h, l.out_c, l.alpha, l.beta, l.output_gpu);
+    copy_gpu(l.outputs*l.batch, net.input_gpu, 1, l.output_gpu, 1, net.stream);
+    shortcut_gpu(l.batch, l.w, l.h, l.c, net.layers[l.index].output_gpu, l.out_w, l.out_h, l.out_c, l.alpha, l.beta, l.output_gpu, net.stream);
     activate_array_gpu(l.output_gpu, l.outputs*l.batch, l.activation, net.stream);
 }
 
 void backward_shortcut_layer_gpu(const layer l, network net)
 {
     gradient_array_gpu(l.output_gpu, l.outputs*l.batch, l.activation, l.delta_gpu, net.stream);
-    axpy_gpu(l.outputs*l.batch, l.alpha, l.delta_gpu, 1, net.delta_gpu, 1);
-    shortcut_gpu(l.batch, l.out_w, l.out_h, l.out_c, l.delta_gpu, l.w, l.h, l.c, 1, l.beta, net.layers[l.index].delta_gpu);
+    axpy_gpu(l.outputs*l.batch, l.alpha, l.delta_gpu, 1, net.delta_gpu, 1, net.stream);
+    shortcut_gpu(l.batch, l.out_w, l.out_h, l.out_c, l.delta_gpu, l.w, l.h, l.c, 1, l.beta, net.layers[l.index].delta_gpu, net.stream);
 }
 #endif

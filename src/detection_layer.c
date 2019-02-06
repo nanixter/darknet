@@ -11,7 +11,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-detection_layer make_detection_layer(int batch, int inputs, int n, int side, int classes, int coords, int rescore)
+detection_layer make_detection_layer(int batch, int inputs, int n, int side, int classes, int coords, int rescore, cudaStream_t *stream)
 {
     detection_layer l = {0};
     l.type = DETECTION;
@@ -37,8 +37,8 @@ detection_layer make_detection_layer(int batch, int inputs, int n, int side, int
 #ifdef GPU
     l.forward_gpu = forward_detection_layer_gpu;
     l.backward_gpu = backward_detection_layer_gpu;
-    l.output_gpu = cuda_make_array(l.output, batch*l.outputs);
-    l.delta_gpu = cuda_make_array(l.delta, batch*l.outputs);
+    l.output_gpu = cuda_make_array(l.output, batch*l.outputs, stream);
+    l.delta_gpu = cuda_make_array(l.delta, batch*l.outputs, stream);
 #endif
 
     fprintf(stderr, "Detection Layer\n");
@@ -256,7 +256,7 @@ void get_detection_detections(layer l, int w, int h, float thresh, detection *de
 void forward_detection_layer_gpu(const detection_layer l, network net)
 {
     if(!net.train){
-        copy_gpu(l.batch*l.inputs, net.input_gpu, 1, l.output_gpu, 1);
+        copy_gpu(l.batch*l.inputs, net.input_gpu, 1, l.output_gpu, 1, net.stream);
         return;
     }
 
@@ -268,8 +268,8 @@ void forward_detection_layer_gpu(const detection_layer l, network net)
 
 void backward_detection_layer_gpu(detection_layer l, network net)
 {
-    axpy_gpu(l.batch*l.inputs, 1, l.delta_gpu, 1, net.delta_gpu, 1);
-    //copy_gpu(l.batch*l.inputs, l.delta_gpu, 1, net.delta_gpu, 1);
+    axpy_gpu(l.batch*l.inputs, 1, l.delta_gpu, 1, net.delta_gpu, 1, net.stream);
+    //copy_gpu(l.batch*l.inputs, l.delta_gpu, 1, net.delta_gpu, 1, net.stream);
 }
 #endif
 

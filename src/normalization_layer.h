@@ -5,8 +5,8 @@
 #include "layer.h"
 #include "network.h"
 
-layer make_normalization_layer(int batch, int w, int h, int c, int size, float alpha, float beta, float kappa);
-void resize_normalization_layer(layer *layer, int h, int w);
+layer make_normalization_layer(int batch, int w, int h, int c, int size, float alpha, float beta, float kappa, cudaStream_t *stream);
+void resize_normalization_layer(layer *layer, int h, int w, cudaStream_t *stream);
 void forward_normalization_layer(const layer layer, network net);
 void backward_normalization_layer(const layer layer, network net);
 void visualize_normalization_layer(layer layer, char *window);

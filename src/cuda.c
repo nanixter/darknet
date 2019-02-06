@@ -87,7 +87,7 @@ cublasHandle_t blas_handle()
     return handle[i];
 }
 
-float *cuda_make_array(float *x, size_t n)
+float *cuda_make_array(float *x, size_t n, cudaStream_t *stream)
 {
     float *x_gpu;
     size_t size = sizeof(float)*n;
@@ -97,7 +97,7 @@ float *cuda_make_array(float *x, size_t n)
         status = cudaMemcpy(x_gpu, x, size, cudaMemcpyHostToDevice);
         check_error(status);
     } else {
-        fill_gpu(n, 0, x_gpu, 1);
+        fill_gpu(n, 0, x_gpu, 1, stream);
     }
     if(!x_gpu) error("Cuda malloc failed\n");
     return x_gpu;

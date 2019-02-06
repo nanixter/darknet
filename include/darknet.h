@@ -590,7 +590,7 @@ typedef struct{
 } box_label;
 
 
-network *load_network(char *cfg, char *weights, int clear);
+network *load_network(char *cfg, char *weights, int clear, cudaStream_t *stream);
 load_args get_base_args(network *net);
 
 void free_data(data d);
@@ -630,17 +630,17 @@ void softmax(float *input, int n, float temp, int stride, float *output);
 
 int best_3d_shift_r(image a, image b, int min, int max);
 #ifdef GPU
-void axpy_gpu(int N, float ALPHA, float * X, int INCX, float * Y, int INCY);
-void fill_gpu(int N, float ALPHA, float * X, int INCX);
-void scal_gpu(int N, float ALPHA, float * X, int INCX);
-void copy_gpu(int N, float * X, int INCX, float * Y, int INCY);
+void axpy_gpu(int N, float ALPHA, float * X, int INCX, float * Y, int INCY, cudaStream_t *stream);
+void fill_gpu(int N, float ALPHA, float * X, int INCX, cudaStream_t *stream);
+void scal_gpu(int N, float ALPHA, float * X, int INCX, cudaStream_t *stream);
+void copy_gpu(int N, float * X, int INCX, float * Y, int INCY, cudaStream_t *stream);
 
 void cuda_set_device(int n);
 void cuda_free(float *x_gpu);
 void cuda_free_host(void *x_gpu);
 void cuda_stream_synchronize();
 void cuda_malloc_host(void **ptr, size_t  size);
-float *cuda_make_array(float *x, size_t n);
+float *cuda_make_array(float *x, size_t n, cudaStream_t *stream);
 void cuda_pull_array(float *x_gpu, float *x, size_t n);
 void cuda_pull_array_async(float *x_gpu, float *x, size_t n);
 float cuda_mag_array(float *x_gpu, size_t n);

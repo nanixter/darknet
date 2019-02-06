@@ -32,7 +32,7 @@ void bilinear_init(layer l)
 }
 
 
-layer make_deconvolutional_layer(int batch, int h, int w, int c, int n, int size, int stride, int padding, ACTIVATION activation, int batch_normalize, int adam)
+layer make_deconvolutional_layer(int batch, int h, int w, int c, int n, int size, int stride, int padding, ACTIVATION activation, int batch_normalize, int adam, cudaStream_t *stream)
 {
     int i;
     layer l = {0};
@@ -116,44 +116,44 @@ layer make_deconvolutional_layer(int batch, int h, int w, int c, int n, int size
     if(gpu_index >= 0){
 
         if (adam) {
-            l.m_gpu = cuda_make_array(l.m, c*n*size*size);
-            l.v_gpu = cuda_make_array(l.v, c*n*size*size);
-            l.bias_m_gpu = cuda_make_array(l.bias_m, n);
-            l.bias_v_gpu = cuda_make_array(l.bias_v, n);
-            l.scale_m_gpu = cuda_make_array(l.scale_m, n);
-            l.scale_v_gpu = cuda_make_array(l.scale_v, n);
+            l.m_gpu = cuda_make_array(l.m, c*n*size*size, stream);
+            l.v_gpu = cuda_make_array(l.v, c*n*size*size, stream);
+            l.bias_m_gpu = cuda_make_array(l.bias_m, n, stream);
+            l.bias_v_gpu = cuda_make_array(l.bias_v, n, stream);
+            l.scale_m_gpu = cuda_make_array(l.scale_m, n, stream);
+            l.scale_v_gpu = cuda_make_array(l.scale_v, n, stream);
         }
-        l.weights_gpu = cuda_make_array(l.weights, c*n*size*size);
-        l.weight_updates_gpu = cuda_make_array(l.weight_updates, c*n*size*size);
+        l.weights_gpu = cuda_make_array(l.weights, c*n*size*size, stream);
+        l.weight_updates_gpu = cuda_make_array(l.weight_updates, c*n*size*size, stream);
 
-        l.biases_gpu = cuda_make_array(l.biases, n);
-        l.bias_updates_gpu = cuda_make_array(l.bias_updates, n);
+        l.biases_gpu = cuda_make_array(l.biases, n, stream);
+        l.bias_updates_gpu = cuda_make_array(l.bias_updates, n, stream);
 
-        l.delta_gpu = cuda_make_array(l.delta, l.batch*l.out_h*l.out_w*n);
-        l.output_gpu = cuda_make_array(l.output, l.batch*l.out_h*l.out_w*n);
+        l.delta_gpu = cuda_make_array(l.delta, l.batch*l.out_h*l.out_w*n, stream);
+        l.output_gpu = cuda_make_array(l.output, l.batch*l.out_h*l.out_w*n, stream);
 
         if(batch_normalize){
-            l.mean_gpu = cuda_make_array(0, n);
-            l.variance_gpu = cuda_make_array(0, n);
+            l.mean_gpu = cuda_make_array(0, n, stream);
+            l.variance_gpu = cuda_make_array(0, n, stream);
 
-            l.rolling_mean_gpu = cuda_make_array(0, n);
-            l.rolling_variance_gpu = cuda_make_array(0, n);
+            l.rolling_mean_gpu = cuda_make_array(0, n, stream);
+            l.rolling_variance_gpu = cuda_make_array(0, n, stream);
 
-            l.mean_delta_gpu = cuda_make_array(0, n);
-            l.variance_delta_gpu = cuda_make_array(0, n);
+            l.mean_delta_gpu = cuda_make_array(0, n, stream);
+            l.variance_delta_gpu = cuda_make_array(0, n, stream);
 
-            l.scales_gpu = cuda_make_array(l.scales, n);
-            l.scale_updates_gpu = cuda_make_array(0, n);
+            l.scales_gpu = cuda_make_array(l.scales, n, stream);
+            l.scale_updates_gpu = cuda_make_array(0, n, stream);
 
-            l.x_gpu = cuda_make_array(0, l.batch*l.out_h*l.out_w*n);
-            l.x_norm_gpu = cuda_make_array(0, l.batch*l.out_h*l.out_w*n);
+            l.x_gpu = cuda_make_array(0, l.batch*l.out_h*l.out_w*n, stream);
+            l.x_norm_gpu = cuda_make_array(0, l.batch*l.out_h*l.out_w*n, stream);
         }
     }
     #ifdef CUDNN
         cudnnCreateTensorDescriptor(&l.dstTensorDesc);
         cudnnCreateTensorDescriptor(&l.normTensorDesc);
-        cudnnSetTensor4dDescriptor(l.dstTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, l.batch, l.out_c, l.out_h, l.out_w); 
-        cudnnSetTensor4dDescriptor(l.normTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, l.out_c, 1, 1); 
+        cudnnSetTensor4dDescriptor(l.dstTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, l.batch, l.out_c, l.out_h, l.out_w);
+        cudnnSetTensor4dDescriptor(l.normTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, l.out_c, 1, 1);
     #endif
 #endif
 
@@ -180,7 +180,7 @@ void denormalize_deconvolutional_layer(layer l)
     }
 }
 
-void resize_deconvolutional_layer(layer *l, int h, int w)
+void resize_deconvolutional_layer(layer *l, int h, int w, cudaStream_t *stream)
 {
     l->h = h;
     l->w = w;
@@ -201,19 +201,19 @@ void resize_deconvolutional_layer(layer *l, int h, int w)
     cuda_free(l->delta_gpu);
     cuda_free(l->output_gpu);
 
-    l->delta_gpu =  cuda_make_array(l->delta,  l->batch*l->outputs);
-    l->output_gpu = cuda_make_array(l->output, l->batch*l->outputs);
+    l->delta_gpu =  cuda_make_array(l->delta,  l->batch*l->outputs, stream);
+    l->output_gpu = cuda_make_array(l->output, l->batch*l->outputs, stream);
 
     if(l->batch_normalize){
         cuda_free(l->x_gpu);
         cuda_free(l->x_norm_gpu);
 
-        l->x_gpu = cuda_make_array(l->output, l->batch*l->outputs);
-        l->x_norm_gpu = cuda_make_array(l->output, l->batch*l->outputs);
+        l->x_gpu = cuda_make_array(l->output, l->batch*l->outputs, stream);
+        l->x_norm_gpu = cuda_make_array(l->output, l->batch*l->outputs, stream);
     }
     #ifdef CUDNN
-        cudnnSetTensor4dDescriptor(l->dstTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, l->batch, l->out_c, l->out_h, l->out_w); 
-        cudnnSetTensor4dDescriptor(l->normTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, l->out_c, 1, 1); 
+        cudnnSetTensor4dDescriptor(l->dstTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, l->batch, l->out_c, l->out_h, l->out_w);
+        cudnnSetTensor4dDescriptor(l->normTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, l->out_c, 1, 1);
     #endif
 #endif
     l->workspace_size = get_workspace_size(*l);
@@ -269,7 +269,7 @@ void backward_deconvolutional_layer(layer l, network net)
         float *b = net.workspace;
         float *c = l.weight_updates;
 
-        im2col_cpu(l.delta + i*l.outputs, l.out_c, l.out_h, l.out_w, 
+        im2col_cpu(l.delta + i*l.outputs, l.out_c, l.out_h, l.out_w,
                 l.size, l.stride, l.pad, b);
         gemm_cpu(0,1,m,n,k,1,a,k,b,k,1,c,n);
 

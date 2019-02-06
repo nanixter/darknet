@@ -10,7 +10,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-layer make_iseg_layer(int batch, int w, int h, int classes, int ids)
+layer make_iseg_layer(int batch, int w, int h, int classes, int ids, cudaStream_t *stream)
 {
     layer l = {0};
     l.type = ISEG;
@@ -45,8 +45,8 @@ layer make_iseg_layer(int batch, int w, int h, int classes, int ids)
 #ifdef GPU
     l.forward_gpu = forward_iseg_layer_gpu;
     l.backward_gpu = backward_iseg_layer_gpu;
-    l.output_gpu = cuda_make_array(l.output, batch*l.outputs);
-    l.delta_gpu = cuda_make_array(l.delta, batch*l.outputs);
+    l.output_gpu = cuda_make_array(l.output, batch*l.outputs, stream);
+    l.delta_gpu = cuda_make_array(l.delta, batch*l.outputs, stream);
 #endif
 
     fprintf(stderr, "iseg\n");
@@ -55,7 +55,7 @@ layer make_iseg_layer(int batch, int w, int h, int classes, int ids)
     return l;
 }
 
-void resize_iseg_layer(layer *l, int w, int h)
+void resize_iseg_layer(layer *l, int w, int h, cudaStream_t *stream)
 {
     l->w = w;
     l->h = h;
@@ -70,8 +70,8 @@ void resize_iseg_layer(layer *l, int w, int h)
     cuda_free(l->delta_gpu);
     cuda_free(l->output_gpu);
 
-    l->delta_gpu =     cuda_make_array(l->delta, l->batch*l->outputs);
-    l->output_gpu =    cuda_make_array(l->output, l->batch*l->outputs);
+    l->delta_gpu =     cuda_make_array(l->delta, l->batch*l->outputs, stream);
+    l->output_gpu =    cuda_make_array(l->output, l->batch*l->outputs, stream);
 #endif
 }
 
@@ -201,7 +201,7 @@ void backward_iseg_layer(const layer l, network net)
 
 void forward_iseg_layer_gpu(const layer l, network net)
 {
-    copy_gpu(l.batch*l.inputs, net.input_gpu, 1, l.output_gpu, 1);
+    copy_gpu(l.batch*l.inputs, net.input_gpu, 1, l.output_gpu, 1, net.stream);
     int b;
     for (b = 0; b < l.batch; ++b){
         activate_array_gpu(l.output_gpu + b*l.outputs, l.classes*l.w*l.h, LOGISTIC, net.stream);
@@ -219,7 +219,7 @@ void backward_iseg_layer_gpu(const layer l, network net)
     for (b = 0; b < l.batch; ++b){
         //if(l.extra) gradient_array_gpu(l.output_gpu + b*l.outputs + l.classes*l.w*l.h, l.extra*l.w*l.h, LOGISTIC, l.delta_gpu + b*l.outputs + l.classes*l.w*l.h, net.stream);
     }
-    axpy_gpu(l.batch*l.inputs, 1, l.delta_gpu, 1, net.delta_gpu, 1);
+    axpy_gpu(l.batch*l.inputs, 1, l.delta_gpu, 1, net.delta_gpu, 1, net.stream);
 }
 #endif
 
