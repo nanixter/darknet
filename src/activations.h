@@ -12,8 +12,8 @@ float gradient(float x, ACTIVATION a);
 void gradient_array(const float *x, const int n, const ACTIVATION a, float *delta);
 void activate_array(float *x, const int n, const ACTIVATION a);
 #ifdef GPU
-void activate_array_gpu(float *x, int n, ACTIVATION a, cudaStream_t *stream = 0);
-void gradient_array_gpu(float *x, int n, ACTIVATION a, float *delta, cudaStream_t *stream = 0);
+void activate_array_gpu(float *x, int n, ACTIVATION a, cudaStream_t *stream);
+void gradient_array_gpu(float *x, int n, ACTIVATION a, float *delta, cudaStream_t *stream);
 #endif
 
 static inline float stair_activate(float x)

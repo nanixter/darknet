@@ -453,7 +453,7 @@ void forward_region_layer_gpu(const layer l, network net)
             index = entry_index(l, b, n*l.w*l.h, l.coords);
             if(!l.background) activate_array_gpu(l.output_gpu + index,   l.w*l.h, LOGISTIC, net.stream);
             index = entry_index(l, b, n*l.w*l.h, l.coords + 1);
-            if(!l.softmax && !l.softmax_tree) activate_array_gpu(l.output_gpu + index, l.classes*l, net.stream.w*l.h, LOGISTIC);
+            if(!l.softmax && !l.softmax_tree) activate_array_gpu(l.output_gpu + index, l.classes*l, .w*l.h, LOGISTIC, net.stream);
         }
     }
     if (l.softmax_tree){
