@@ -34,11 +34,13 @@ public:
 		#ifdef GPU
 		cuda_set_device(gpuNo);
 		this->gpuNum = gpuNo;
+		cudaStreamCreateWithFlags(&DNNStream,cudaStreamNonBlocking);
 		#endif
 		char *cfgfile = argv[1];
 		char *weightfile = argv[2];
 
 		this->net = load_network(cfgfile, weightfile, 0);
+		this->net->stream = &DNNStream;
 	}
 
 	void Shutdown() {
@@ -89,7 +91,7 @@ private:
 	Timer timer_gpu;
 	Timer timer_detection;
 	int gpuNum;
-
+	cudaStream_t DNNStream;
 	network *net;
 
 	float **baseOutput;
