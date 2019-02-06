@@ -295,7 +295,7 @@ void forward_connected_layer_gpu(layer l, network net)
     float * a = net.input_gpu;
     float * b = l.weights_gpu;
     float * c = l.output_gpu;
-    gemm_gpu(0,1,m,n,k,1,a,k,b,k,1,c,n);
+    gemm_gpu(0,1,m,n,k,1,a,k,b,k,1,c,n, net.stream);
 
     if (l.batch_normalize) {
         forward_batchnorm_layer_gpu(l, net);
@@ -321,7 +321,7 @@ void backward_connected_layer_gpu(layer l, network net)
     float * a = l.delta_gpu;
     float * b = net.input_gpu;
     float * c = l.weight_updates_gpu;
-    gemm_gpu(1,0,m,n,k,1,a,m,b,n,1,c,n);
+    gemm_gpu(1,0,m,n,k,1,a,m,b,n,1,c,n, net.stream);
 
     m = l.batch;
     k = l.outputs;
@@ -331,6 +331,6 @@ void backward_connected_layer_gpu(layer l, network net)
     b = l.weights_gpu;
     c = net.delta_gpu;
 
-    if(c) gemm_gpu(0,0,m,n,k,1,a,k,b,n,1,c,n);
+    if(c) gemm_gpu(0,0,m,n,k,1,a,k,b,n,1,c,n, net.stream);
 }
 #endif
