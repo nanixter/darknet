@@ -10,7 +10,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-layer make_region_layer(int batch, int w, int h, int n, int classes, int coords)
+layer make_region_layer(int batch, int w, int h, int n, int classes, int coords, cudaStream_t *stream)
 {
     layer l = {0};
     l.type = REGION;
@@ -43,8 +43,8 @@ layer make_region_layer(int batch, int w, int h, int n, int classes, int coords)
 #ifdef GPU
     l.forward_gpu = forward_region_layer_gpu;
     l.backward_gpu = backward_region_layer_gpu;
-    l.output_gpu = cuda_make_array(l.output, batch*l.outputs);
-    l.delta_gpu = cuda_make_array(l.delta, batch*l.outputs);
+    l.output_gpu = cuda_make_array(l.output, batch*l.outputs, stream);
+    l.delta_gpu = cuda_make_array(l.delta, batch*l.outputs, stream);
 #endif
 
     fprintf(stderr, "detection\n");
@@ -53,7 +53,7 @@ layer make_region_layer(int batch, int w, int h, int n, int classes, int coords)
     return l;
 }
 
-void resize_region_layer(layer *l, int w, int h)
+void resize_region_layer(layer *l, int w, int h, cudaStream_t *stream)
 {
     l->w = w;
     l->h = h;
@@ -68,8 +68,8 @@ void resize_region_layer(layer *l, int w, int h)
     cuda_free(l->delta_gpu);
     cuda_free(l->output_gpu);
 
-    l->delta_gpu =     cuda_make_array(l->delta, l->batch*l->outputs);
-    l->output_gpu =    cuda_make_array(l->output, l->batch*l->outputs);
+    l->delta_gpu =     cuda_make_array(l->delta, l->batch*l->outputs, stream);
+    l->output_gpu =    cuda_make_array(l->output, l->batch*l->outputs, stream);
 #endif
 }
 
@@ -440,7 +440,7 @@ void get_region_detections(layer l, int w, int h, int netw, int neth, float thre
 
 void forward_region_layer_gpu(const layer l, network net)
 {
-    copy_gpu(l.batch*l.inputs, net.input_gpu, 1, l.output_gpu, 1);
+    copy_gpu(l.batch*l.inputs, net.input_gpu, 1, l.output_gpu, 1, net.stream);
     int b, n;
     for (b = 0; b < l.batch; ++b){
         for(n = 0; n < l.n; ++n){
@@ -458,10 +458,10 @@ void forward_region_layer_gpu(const layer l, network net)
     }
     if (l.softmax_tree){
         int index = entry_index(l, 0, 0, l.coords + 1);
-        softmax_tree(net.input_gpu + index, l.w*l.h, l.batch*l.n, l.inputs/l.n, 1, l.output_gpu + index, *l.softmax_tree);
+        softmax_tree(net.input_gpu + index, l.w*l.h, l.batch*l.n, l.inputs/l.n, 1, l.output_gpu + index, *l.softmax_tree, net.stream);
     } else if (l.softmax) {
         int index = entry_index(l, 0, 0, l.coords + !l.background);
-        softmax_gpu(net.input_gpu + index, l.classes + l.background, l.batch*l.n, l.inputs/l.n, l.w*l.h, 1, l.w*l.h, 1, l.output_gpu + index);
+        softmax_gpu(net.input_gpu + index, l.classes + l.background, l.batch*l.n, l.inputs/l.n, l.w*l.h, 1, l.w*l.h, 1, l.output_gpu + index, net.stream);
     }
     if(!net.train || l.onlyforward){
         cuda_pull_array(l.output_gpu, l.output, l.batch*l.outputs);
@@ -490,7 +490,7 @@ void backward_region_layer_gpu(const layer l, network net)
             if(!l.background) gradient_array_gpu(l.output_gpu + index,   l.w*l.h, LOGISTIC, l.delta_gpu + index, net.stream);
         }
     }
-    axpy_gpu(l.batch*l.inputs, 1, l.delta_gpu, 1, net.delta_gpu, 1);
+    axpy_gpu(l.batch*l.inputs, 1, l.delta_gpu, 1, net.delta_gpu, 1, net.stream);
 }
 #endif
 

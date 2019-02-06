@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <assert.h>
 
-layer make_l2norm_layer(int batch, int inputs)
+layer make_l2norm_layer(int batch, int inputs, cudaStream_t *stream)
 {
     fprintf(stderr, "l2norm                                         %4d\n",  inputs);
     layer l = {0};
@@ -27,9 +27,9 @@ layer make_l2norm_layer(int batch, int inputs)
     l.forward_gpu = forward_l2norm_layer_gpu;
     l.backward_gpu = backward_l2norm_layer_gpu;
 
-    l.output_gpu = cuda_make_array(l.output, inputs*batch); 
-    l.scales_gpu = cuda_make_array(l.output, inputs*batch); 
-    l.delta_gpu = cuda_make_array(l.delta, inputs*batch); 
+    l.output_gpu = cuda_make_array(l.output, inputs*batch, stream);
+    l.scales_gpu = cuda_make_array(l.output, inputs*batch, stream);
+    l.delta_gpu = cuda_make_array(l.delta, inputs*batch, stream);
     #endif
     return l;
 }
@@ -50,14 +50,14 @@ void backward_l2norm_layer(const layer l, network net)
 
 void forward_l2norm_layer_gpu(const layer l, network net)
 {
-    copy_gpu(l.outputs*l.batch, net.input_gpu, 1, l.output_gpu, 1);
-    l2normalize_gpu(l.output_gpu, l.scales_gpu, l.batch, l.out_c, l.out_w*l.out_h);
+    copy_gpu(l.outputs*l.batch, net.input_gpu, 1, l.output_gpu, 1, net.stream);
+    l2normalize_gpu(l.output_gpu, l.scales_gpu, l.batch, l.out_c, l.out_w*l.out_h, net.stream);
 }
 
 void backward_l2norm_layer_gpu(const layer l, network net)
 {
-    axpy_gpu(l.batch*l.inputs, 1, l.scales_gpu, 1, l.delta_gpu, 1);
-    axpy_gpu(l.batch*l.inputs, 1, l.delta_gpu, 1, net.delta_gpu, 1);
+    axpy_gpu(l.batch*l.inputs, 1, l.scales_gpu, 1, l.delta_gpu, 1, net.stream);
+    axpy_gpu(l.batch*l.inputs, 1, l.delta_gpu, 1, net.delta_gpu, 1, net.stream);
 }
 
 #endif

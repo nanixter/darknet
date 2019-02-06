@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 
-layer make_normalization_layer(int batch, int w, int h, int c, int size, float alpha, float beta, float kappa)
+layer make_normalization_layer(int batch, int w, int h, int c, int size, float alpha, float beta, float kappa, cudaStream_t *stream)
 {
     fprintf(stderr, "Local Response Normalization Layer: %d x %d x %d image, %d size\n", w,h,c,size);
     layer layer = {0};
@@ -29,15 +29,15 @@ layer make_normalization_layer(int batch, int w, int h, int c, int size, float a
     layer.forward_gpu = forward_normalization_layer_gpu;
     layer.backward_gpu = backward_normalization_layer_gpu;
 
-    layer.output_gpu =  cuda_make_array(layer.output, h * w * c * batch);
-    layer.delta_gpu =   cuda_make_array(layer.delta, h * w * c * batch);
-    layer.squared_gpu = cuda_make_array(layer.squared, h * w * c * batch);
-    layer.norms_gpu =   cuda_make_array(layer.norms, h * w * c * batch);
+    layer.output_gpu =  cuda_make_array(layer.output, h * w * c * batch, stream);
+    layer.delta_gpu =   cuda_make_array(layer.delta, h * w * c * batch, stream);
+    layer.squared_gpu = cuda_make_array(layer.squared, h * w * c * batch, stream);
+    layer.norms_gpu =   cuda_make_array(layer.norms, h * w * c * batch, stream);
     #endif
     return layer;
 }
 
-void resize_normalization_layer(layer *layer, int w, int h)
+void resize_normalization_layer(layer *layer, int w, int h, cudaStream_t *stream)
 {
     int c = layer->c;
     int batch = layer->batch;
@@ -53,13 +53,13 @@ void resize_normalization_layer(layer *layer, int w, int h)
     layer->norms = realloc(layer->norms, h * w * c * batch * sizeof(float));
 #ifdef GPU
     cuda_free(layer->output_gpu);
-    cuda_free(layer->delta_gpu); 
-    cuda_free(layer->squared_gpu); 
-    cuda_free(layer->norms_gpu);   
-    layer->output_gpu =  cuda_make_array(layer->output, h * w * c * batch);
-    layer->delta_gpu =   cuda_make_array(layer->delta, h * w * c * batch);
-    layer->squared_gpu = cuda_make_array(layer->squared, h * w * c * batch);
-    layer->norms_gpu =   cuda_make_array(layer->norms, h * w * c * batch);
+    cuda_free(layer->delta_gpu);
+    cuda_free(layer->squared_gpu);
+    cuda_free(layer->norms_gpu);
+    layer->output_gpu =  cuda_make_array(layer->output, h * w * c * batch, stream);
+    layer->delta_gpu =   cuda_make_array(layer->delta, h * w * c * batch, stream);
+    layer->squared_gpu = cuda_make_array(layer->squared, h * w * c * batch, stream);
+    layer->norms_gpu =   cuda_make_array(layer->norms, h * w * c * batch, stream);
 #endif
 }
 
@@ -113,29 +113,29 @@ void forward_normalization_layer_gpu(const layer layer, network net)
     int w = layer.w;
     int h = layer.h;
     int c = layer.c;
-    scal_gpu(w*h*c*layer.batch, 0, layer.squared_gpu, 1);
+    scal_gpu(w*h*c*layer.batch, 0, layer.squared_gpu, 1, net.stream);
 
     for(b = 0; b < layer.batch; ++b){
         float *squared = layer.squared_gpu + w*h*c*b;
         float *norms   = layer.norms_gpu + w*h*c*b;
         float *input   = net.input_gpu + w*h*c*b;
-        pow_gpu(w*h*c, 2, input, 1, squared, 1);
+        pow_gpu(w*h*c, 2, input, 1, squared, 1, net.stream);
 
-        const_gpu(w*h, layer.kappa, norms, 1);
+        const_gpu(w*h, layer.kappa, norms, 1, net.stream);
         for(k = 0; k < layer.size/2; ++k){
-            axpy_gpu(w*h, layer.alpha, squared + w*h*k, 1, norms, 1);
+            axpy_gpu(w*h, layer.alpha, squared + w*h*k, 1, norms, 1, net.stream);
         }
 
         for(k = 1; k < layer.c; ++k){
-            copy_gpu(w*h, norms + w*h*(k-1), 1, norms + w*h*k, 1);
+            copy_gpu(w*h, norms + w*h*(k-1), 1, norms + w*h*k, 1, net.stream);
             int prev = k - ((layer.size-1)/2) - 1;
             int next = k + (layer.size/2);
-            if(prev >= 0)      axpy_gpu(w*h, -layer.alpha, squared + w*h*prev, 1, norms + w*h*k, 1);
-            if(next < layer.c) axpy_gpu(w*h,  layer.alpha, squared + w*h*next, 1, norms + w*h*k, 1);
+            if(prev >= 0)      axpy_gpu(w*h, -layer.alpha, squared + w*h*prev, 1, norms + w*h*k, 1, net.stream);
+            if(next < layer.c) axpy_gpu(w*h,  layer.alpha, squared + w*h*next, 1, norms + w*h*k, 1, net.stream);
         }
     }
-    pow_gpu(w*h*c*layer.batch, -layer.beta, layer.norms_gpu, 1, layer.output_gpu, 1);
-    mul_gpu(w*h*c*layer.batch, net.input_gpu, 1, layer.output_gpu, 1);
+    pow_gpu(w*h*c*layer.batch, -layer.beta, layer.norms_gpu, 1, layer.output_gpu, 1, net.stream);
+    mul_gpu(w*h*c*layer.batch, net.input_gpu, 1, layer.output_gpu, 1, net.stream);
 }
 
 void backward_normalization_layer_gpu(const layer layer, network net)
@@ -145,7 +145,7 @@ void backward_normalization_layer_gpu(const layer layer, network net)
     int w = layer.w;
     int h = layer.h;
     int c = layer.c;
-    pow_gpu(w*h*c*layer.batch, -layer.beta, layer.norms_gpu, 1, net.delta_gpu, 1);
-    mul_gpu(w*h*c*layer.batch, layer.delta_gpu, 1, net.delta_gpu, 1);
+    pow_gpu(w*h*c*layer.batch, -layer.beta, layer.norms_gpu, 1, net.delta_gpu, 1, net.stream);
+    mul_gpu(w*h*c*layer.batch, layer.delta_gpu, 1, net.delta_gpu, 1, net.stream);
 }
 #endif

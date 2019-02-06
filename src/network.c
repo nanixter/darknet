@@ -50,9 +50,9 @@ load_args get_base_args(network *net)
     return args;
 }
 
-network *load_network(char *cfg, char *weights, int clear)
+network *load_network(char *cfg, char *weights, int clear, cudaStream_t *stream)
 {
-    network *net = parse_network_cfg(cfg);
+    network *net = parse_network_cfg(cfg, stream);
     if(weights && weights[0] != 0){
         load_weights(net, weights);
     }
@@ -73,10 +73,10 @@ void reset_network_state(network *net, int b)
         #ifdef GPU
         layer l = net->layers[i];
         if(l.state_gpu){
-            fill_gpu(l.outputs, 0, l.state_gpu + l.outputs*b, 1);
+            fill_gpu(l.outputs, 0, l.state_gpu + l.outputs*b, 1, net.stream);
         }
         if(l.h_gpu){
-            fill_gpu(l.outputs, 0, l.h_gpu + l.outputs*b, 1);
+            fill_gpu(l.outputs, 0, l.h_gpu + l.outputs*b, 1, net.stream);
         }
         #endif
     }
@@ -373,29 +373,29 @@ int resize_network(network *net, int w, int h)
     for (i = 0; i < net->n; ++i){
         layer l = net->layers[i];
         if(l.type == CONVOLUTIONAL){
-            resize_convolutional_layer(&l, w, h);
+            resize_convolutional_layer(&l, w, h, net->stream);
         }else if(l.type == CROP){
-            resize_crop_layer(&l, w, h);
+            resize_crop_layer(&l, w, h, net->stream);
         }else if(l.type == MAXPOOL){
-            resize_maxpool_layer(&l, w, h);
+            resize_maxpool_layer(&l, w, h, net->stream);
         }else if(l.type == REGION){
-            resize_region_layer(&l, w, h);
+            resize_region_layer(&l, w, h, net->stream);
         }else if(l.type == YOLO){
-            resize_yolo_layer(&l, w, h);
+            resize_yolo_layer(&l, w, h, net->stream);
         }else if(l.type == ROUTE){
-            resize_route_layer(&l, net);
+            resize_route_layer(&l, net, net->stream);
         }else if(l.type == SHORTCUT){
-            resize_shortcut_layer(&l, w, h);
+            resize_shortcut_layer(&l, w, h, net->stream);
         }else if(l.type == UPSAMPLE){
-            resize_upsample_layer(&l, w, h);
+            resize_upsample_layer(&l, w, h, net->stream);
         }else if(l.type == REORG){
-            resize_reorg_layer(&l, w, h);
+            resize_reorg_layer(&l, w, h, net->stream);
         }else if(l.type == AVGPOOL){
-            resize_avgpool_layer(&l, w, h);
+            resize_avgpool_layer(&l, w, h, net->stream);
         }else if(l.type == NORMALIZATION){
-            resize_normalization_layer(&l, w, h);
+            resize_normalization_layer(&l, w, h, net->stream);
         }else if(l.type == COST){
-            resize_cost_layer(&l, inputs);
+            resize_cost_layer(&l, inputs, net->stream);
         }else{
             error("Cannot resize this type of layer");
         }
@@ -421,10 +421,10 @@ int resize_network(network *net, int w, int h)
     if(gpu_index >= 0){
         cuda_free(net->input_gpu);
         cuda_free(net->truth_gpu);
-        net->input_gpu = cuda_make_array(net->input, net->inputs*net->batch);
-        net->truth_gpu = cuda_make_array(net->truth, net->truths*net->batch);
+        net->input_gpu = cuda_make_array(net->input, net->inputs*net->batch, net->stream);
+        net->truth_gpu = cuda_make_array(net->truth, net->truths*net->batch, net->stream);
         if(workspace_size){
-            net->workspace = cuda_make_array(0, (workspace_size-1)/sizeof(float)+1);
+            net->workspace = cuda_make_array(0, (workspace_size-1)/sizeof(float)+1, net->stream);
             net->workspace_size = (workspace_size-1)/sizeof(float)+1;
         }
     }else {
@@ -803,7 +803,7 @@ void forward_network_gpubuffer(network *netp, int bufferDeviceNum)
         net.index = i;
         layer l = net.layers[i];
         if(l.delta_gpu){
-            fill_gpu(l.outputs * l.batch, 0, l.delta_gpu, 1);
+            fill_gpu(l.outputs * l.batch, 0, l.delta_gpu, 1, net.stream);
         }
 		l.forward_gpu(l, net);
         net.input_gpu = l.output_gpu;
@@ -832,7 +832,7 @@ void forward_network_gpu(network *netp)
         net.index = i;
         layer l = net.layers[i];
         if(l.delta_gpu){
-            fill_gpu(l.outputs * l.batch, 0, l.delta_gpu, 1);
+            fill_gpu(l.outputs * l.batch, 0, l.delta_gpu, 1, net.stream);
         }
         l.forward_gpu(l, net);
         net.input_gpu = l.output_gpu;
@@ -902,9 +902,9 @@ void harmless_update_network_gpu(network *netp)
     int i;
     for(i = 0; i < net.n; ++i){
         layer l = net.layers[i];
-        if(l.weight_updates_gpu) fill_gpu(l.nweights, 0, l.weight_updates_gpu, 1);
-        if(l.bias_updates_gpu) fill_gpu(l.nbiases, 0, l.bias_updates_gpu, 1);
-        if(l.scale_updates_gpu) fill_gpu(l.nbiases, 0, l.scale_updates_gpu, 1);
+        if(l.weight_updates_gpu) fill_gpu(l.nweights, 0, l.weight_updates_gpu, 1, net.stream);
+        if(l.bias_updates_gpu) fill_gpu(l.nbiases, 0, l.bias_updates_gpu, 1, net.stream);
+        if(l.scale_updates_gpu) fill_gpu(l.nbiases, 0, l.scale_updates_gpu, 1, net.stream);
     }
 }
 

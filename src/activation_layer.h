@@ -5,7 +5,7 @@
 #include "layer.h"
 #include "network.h"
 
-layer make_activation_layer(int batch, int inputs, ACTIVATION activation);
+layer make_activation_layer(int batch, int inputs, ACTIVATION activation, cudaStream_t *stream);
 
 void forward_activation_layer(layer l, network net);
 void backward_activation_layer(layer l, network net);

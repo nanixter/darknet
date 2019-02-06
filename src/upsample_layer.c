@@ -4,7 +4,7 @@
 
 #include <stdio.h>
 
-layer make_upsample_layer(int batch, int w, int h, int c, int stride)
+layer make_upsample_layer(int batch, int w, int h, int c, int stride, cudaStream_t *stream)
 {
     layer l = {0};
     l.type = UPSAMPLE;
@@ -33,15 +33,15 @@ layer make_upsample_layer(int batch, int w, int h, int c, int stride)
     l.forward_gpu = forward_upsample_layer_gpu;
     l.backward_gpu = backward_upsample_layer_gpu;
 
-    l.delta_gpu =  cuda_make_array(l.delta, l.outputs*batch);
-    l.output_gpu = cuda_make_array(l.output, l.outputs*batch);
+    l.delta_gpu =  cuda_make_array(l.delta, l.outputs*batch, stream);
+    l.output_gpu = cuda_make_array(l.output, l.outputs*batch, stream);
     #endif
     if(l.reverse) fprintf(stderr, "downsample         %2dx  %4d x%4d x%4d   ->  %4d x%4d x%4d\n", stride, w, h, c, l.out_w, l.out_h, l.out_c);
     else fprintf(stderr, "upsample           %2dx  %4d x%4d x%4d   ->  %4d x%4d x%4d\n", stride, w, h, c, l.out_w, l.out_h, l.out_c);
     return l;
 }
 
-void resize_upsample_layer(layer *l, int w, int h)
+void resize_upsample_layer(layer *l, int w, int h, cudaStream_t *stream)
 {
     l->w = w;
     l->h = h;
@@ -59,10 +59,10 @@ void resize_upsample_layer(layer *l, int w, int h)
 #ifdef GPU
     cuda_free(l->output_gpu);
     cuda_free(l->delta_gpu);
-    l->output_gpu  = cuda_make_array(l->output, l->outputs*l->batch);
-    l->delta_gpu   = cuda_make_array(l->delta,  l->outputs*l->batch);
+    l->output_gpu  = cuda_make_array(l->output, l->outputs*l->batch, stream);
+    l->delta_gpu   = cuda_make_array(l->delta,  l->outputs*l->batch, stream);
 #endif
-    
+
 }
 
 void forward_upsample_layer(const layer l, network net)
@@ -87,20 +87,20 @@ void backward_upsample_layer(const layer l, network net)
 #ifdef GPU
 void forward_upsample_layer_gpu(const layer l, network net)
 {
-    fill_gpu(l.outputs*l.batch, 0, l.output_gpu, 1);
+    fill_gpu(l.outputs*l.batch, 0, l.output_gpu, 1, net.stream);
     if(l.reverse){
-        upsample_gpu(l.output_gpu, l.out_w, l.out_h, l.c, l.batch, l.stride, 0, l.scale, net.input_gpu);
+        upsample_gpu(l.output_gpu, l.out_w, l.out_h, l.c, l.batch, l.stride, 0, l.scale, net.input_gpu, net.stream);
     }else{
-        upsample_gpu(net.input_gpu, l.w, l.h, l.c, l.batch, l.stride, 1, l.scale, l.output_gpu);
+        upsample_gpu(net.input_gpu, l.w, l.h, l.c, l.batch, l.stride, 1, l.scale, l.output_gpu, net.stream);
     }
 }
 
 void backward_upsample_layer_gpu(const layer l, network net)
 {
     if(l.reverse){
-        upsample_gpu(l.delta_gpu, l.out_w, l.out_h, l.c, l.batch, l.stride, 1, l.scale, net.delta_gpu);
+        upsample_gpu(l.delta_gpu, l.out_w, l.out_h, l.c, l.batch, l.stride, 1, l.scale, net.delta_gpu, net.stream);
     }else{
-        upsample_gpu(net.delta_gpu, l.w, l.h, l.c, l.batch, l.stride, 0, l.scale, l.delta_gpu);
+        upsample_gpu(net.delta_gpu, l.w, l.h, l.c, l.batch, l.stride, 0, l.scale, l.delta_gpu, net.stream);
     }
 }
 #endif

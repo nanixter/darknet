@@ -12,13 +12,13 @@ typedef layer local_layer;
 #ifdef GPU
 void forward_local_layer_gpu(local_layer layer, network net);
 void backward_local_layer_gpu(local_layer layer, network net);
-void update_local_layer_gpu(local_layer layer, update_args a);
+void update_local_layer_gpu(local_layer layer, update_args a, cudaStream_t *stream);
 
 void push_local_layer(local_layer layer);
 void pull_local_layer(local_layer layer);
 #endif
 
-local_layer make_local_layer(int batch, int h, int w, int c, int n, int size, int stride, int pad, ACTIVATION activation);
+local_layer make_local_layer(int batch, int h, int w, int c, int n, int size, int stride, int pad, ACTIVATION activation, cudaStream_t *stream);
 
 void forward_local_layer(const local_layer layer, network net);
 void backward_local_layer(local_layer layer, network net);

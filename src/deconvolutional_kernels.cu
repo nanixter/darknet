@@ -22,7 +22,7 @@ extern "C" void forward_deconvolutional_layer_gpu(layer l, network net)
     int n = l.h*l.w;
     int k = l.c;
 
-    fill_gpu(l.outputs*l.batch, 0, l.output_gpu, 1);
+    fill_gpu(l.outputs*l.batch, 0, l.output_gpu, 1, net.stream);
 
     for(i = 0; i < l.batch; ++i){
         float *a = l.weights_gpu;
@@ -31,12 +31,12 @@ extern "C" void forward_deconvolutional_layer_gpu(layer l, network net)
 
         gemm_gpu(1,0,m,n,k,1,a,m,b,n,0,c,n);
 
-        col2im_gpu(net.workspace, l.out_c, l.out_h, l.out_w, l.size, l.stride, l.pad, l.output_gpu+i*l.outputs);
+        col2im_gpu(net.workspace, l.out_c, l.out_h, l.out_w, l.size, l.stride, l.pad, l.output_gpu+i*l.outputs, net.stream);
     }
     if (l.batch_normalize) {
         forward_batchnorm_layer_gpu(l, net);
     } else {
-        add_bias_gpu(l.output_gpu, l.biases_gpu, l.batch, l.n, l.out_w*l.out_h);
+        add_bias_gpu(l.output_gpu, l.biases_gpu, l.batch, l.n, l.out_w*l.out_h, net.stream);
     }
     activate_array_gpu(l.output_gpu, l.batch*l.n*l.out_w*l.out_h, l.activation, net.stream);
 }
@@ -45,13 +45,13 @@ extern "C" void backward_deconvolutional_layer_gpu(layer l, network net)
 {
     int i;
 
-    //constrain_gpu(l.outputs*l.batch, 1, l.delta_gpu, 1);
+    //constrain_gpu(l.outputs*l.batch, 1, l.delta_gpu, 1, net.stream);
     gradient_array_gpu(l.output_gpu, l.outputs*l.batch, l.activation, l.delta_gpu, net.stream);
 
     if(l.batch_normalize){
         backward_batchnorm_layer_gpu(l, net);
     } else {
-        backward_bias_gpu(l.bias_updates_gpu, l.delta_gpu, l.batch, l.n, l.out_w*l.out_h);
+        backward_bias_gpu(l.bias_updates_gpu, l.delta_gpu, l.batch, l.n, l.out_w*l.out_h, net.stream);
     }
 
     //if(net.delta_gpu) memset(net.delta_gpu, 0, l.batch*l.h*l.w*l.c*sizeof(float));
@@ -66,7 +66,7 @@ extern "C" void backward_deconvolutional_layer_gpu(layer l, network net)
         float *c = l.weight_updates_gpu;
 
         im2col_gpu(l.delta_gpu + i*l.outputs, l.out_c, l.out_h, l.out_w,
-                l.size, l.stride, l.pad, b);
+                l.size, l.stride, l.pad, b, net.stream);
         gemm_gpu(0,1,m,n,k,1,a,k,b,k,1,c,n);
 
         if(net.delta_gpu){
@@ -109,7 +109,7 @@ extern "C" void push_deconvolutional_layer(layer l)
     }
 }
 
-void update_deconvolutional_layer_gpu(layer l, update_args a)
+void update_deconvolutional_layer_gpu(layer l, update_args a, cudaStream_t *stream)
 {
     float learning_rate = a.learning_rate*l.learning_rate_scale;
     float momentum = a.momentum;
@@ -117,22 +117,22 @@ void update_deconvolutional_layer_gpu(layer l, update_args a)
     int batch = a.batch;
 
     if(a.adam){
-        adam_update_gpu(l.weights_gpu, l.weight_updates_gpu, l.m_gpu, l.v_gpu, a.B1, a.B2, a.eps, decay, learning_rate, l.nweights, batch, a.t);
-        adam_update_gpu(l.biases_gpu, l.bias_updates_gpu, l.bias_m_gpu, l.bias_v_gpu, a.B1, a.B2, a.eps, decay, learning_rate, l.n, batch, a.t);
+        adam_update_gpu(l.weights_gpu, l.weight_updates_gpu, l.m_gpu, l.v_gpu, a.B1, a.B2, a.eps, decay, learning_rate, l.nweights, batch, a.t, stream);
+        adam_update_gpu(l.biases_gpu, l.bias_updates_gpu, l.bias_m_gpu, l.bias_v_gpu, a.B1, a.B2, a.eps, decay, learning_rate, l.n, batch, a.t, stream);
         if(l.scales_gpu){
-            adam_update_gpu(l.scales_gpu, l.scale_updates_gpu, l.scale_m_gpu, l.scale_v_gpu, a.B1, a.B2, a.eps, decay, learning_rate, l.n, batch, a.t);
+            adam_update_gpu(l.scales_gpu, l.scale_updates_gpu, l.scale_m_gpu, l.scale_v_gpu, a.B1, a.B2, a.eps, decay, learning_rate, l.n, batch, a.t, stream);
         }
     }else{
-        axpy_gpu(l.nweights, -decay*batch, l.weights_gpu, 1, l.weight_updates_gpu, 1);
-        axpy_gpu(l.nweights, learning_rate/batch, l.weight_updates_gpu, 1, l.weights_gpu, 1);
-        scal_gpu(l.nweights, momentum, l.weight_updates_gpu, 1);
+        axpy_gpu(l.nweights, -decay*batch, l.weights_gpu, 1, l.weight_updates_gpu, 1, stream);
+        axpy_gpu(l.nweights, learning_rate/batch, l.weight_updates_gpu, 1, l.weights_gpu, 1, stream);
+        scal_gpu(l.nweights, momentum, l.weight_updates_gpu, 1, stream);
 
-        axpy_gpu(l.n, learning_rate/batch, l.bias_updates_gpu, 1, l.biases_gpu, 1);
-        scal_gpu(l.n, momentum, l.bias_updates_gpu, 1);
+        axpy_gpu(l.n, learning_rate/batch, l.bias_updates_gpu, 1, l.biases_gpu, 1, stream);
+        scal_gpu(l.n, momentum, l.bias_updates_gpu, 1, stream);
 
         if(l.scales_gpu){
-            axpy_gpu(l.n, learning_rate/batch, l.scale_updates_gpu, 1, l.scales_gpu, 1);
-            scal_gpu(l.n, momentum, l.scale_updates_gpu, 1);
+            axpy_gpu(l.n, learning_rate/batch, l.scale_updates_gpu, 1, l.scales_gpu, 1, stream);
+            scal_gpu(l.n, momentum, l.scale_updates_gpu, 1, stream);
         }
     }
 }
