@@ -73,10 +73,10 @@ void reset_network_state(network *net, int b)
         #ifdef GPU
         layer l = net->layers[i];
         if(l.state_gpu){
-            fill_gpu(l.outputs, 0, l.state_gpu + l.outputs*b, 1, net.stream);
+            fill_gpu(l.outputs, 0, l.state_gpu + l.outputs*b, 1, net->stream);
         }
         if(l.h_gpu){
-            fill_gpu(l.outputs, 0, l.h_gpu + l.outputs*b, 1, net.stream);
+            fill_gpu(l.outputs, 0, l.h_gpu + l.outputs*b, 1, net->stream);
         }
         #endif
     }

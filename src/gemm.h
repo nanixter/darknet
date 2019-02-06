@@ -1,5 +1,6 @@
 #ifndef GEMM_H
 #define GEMM_H
+#include "cuda.h"
 
 void gemm_bin(int M, int N, int K, float ALPHA,
         char  *A, int lda,

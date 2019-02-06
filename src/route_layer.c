@@ -37,7 +37,7 @@ route_layer make_route_layer(int batch, int n, int *input_layers, int *input_siz
     return l;
 }
 
-void resize_route_layer(route_layer *l, network *net)
+void resize_route_layer(route_layer *l, network *net, cudaStream_t *stream)
 {
     int i;
     layer first = net->layers[l->input_layers[0]];
