@@ -28,9 +28,9 @@ layer make_logistic_layer(int batch, int inputs)
     l.forward_gpu = forward_logistic_layer_gpu;
     l.backward_gpu = backward_logistic_layer_gpu;
 
-    l.output_gpu = cuda_make_array(l.output, inputs*batch); 
-    l.loss_gpu = cuda_make_array(l.loss, inputs*batch); 
-    l.delta_gpu = cuda_make_array(l.delta, inputs*batch); 
+    l.output_gpu = cuda_make_array(l.output, inputs*batch);
+    l.loss_gpu = cuda_make_array(l.loss, inputs*batch);
+    l.delta_gpu = cuda_make_array(l.delta, inputs*batch);
     #endif
     return l;
 }
@@ -55,7 +55,7 @@ void backward_logistic_layer(const layer l, network net)
 void forward_logistic_layer_gpu(const layer l, network net)
 {
     copy_gpu(l.outputs*l.batch, net.input_gpu, 1, l.output_gpu, 1);
-    activate_array_gpu(l.output_gpu, l.outputs*l.batch, LOGISTIC);
+    activate_array_gpu(l.output_gpu, l.outputs*l.batch, LOGISTIC, net.stream);
     if(net.truth){
         logistic_x_ent_gpu(l.batch*l.inputs, l.output_gpu, net.truth_gpu, l.delta_gpu, l.loss_gpu);
         cuda_pull_array(l.loss_gpu, l.loss, l.batch*l.inputs);

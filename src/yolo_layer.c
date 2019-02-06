@@ -357,9 +357,9 @@ void forward_yolo_layer_gpu(const layer l, network net)
     for (b = 0; b < l.batch; ++b){
         for(n = 0; n < l.n; ++n){
             int index = entry_index(l, b, n*l.w*l.h, 0);
-            activate_array_gpu(l.output_gpu + index, 2*l.w*l.h, LOGISTIC);
+            activate_array_gpu(l.output_gpu + index, 2*l.w*l.h, LOGISTIC, net.stream);
             index = entry_index(l, b, n*l.w*l.h, 4);
-            activate_array_gpu(l.output_gpu + index, (1+l.classes)*l.w*l.h, LOGISTIC);
+            activate_array_gpu(l.output_gpu + index, (1+l.classes)*l.w*l.h, LOGISTIC, net.stream);
         }
     }
     if(!net.train || l.onlyforward){

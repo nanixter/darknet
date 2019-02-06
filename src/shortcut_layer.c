@@ -55,7 +55,7 @@ void resize_shortcut_layer(layer *l, int w, int h)
     l->output_gpu  = cuda_make_array(l->output, l->outputs*l->batch);
     l->delta_gpu   = cuda_make_array(l->delta,  l->outputs*l->batch);
 #endif
-    
+
 }
 
 
@@ -78,7 +78,7 @@ void forward_shortcut_layer_gpu(const layer l, network net)
 {
     copy_gpu(l.outputs*l.batch, net.input_gpu, 1, l.output_gpu, 1);
     shortcut_gpu(l.batch, l.w, l.h, l.c, net.layers[l.index].output_gpu, l.out_w, l.out_h, l.out_c, l.alpha, l.beta, l.output_gpu);
-    activate_array_gpu(l.output_gpu, l.outputs*l.batch, l.activation);
+    activate_array_gpu(l.output_gpu, l.outputs*l.batch, l.activation, net.stream);
 }
 
 void backward_shortcut_layer_gpu(const layer l, network net)

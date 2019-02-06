@@ -496,6 +496,7 @@ typedef struct network{
     float *truth_gpu;
     float *delta_gpu;
     float *output_gpu;
+    cudaStream_t *stream;
 #endif
 
 } network;

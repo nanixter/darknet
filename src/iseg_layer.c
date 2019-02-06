@@ -112,7 +112,7 @@ void forward_iseg_layer(const layer l, network net)
         memset(l.counts, 0, 90*sizeof(int));
         for(i = 0; i < 90; ++i){
             fill_cpu(ids, 0, l.sums[i], 1);
-            
+
             int c = net.truth[b*l.truths + i*(l.w*l.h+1)];
             if(c < 0) break;
             // add up metric embeddings for each instance
@@ -204,7 +204,7 @@ void forward_iseg_layer_gpu(const layer l, network net)
     copy_gpu(l.batch*l.inputs, net.input_gpu, 1, l.output_gpu, 1);
     int b;
     for (b = 0; b < l.batch; ++b){
-        activate_array_gpu(l.output_gpu + b*l.outputs, l.classes*l.w*l.h, LOGISTIC);
+        activate_array_gpu(l.output_gpu + b*l.outputs, l.classes*l.w*l.h, LOGISTIC, net.stream);
         //if(l.extra) activate_array_gpu(l.output_gpu + b*l.outputs + l.classes*l.w*l.h, l.extra*l.w*l.h, LOGISTIC);
     }
 
