@@ -267,11 +267,11 @@ void update_local_layer_gpu(local_layer l, update_args a, cudaStream_t *stream)
 
     int locations = l.out_w*l.out_h;
     int size = l.size*l.size*l.c*l.n*locations;
-    axpy_gpu(l.outputs, learning_rate/batch, l.bias_updates_gpu, 1, l.biases_gpu, 1, net.stream);
+    axpy_gpu(l.outputs, learning_rate/batch, l.bias_updates_gpu, 1, l.biases_gpu, 1, stream);
     scal_gpu(l.outputs, momentum, l.bias_updates_gpu, 1, stream);
 
-    axpy_gpu(size, -decay*batch, l.weights_gpu, 1, l.weight_updates_gpu, 1, net.stream);
-    axpy_gpu(size, learning_rate/batch, l.weight_updates_gpu, 1, l.weights_gpu, 1, net.stream);
+    axpy_gpu(size, -decay*batch, l.weights_gpu, 1, l.weight_updates_gpu, 1, stream);
+    axpy_gpu(size, learning_rate/batch, l.weight_updates_gpu, 1, l.weights_gpu, 1, stream);
     scal_gpu(size, momentum, l.weight_updates_gpu, 1, stream);
 }
 

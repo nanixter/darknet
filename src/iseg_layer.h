@@ -5,10 +5,10 @@
 #include "layer.h"
 #include "network.h"
 
-layer make_iseg_layer(int batch, int w, int h, int classes, int ids);
+layer make_iseg_layer(int batch, int w, int h, int classes, int ids, cudaStream_t *stream);
 void forward_iseg_layer(const layer l, network net);
 void backward_iseg_layer(const layer l, network net);
-void resize_iseg_layer(layer *l, int w, int h);
+void resize_iseg_layer(layer *l, int w, int h, cudaStream_t *stream);
 int iseg_num_detections(layer l, float thresh);
 
 #ifdef GPU
