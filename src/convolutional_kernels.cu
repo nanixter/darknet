@@ -87,7 +87,7 @@ void forward_convolutional_layer_gpu(convolutional_layer l, network net)
 
 #ifdef CUDNN
     float one = 1;
-    cudnnConvolutionForward(cudnn_handle(),
+    cudnnConvolutionForward(cudnn_handle(net.stream),
                 &one,
                 l.srcTensorDesc,
                 net.input_gpu,
@@ -195,7 +195,7 @@ void backward_convolutional_layer_gpu(convolutional_layer l, network net)
     if(l.xnor) net.input_gpu = l.binary_input_gpu;
 #ifdef CUDNN
     float one = 1;
-    cudnnConvolutionBackwardFilter(cudnn_handle(),
+    cudnnConvolutionBackwardFilter(cudnn_handle(stream),
             &one,
             l.srcTensorDesc,
             net.input_gpu,
@@ -211,7 +211,7 @@ void backward_convolutional_layer_gpu(convolutional_layer l, network net)
 
     if(net.delta_gpu){
         if(l.binary || l.xnor) swap_binary(&l);
-        cudnnConvolutionBackwardData(cudnn_handle(),
+        cudnnConvolutionBackwardData(cudnn_handle(stream),
                 &one,
                 l.weightDesc,
                 l.weights_gpu,

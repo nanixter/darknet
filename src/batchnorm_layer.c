@@ -194,7 +194,7 @@ void forward_batchnorm_layer_gpu(layer l, network net)
 #ifdef CUDNN
         float one = 1;
         float zero = 0;
-        cudnnBatchNormalizationForwardTraining(cudnn_handle(),
+        cudnnBatchNormalizationForwardTraining(cudnn_handle(net.stream),
                 CUDNN_BATCHNORM_SPATIAL,
                 &one,
                 &zero,
@@ -231,7 +231,7 @@ void forward_batchnorm_layer_gpu(layer l, network net)
     #ifdef CUDNN
         float one = 1;
         float zero = 0;
-        cudnnBatchNormalizationForwardInference(cudnn_handle(),
+        cudnnBatchNormalizationForwardInference(cudnn_handle(net.stream),
             CUDNN_BATCHNORM_SPATIAL,
             &one,
             &zero,
@@ -263,7 +263,7 @@ void backward_batchnorm_layer_gpu(layer l, network net)
 #ifdef CUDNN
     float one = 1;
     float zero = 0;
-    cudnnBatchNormalizationBackward(cudnn_handle(),
+    cudnnBatchNormalizationBackward(cudnn_handle(net.stream),
             CUDNN_BATCHNORM_SPATIAL,
             &one,
             &zero,

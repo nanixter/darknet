@@ -62,16 +62,32 @@ dim3 cuda_gridsize(size_t n){
 }
 
 #ifdef CUDNN
-cudnnHandle_t cudnn_handle()
+cudnnHandle_t cudnn_handle(cudaStream_t * stream)
 {
-    static int init[16] = {0};
-    static cudnnHandle_t handle[16];
+    // We support a max of 8 streams per device and 4 devices...
+    // No default stream
+    static int init[32] = {0};
+    static cudaStream_t *streams[32] = {0};
+    static cudnnHandle_t handle[32];
+    // This is the offset into per device handles
     int i = cuda_get_device();
-    if(!init[i]) {
-        cudnnCreate(&handle[i]);
-        init[i] = 1;
+    int index = -1;
+    for (int j = i*8; j < i*8+8; j++) {
+        if (streams[j] == stream) {
+            index = j;
+            break;
+        }
     }
-    return handle[i];
+    if (index == -1) {
+        index = i*8;
+    }
+    if(!init[index]) {
+        cudnnCreate(&handle[index]);
+        cudnnSetStream(handle[index], *stream);
+        init[index] = 1;
+        streams[index] = stream;
+    }
+    return handle[index];
 }
 #endif
 

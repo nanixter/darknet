@@ -21,7 +21,7 @@ void add_bias_gpu(float *output, float *biases, int batch, int n, int size, cuda
 void backward_bias_gpu(float *bias_updates, float *delta, int batch, int n, int size, cudaStream_t *stream);
 void adam_update_gpu(float *w, float *d, float *m, float *v, float B1, float B2, float eps, float decay, float rate, int n, int batch, int t, cudaStream_t *stream);
 #ifdef CUDNN
-void cudnn_convolutional_setup(layer *l);
+void cudnn_convolutional_setup(layer *l, cudaStream_t *stream);
 #endif
 #endif
 

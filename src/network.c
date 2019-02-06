@@ -344,7 +344,7 @@ void set_batch_network(network *net, int b)
         net->layers[i].batch = b;
 #ifdef CUDNN
         if(net->layers[i].type == CONVOLUTIONAL){
-            cudnn_convolutional_setup(net->layers + i);
+            cudnn_convolutional_setup(net->layers + i, net->stream);
         }
         if(net->layers[i].type == DECONVOLUTIONAL){
             layer *l = net->layers + i;

@@ -13,7 +13,7 @@ float cuda_compare(float *x_gpu, float *x, size_t n, char *s);
 dim3 cuda_gridsize(size_t n);
 
 #ifdef CUDNN
-cudnnHandle_t cudnn_handle();
+cudnnHandle_t cudnn_handle(cudaStream_t * stream);
 #endif
 
 #endif

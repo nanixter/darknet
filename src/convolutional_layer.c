@@ -83,12 +83,12 @@ image get_convolutional_delta(convolutional_layer l)
     return float_to_image(l.out_w,l.out_h,l.out_c,l.delta);
 }
 
-static size_t get_workspace_size(layer l){
+static size_t get_workspace_size(layer l, cudaStream_t *stream){
 #ifdef CUDNN
     if(gpu_index >= 0){
         size_t most = 0;
         size_t s = 0;
-        cudnnGetConvolutionForwardWorkspaceSize(cudnn_handle(),
+        cudnnGetConvolutionForwardWorkspaceSize(cudnn_handle(stream),
                 l.srcTensorDesc,
                 l.weightDesc,
                 l.convDesc,
@@ -96,7 +96,7 @@ static size_t get_workspace_size(layer l){
                 l.fw_algo,
                 &s);
         if (s > most) most = s;
-        cudnnGetConvolutionBackwardFilterWorkspaceSize(cudnn_handle(),
+        cudnnGetConvolutionBackwardFilterWorkspaceSize(cudnn_handle(stream),
                 l.srcTensorDesc,
                 l.ddstTensorDesc,
                 l.convDesc,
@@ -104,7 +104,7 @@ static size_t get_workspace_size(layer l){
                 l.bf_algo,
                 &s);
         if (s > most) most = s;
-        cudnnGetConvolutionBackwardDataWorkspaceSize(cudnn_handle(),
+        cudnnGetConvolutionBackwardDataWorkspaceSize(cudnn_handle(stream),
                 l.weightDesc,
                 l.ddstTensorDesc,
                 l.convDesc,
@@ -120,7 +120,7 @@ static size_t get_workspace_size(layer l){
 
 #ifdef GPU
 #ifdef CUDNN
-void cudnn_convolutional_setup(layer *l)
+void cudnn_convolutional_setup(layer *l, cudaStream_t *stream)
 {
     #if(CUDNN_MAJOR >= 7)
     // Note: The library falls back to the default math mode CUDNN_DEFAULT_MATH when Tensor Core operations are not supported or not permitted.
@@ -149,7 +149,7 @@ void cudnn_convolutional_setup(layer *l)
     }
     #endif
 
-    cudnnGetConvolutionForwardAlgorithm(cudnn_handle(),
+    cudnnGetConvolutionForwardAlgorithm(cudnn_handle(stream),
             l->srcTensorDesc,
             l->weightDesc,
             l->convDesc,
@@ -157,7 +157,7 @@ void cudnn_convolutional_setup(layer *l)
             CUDNN_CONVOLUTION_FWD_SPECIFY_WORKSPACE_LIMIT,
             2000000000,
             &l->fw_algo);
-    cudnnGetConvolutionBackwardDataAlgorithm(cudnn_handle(),
+    cudnnGetConvolutionBackwardDataAlgorithm(cudnn_handle(stream),
             l->weightDesc,
             l->ddstTensorDesc,
             l->convDesc,
@@ -165,7 +165,7 @@ void cudnn_convolutional_setup(layer *l)
             CUDNN_CONVOLUTION_BWD_DATA_SPECIFY_WORKSPACE_LIMIT,
             2000000000,
             &l->bd_algo);
-    cudnnGetConvolutionBackwardFilterAlgorithm(cudnn_handle(),
+    cudnnGetConvolutionBackwardFilterAlgorithm(cudnn_handle(stream),
             l->srcTensorDesc,
             l->ddstTensorDesc,
             l->convDesc,
@@ -173,7 +173,7 @@ void cudnn_convolutional_setup(layer *l)
             CUDNN_CONVOLUTION_BWD_FILTER_SPECIFY_WORKSPACE_LIMIT,
             2000000000,
             &l->bf_algo);
-	l->workspace_size = get_workspace_size(*l);
+	l->workspace_size = get_workspace_size(*l, stream);
 }
 #endif
 #endif
@@ -320,11 +320,11 @@ convolutional_layer make_convolutional_layer(int batch, int h, int w, int c, int
         cudnnCreateTensorDescriptor(&l.ddstTensorDesc);
         cudnnCreateFilterDescriptor(&l.dweightDesc);
         cudnnCreateConvolutionDescriptor(&l.convDesc);
-        cudnn_convolutional_setup(&l);
+        cudnn_convolutional_setup(&l, stream);
 #endif
     }
 #endif
-    l.workspace_size = get_workspace_size(l);
+    l.workspace_size = get_workspace_size(l, stream);
     l.activation = activation;
 
     fprintf(stderr, "conv  %5d %2d x%2d /%2d  %4d x%4d x%4d   ->  %4d x%4d x%4d  %5.3f BFLOPs\n", n, size, size, stride, w, h, c, l.out_w, l.out_h, l.out_c, (2.0 * l.n * l.size*l.size*l.c/l.groups * l.out_h*l.out_w)/1000000000.);
@@ -407,10 +407,10 @@ void resize_convolutional_layer(convolutional_layer *l, int w, int h, cudaStream
         l->x_norm_gpu = cuda_make_array(l->output, l->batch*l->outputs, stream);
     }
 #ifdef CUDNN
-    cudnn_convolutional_setup(l);
+    cudnn_convolutional_setup(l, stream);
 #endif
 #endif
-    l->workspace_size = get_workspace_size(*l);
+    l->workspace_size = get_workspace_size(*l, stream);
 }
 
 void add_bias(float *output, float *biases, int batch, int n, int size)
