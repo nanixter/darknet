@@ -19,7 +19,7 @@ void constrain_gpu(int N, float ALPHA, float * X, int INCX, cudaStream_t *stream
 void pow_cpu(int N, float ALPHA, float *X, int INCX, float *Y, int INCY);
 void mul_cpu(int N, float *X, int INCX, float *Y, int INCY);
 
-int test_gpu_blas();
+// int test_gpu_blas();
 void shortcut_cpu(int batch, int w1, int h1, int c1, float *add, int w2, int h2, int c2, float s1, float s2, float *out);
 
 void mean_cpu(float *x, int batch, int filters, int spatial, float *mean);
