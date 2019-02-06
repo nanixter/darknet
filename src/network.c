@@ -890,7 +890,7 @@ void update_network_gpu(network *netp)
     for(i = 0; i < net.n; ++i){
         layer l = net.layers[i];
         if(l.update_gpu){
-            l.update_gpu(l, a);
+            l.update_gpu(l, a, net.stream);
         }
     }
 }
