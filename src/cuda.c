@@ -73,13 +73,19 @@ cudnnHandle_t cudnn_handle(cudaStream_t * stream)
     int i = cuda_get_device();
     int index = -1;
     for (int j = i*8; j < i*8+8; j++) {
-        if (streams[j] == stream) {
+        if (init[j] && streams[j] == stream) {
             index = j;
             break;
         }
     }
     if (index == -1) {
-        index = i*8;
+        for (int j = i*8; j < i*8+8; j++) {
+            if (init[j])
+                continue;
+            else
+                index = j;
+        }
+        assert(index > i*8);
     }
     if(!init[index]) {
         cudnnCreate(&handle[index]);
