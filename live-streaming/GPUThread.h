@@ -47,11 +47,11 @@ public:
 	{
 		// Convert from x, y, w, h to xleft, ytop, xright, ybottom
 		//  ---------------------------------------------------------
-		// |xleft,ytop-> .----------.
-		// |			 |			|
-		// |			 |	   .<-----------(x,y,w,h)
-		// |			 |			|
-		// |			 .----------. <-xright,ybottom
+		// |    xleft,ytop-> .----------.
+		// |	             |          |
+		// |                 |	   .<---|--------(x,y,w,h)
+		// |                 |          |
+		// |                 .----------. <-xright,ybottom
 
 		float4 box;
 		box.x = std::max( (bbox.x - bbox.w/2.0) * width, 0.0);
@@ -129,38 +129,30 @@ public:
 			void *localDecompressedFrameDevice = nullptr;
 			if (frame->deviceNumDecompressed != gpuNum) {
 				copyBackNeeded = true;
-				status = cudaMemcpyPeer(frameDevice, gpuNum,
-										frame->decompressedFrameDevice,
-										frame->deviceNumDecompressed,
-										frame->decompressedFrameSize);
-				if (status != cudaSuccess)
-					std::cout << "GPUThread cudaMemcpyPeer Status = "<< cudaGetErrorName(status)
-							<< std::endl;
+				status = cudaMemcpyPeer(frameDevice, gpuNum, frame->decompressedFrameDevice,
+                                frame->deviceNumDecompressed,frame->decompressedFrameSize);
+				if (status != cudaSuccess) 
+          std::cout << "GPUThread cudaMemcpyPeer Status = "
+                    << cudaGetErrorName(status) << std::endl;
 				localDecompressedFrameDevice = frameDevice;
 			} else {
 				localDecompressedFrameDevice = frame->decompressedFrameDevice;
 			}
 
 			// Convert to RGB from NV12
-			status = cudaNV12ToRGBf(
-						static_cast<uint8_t *>(localDecompressedFrameDevice),
-						static_cast<float3 *>(decompressedFrameRGBDevice),
-						(size_t)inWidth,
-						(size_t)inHeight,
-						&RDstream);
+			status = cudaNV12ToRGBf(static_cast<uint8_t *>(localDecompressedFrameDevice),
+                              static_cast<float3 *>(decompressedFrameRGBDevice),
+                              (size_t)inWidth, (size_t)inHeight, &RDstream);
+      
 			if (status != cudaSuccess)
 				LOG(ERROR) << "cudaNV12ToRGBf Status = "<< cudaGetErrorName(status);
 			assert(status == cudaSuccess);
 
 			// Scale the frame to noPadWidth;noPadHeight
-			status = cudaResizeRGB(
-						static_cast<float3 *>(decompressedFrameRGBDevice),
-						(size_t)inWidth,
-						(size_t)inHeight,
-						static_cast<float3 *>(scaledFrameNoPad),
-						noPadWidth,
-						noPadHeight,
-						&RDstream);
+			status = cudaResizeRGB(static_cast<float3 *>(decompressedFrameRGBDevice),
+                             (size_t)inWidth, (size_t)inHeight,
+                             static_cast<float3 *>(scaledFrameNoPad),
+                             noPadWidth, noPadHeight, &RDstream);
 
 			if (status != cudaSuccess)
 				std::cout << "cudaResizeRGB Status = " << cudaGetErrorName(status) << std::endl;
@@ -172,28 +164,24 @@ public:
 			}
 
 			// Pad the image with black border if needed
-			nppStatus = nppiCopyConstBorder_32f_C3R(
-							static_cast<const Npp32f *>(scaledFrameNoPad),
-							noPadWidth*sizeof(float3),
-							(NppiSize){noPadWidth, noPadHeight},
-							static_cast<Npp32f *>(scaledFramePadded),
-							netWidth*sizeof(float3),
-							(NppiSize){netWidth, netHeight},
-							top,
-							left,
-							bordercolor);
+			nppStatus = nppiCopyConstBorder_32f_C3R(static_cast<const Npp32f *>(scaledFrameNoPad),
+                                              noPadWidth*sizeof(float3),
+                                              (NppiSize){noPadWidth, noPadHeight},
+                                              static_cast<Npp32f *>(scaledFramePadded),
+                                              netWidth*sizeof(float3),
+                                              (NppiSize){netWidth, netHeight},
+                                              top, left, bordercolor);
 
 			if (nppStatus != NPP_SUCCESS)
 				std::cout << "NPPCopyConstBorder Status = " << status << std::endl;
 			assert(nppStatus == NPP_SUCCESS);
 
 			// Convert from Packed to Planar RGB (Darknet operates on planar RGB)
-			nppStatus = nppiCopy_32f_C3P3R(
-							static_cast<const Npp32f *>(scaledFramePadded),
-							netWidth*sizeof(float3),
-							scaledPaddedPlanar,
-							netWidth*sizeof(float),
-							(NppiSize){netWidth, netHeight});
+			nppStatus = nppiCopy_32f_C3P3R(static_cast<const Npp32f *>(scaledFramePadded),
+                                     netWidth*sizeof(float3),
+                                     scaledPaddedPlanar,
+                                     netWidth*sizeof(float),
+                                     (NppiSize){netWidth, netHeight});
 
 			if (nppStatus != NPP_SUCCESS)
 				std::cout << "nppiCopy_32f_C3P3R Status = " << status << std::endl;
@@ -232,30 +220,12 @@ public:
 				numObjects++;
 			}
 
-			cudaSetDevice(gpuNum);
-			// if (frame->deviceNumRGB != gpuNum) {
-			// 	void *frameDevice = nullptr;
-			// 	cudaMalloc(&frameDevice, frame->decompressedFrameRGBSize);
-			// 	status = cudaMemcpyPeer(frameDevice, gpuNum, decompressedFrameRGBDevice,
-			// 					frame->deviceNumRGB, decompressedFrameRGBSize);
-			// 	if (status != cudaSuccess)
-			// 		std::cout << "DrawThread1 cudaMemcpyPeer Status = "<< cudaGetErrorName(status)
-			// 				<< std::endl;
-			// 	cudaFree(decompressedFrameRGBDevice);
-			// 	decompressedFrameRGBDevice = frameDevice;
-			// 	frame->deviceNumRGB = gpuNum;
-			// }
-
 			if (numObjects >0) {
 				cudaMemcpy(boundingBoxesDevice, boundingBoxes.data(), numObjects*sizeof(float4), cudaMemcpyHostToDevice);
-				status = cudaRectOutlineOverlay((float3 *)decompressedFrameRGBDevice,
-												(float3 *)decompressedFrameRGBDevice,
-												inWidth,
-												inHeight,
-												(float4 *)boundingBoxesDevice,
-												numObjects,
-												overlayColor,
-												&RDstream);
+				status = cudaRectOutlineOverlay((float3 *)decompressedFrameRGBDevice, 
+                                        (float3 *)decompressedFrameRGBDevice,
+                                        inWidth, inHeight, (float4 *)boundingBoxesDevice,
+                                        numObjects, overlayColor, &RDstream);
 				if (status != cudaSuccess)
 					std::cout << "cudaRectOutlineOverlay Status = " << cudaGetErrorName(status)	<< std::endl;
 				assert(status == cudaSuccess);
@@ -264,35 +234,19 @@ public:
 			// Free the detections
 			free_detections(work.dets, work.nboxes);
 
-			// if (frame->deviceNumDecompressed != gpuNum) {
-			// 	void *frameDevice = nullptr;
-			// 	cudaMalloc(&frameDevice, frame->decompressedFrameSize);
-			// 	status = cudaMemcpyPeer(frameDevice, gpuNum, frame->decompressedFrameDevice,
-			// 					frame->deviceNumDecompressed, frame->decompressedFrameSize);
-			// 	if (status != cudaSuccess)
-			// 		std::cout << "DrawThread2 cudaMemcpyPeer Status = "<< cudaGetErrorName(status)
-			// 				<< std::endl;
-			// 	cudaFree(frame->decompressedFrameDevice);
-			// 	frame->decompressedFrameDevice = frameDevice;
-			// 	frame->deviceNumDecompressed = gpuNum;
-			// }
-
 			// Convert to uchar4 BGRA8 that the Encoder wants
 			status = cudaRGBToBGRA8((float3 *) decompressedFrameRGBDevice,
-									(uchar4*) localDecompressedFrameDevice,
-									inWidth,
-									inHeight,
-									&RDstream);
+                              (uchar4*) localDecompressedFrameDevice,
+                              inWidth, inHeight, &RDstream);
 			if (status != cudaSuccess)
 				std::cout << "cudaRGBToRGBA8 Status = "<< cudaGetErrorName(status)	<< std::endl;
 			assert(status == cudaSuccess);
 
 			if (copyBackNeeded) {
 				status = cudaMemcpyPeer(frame->decompressedFrameDevice,
-										frame->deviceNumDecompressed,
-										localDecompressedFrameDevice,
-										gpuNum,
-										frame->decompressedFrameSize);
+                                frame->deviceNumDecompressed,
+                                localDecompressedFrameDevice,
+                                gpuNum, frame->decompressedFrameSize);
 				if (status != cudaSuccess)
 					std::cout << "GPUThread Copy Back cudaMemcpyPeer Status = "
 								<< cudaGetErrorName(status) << std::endl;
