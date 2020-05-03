@@ -67,6 +67,15 @@ using LiveStreamDetector::MutexQueue;
 
 #include "GPUThread.h"
 
+#include <openssl/conf.h>
+#include <openssl/evp.h>
+#include <openssl/err.h>
+
+#define KEY_SIZE = 256;
+#define BLOCK_SIZE = AES_BLOCK_SIZE;
+#define IV_SIZE = 128;
+#define MAX_FILE_SIZE = 100000;
+
 // The program is composed as follows:
 // main loads a video into memory and then demuxes (takes frames out of the
 // container, e.g., MP4 --- MP4 is not a binary encoding but a data
@@ -226,6 +235,112 @@ void encodeFrame(NvPipe *encoder, PointerMap<Frame> *inFrames,
     }
 }
 
+//takes dara from decryptedFile, ecrypts it, and writes it into "filename"
+//input: name of file to write encrypted data into
+//return: -1 if error, 1 otherwise
+int encryptFileCBC(char*& filename)
+{
+  FILE* keyFile;
+  FILE* ivFile;
+  FILE* fileToEncrypt;
+  AES_KEY key;
+  unsigned char* keyString = (unsigned char*)(malloc(KEY_SIZE*sizeof(char)));
+  unsigned char* iv = (unsigned char*)(malloc(BLOCK_SIZE*sizeof(char)));
+  fileToEncrypt = fopen("decryptedFile", "r");
+  keyFile = fopen("aesKey", "r");
+  ivFile = fopen("aesIv", "r");
+  fread(keyString, KEY_SIZE/8, 1, keyFile);
+  fread(iv, BLOCK_SIZE, 1, keyFile);
+  AES_set_encrypt_key((const unsigned char*)keyString, KEY_SIZE, &key);
+
+  fseek(fileToEncrypt, 0, SEEK_END);
+  long fsize = ftell(fileToEncrypt);
+  if(fsize == 0){
+    fclose(fileToEncrypt);
+    fclose(ivFile);
+    fclose(keyFile);
+
+    free(keyString);
+    free(iv);
+    free(cipherText);
+    free(plainText);
+    return -1;
+  }
+  fseek(fileToEncrypt, 0, SEEK_SET);
+  unsigned char* plainText = (unsigned char*)(malloc((fsize+1)*sizeof(char)));
+  fread(plainText, sizeof(char), fsize, fileToEncrypt);
+  unsigned char* cipherText = (unsigned char*)(malloc((fsize+BLOCK_SIZE+1)*sizeof(char)));
+  //encrypt plaintext and move data into ciphertext
+  AES_cbc_encrypt(plainText, cipherText, fsize, &key, iv, AES_ENCRYPT);
+  //write to"decryptedFile"
+  FILE* encryptedFile = fopen(filename, "w+"); //file descript
+
+  fwrite(cipherText, sizeof(char), strlen((char*)cipherText), encryptedFile);
+  fclose(encryptedFile);
+  fclose(fileToEncrypt);
+  fclose(ivFile);
+  fclose(keyFile);
+
+  free(keyString);
+  free(iv);
+  free(cipherText);
+  free(plainText);
+  return 1;
+}
+
+//takes a file of given name, decrypts data and writes it into "decryptedFile"
+//input: name of file containing encrypted data
+//return: -1 if error, 1 otherwise
+int decryptFileCBC(char*& filename)
+{
+  FILE* keyFile;
+  FILE* ivFile;
+  FILE* fileToDecrypt;
+  AES_KEY key;
+  unsigned char* keyString = (unsigned char*)(malloc(KEY_SIZE*sizeof(char)));
+  unsigned char* iv = (unsigned char*)(malloc(BLOCK_SIZE*sizeof(char)));
+  fileToDecrypt = fopen(filename, "w+");
+  keyFile = fopen("aesKey", "r");
+  ivFile = fopen("aesIv", "r");
+  fread(keyString, KEY_SIZE/8, 1, keyFile);
+  fread(iv, BLOCK_SIZE, 1, keyFile);
+  AES_set_decrypt_key((const unsigned char*) keyString, KEY_SIZE, &key);
+
+  fseek(fileToDecrypt, 0, SEEK_END);
+  long fsize = ftell(fileToDecrypt);
+  if(fsize == 0){
+    fclose(fileToEncrypt);
+    fclose(ivFile);
+    fclose(keyFile);
+
+    free(keyString);
+    free(iv);
+    free(cipherText);
+    free(plainText);
+    return -1;
+  }
+  fseek(fileToDecrypt, 0, SEEK_SET);
+  unsigned char* cipherText = (unsigned char*)(malloc((fsize+1)*sizeof(char)));
+  fread(cipherText, sizeof(char), fsize, fileToDecrypt);
+
+  unsigned char* plainText = (unsigned char*)(malloc((fsize+BLOCK_SIZE+1)*sizeof(char)));
+  //decrypt cyphertext and move data into plaintext
+  AES_cbc_encrypt(cipherText, plainText, fsize, &key, iv, AES_DECRYPT);
+  //write to"decryptedFile"
+  FILE* decryptedFile = fopen("decryptedFile", "w+");
+  fwrite(plainText, sizeof(char), strlen((char*)plainText), decryptedFile);
+  fclose(decryptedFile);
+  fclose(fileToDecrypt);
+  fclose(ivFile);
+  fclose(keyFile);
+
+  free(keyString);
+  free(iv);
+  free(cipherText);
+  free(plainText);
+  return 1;
+}
+
 /*
 * This function is used to mux an encoded frame into an MP4 container
 * Inputs:
@@ -239,7 +354,6 @@ void encodeFrame(NvPipe *encoder, PointerMap<Frame> *inFrames,
 *   FFmpegStreamer *muxer --- Muxer Object
 *   int fps --- target framerate;
 */
-
 void muxThread(int streamID, int lastFrameNum,
   PointerMap<Frame> *encodedFrameMap, FFmpegStreamer *muxer, int fps)
 {
@@ -293,13 +407,14 @@ int getNumPhysicalGPUs() {
   return numPhysicalGPUs;
 }
 
-void parseCommandLineArgs(int argc, char* argv[], char*& filename,
+void parseCommandLineArgs(int argc, char* argv[], char*& filename, char*& originalFilename
   int& numStreams, int& fps, int& maxOutstandingFrames, float& bitrateMbps,
   size_t& memToBurn, int& numPhysicalGPUs)
 {
+  filename = "decryptedFile";
   for (int i = 1; i < argc-1; i=i+2) {
     if(0==strcmp(argv[i], "-v")){
-      filename = argv[i+1];
+      originalFilename = argv[i+1];
     } else if (0 == strcmp(argv[i], "-f")) {
       fps = atoi(argv[i+1]);
     } else if (0 == strcmp(argv[i], "-r")) {
@@ -316,9 +431,14 @@ void parseCommandLineArgs(int argc, char* argv[], char*& filename,
     }
   }
 
-  if (NULL == filename) {
+  if (NULL == originalFilename) {
       LOG(ERROR) << "Please provide input video file.";
       printUsage(argv[0]);
+      return EXIT_FAILURE;
+  }
+
+  if(decryptFile(originalFilename) == -1){
+      LOG(ERROR) << "Error decrypting file.";
       return EXIT_FAILURE;
   }
 
@@ -355,6 +475,7 @@ int main(int argc, char* argv[])
   // Parse command-line options.
   // TODO: support RTMP ingestion (or some other network ingestion)
   char *filename;
+  char *originalFilename;
   int numStreams = 1;
   int fps = 30;
   int maxOutstandingFrames = 100;
@@ -362,7 +483,7 @@ int main(int argc, char* argv[])
   size_t memToBurn = 0*1024*1024;
   int numPhysicalGPUs = getNumPhysicalGPUs();
 
-  parseCommandLineArgs(filename, numStreams, fps, maxOutstandingFrames,
+  parseCommandLineArgs(filename, originalFilename, numStreams, fps, maxOutstandingFrames,
     bitrateMbps, memToBurn, numPhysicalGPUs)
 
   LOG(INFO) << "video file: " << filename;
@@ -567,6 +688,10 @@ int main(int argc, char* argv[])
   kill(pid,SIGINT);
   waitpid(pid,nullptr,0);
 #endif
-
+  //ecrypt "decryptedFile" and place back in originalFilename
+  if(encryptFileCBC(originalFilename) == -1){
+      LOG(ERROR) << "Error encrypting file.";
+      return EXIT_FAILURE;
+  }
   return 0;
 }
